@@ -16,6 +16,10 @@
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // The script is kept in this browser's localStorage (no sync between browsers or devices)
   var STORE_KEY = 'scriptin.capacitor.text', SAVE_MS = 400;
+  // The script is also kept in Bubble (DB Script), encrypted in this browser before it leaves:
+  // the address ends in #<token>.<key>; the token names the record, the key stays in the URL fragment,
+  // which browsers never send to a server, so the database only ever holds ciphertext
+  var HASH = /^#([a-z0-9]{32})\.([A-Za-z0-9_-]{43})$/, SYNC_MS = 2000, LOAD_WAIT_MS = 15000;
   function isBlank(s){ return s.trim() === ''; }
   function alpha(a, b){ return a.localeCompare(b, undefined, {sensitivity:'base'}); }
   // colorBlue of the other theme in OptS_theme_ui, used for the cursor on shot blocks
@@ -126,6 +130,109 @@
     css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:var(--sm-frame);color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:-16px 0 0 var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
+  // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
+  // Bridge to Bubble through Toolbox "JavaScript to Bubble" elements and "Run javascript" actions on the page scriptin:
+  //   bubble_fn_scriptCreate('new')            -> Bubble runs script-create, then calls window.smCreated('<token>')
+  //   bubble_fn_scriptSave('<token>|<cipher>') -> Bubble runs script-save (optional reply: window.smSaved('yes'|'no'))
+  //   bubble_fn_scriptLoad('<token>')          -> Bubble runs script-load, then calls window.smLoaded('yes'|'no', <cipher as JSON-safe text>)
+  // Cipher format: v1.<iv>.<ciphertext>, both base64url
+  function b64u(bytes){
+    var s = '', a = new Uint8Array(bytes);
+    for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(str){
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    var s = atob(str), a = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
+    return a;
+  }
+  function makeSync(cm, localText){
+    var m = HASH.exec(window.location.hash || '');
+    var token = m ? m[1] : '', keyStr = m ? m[2] : '', key = null;
+    var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false;
+    var subtle = window.crypto && window.crypto.subtle;
+    function getKey(){
+      if (key) return Promise.resolve(key);
+      if (!keyStr) keyStr = b64u(window.crypto.getRandomValues(new Uint8Array(32)));
+      return subtle.importKey('raw', unb64u(keyStr), {name:'AES-GCM'}, false, ['encrypt', 'decrypt']).then(function(k){ key = k; return k; });
+    }
+    function encrypt(text){
+      var iv = window.crypto.getRandomValues(new Uint8Array(12));
+      return getKey().then(function(k){ return subtle.encrypt({name:'AES-GCM', iv:iv}, k, new TextEncoder().encode(text)); })
+        .then(function(ct){ return 'v1.' + b64u(iv) + '.' + b64u(ct); });
+    }
+    function decrypt(payload){
+      var p = String(payload || '').split('.');
+      if (p.length !== 3 || p[0] !== 'v1') return Promise.reject(new Error('format'));
+      return getKey().then(function(k){ return subtle.decrypt({name:'AES-GCM', iv:unb64u(p[1])}, k, unb64u(p[2])); })
+        .then(function(buf){ return new TextDecoder().decode(buf); });
+    }
+    function bridge(name, value){
+      var fn = window['bubble_fn_' + name];
+      if (typeof fn !== 'function') return false;
+      fn(value); return true;
+    }
+    function setText(text){
+      quiet = true;
+      cm.setValue(text); cm.clearHistory();
+      quiet = false;
+      cm.setOption('readOnly', false);
+      cm.focus();
+    }
+    function unlink(){
+      token = ''; keyStr = ''; key = null;
+      try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e){}
+    }
+    function schedule(){ clearTimeout(timer); timer = setTimeout(flush, SYNC_MS); }
+    function flush(){
+      clearTimeout(timer);
+      if (!subtle || !dirty || state !== 'idle') return;
+      if (!token){
+        // The first real text asks Bubble for a new record
+        if (cm.getValue().trim() === '') return;
+        state = 'creating';
+        if (!bridge('scriptCreate', 'new')){ state = 'idle'; schedule(); return; }
+        setTimeout(function(){ if (state === 'creating'){ state = 'idle'; schedule(); } }, LOAD_WAIT_MS);
+        return;
+      }
+      dirty = false;
+      var t = token;
+      encrypt(cm.getValue()).then(function(c){
+        if (!bridge('scriptSave', t + '|' + c)){ dirty = true; schedule(); }
+      }, function(){ dirty = true; });
+    }
+    window.smCreated = function(t){
+      t = String(t || '').trim();
+      if (!/^[a-z0-9]{32}$/.test(t)){ state = 'idle'; return; }
+      token = t;
+      getKey().then(function(){
+        try { window.history.replaceState(null, '', window.location.pathname + window.location.search + '#' + token + '.' + keyStr); } catch (e){}
+        state = 'idle'; dirty = true; flush();
+      });
+    };
+    window.smSaved = function(ok){ if (String(ok) !== 'yes'){ dirty = true; schedule(); } };
+    window.smLoaded = function(found, payload){
+      if (state !== 'loading') return;
+      var done = function(text){ state = 'idle'; setText(text); };
+      if (String(found) !== 'yes' || !payload){ unlink(); done(localText); return; }
+      decrypt(payload).then(done, function(){ unlink(); done(localText); });
+    };
+    if (state === 'loading'){
+      // Wait for Bubble's bridge elements, then ask for the record; without an answer the editor stays read only
+      var start = Date.now();
+      (function ask(){
+        if (bridge('scriptLoad', token)) return;
+        if (Date.now() - start < LOAD_WAIT_MS) setTimeout(ask, 100);
+        else if (window.console) console.warn('scriptin: script could not be loaded');
+      })();
+    }
+    return {
+      changed: function(){ if (quiet || state === 'loading') return; dirty = true; schedule(); },
+      flush: flush
+    };
+  }
   function init(){
     var host = document.getElementById('sm-editor');
     if (!host || host.getAttribute('data-ready')) return;
@@ -140,7 +247,9 @@
     defineMode();
     var saved = '';
     try { saved = window.localStorage.getItem(STORE_KEY) || ''; } catch (e){}
-    var cm = CodeMirror(host, {value:saved, mode:'scriptin', lineWrapping:true, autofocus:true, cursorBlinkRate:0, styleSelectedText:true});
+    // An address ending in #<token>.<key> opens a script from the database: start empty and read only until it has arrived
+    var linked = HASH.test(window.location.hash || '');
+    var cm = CodeMirror(host, {value:linked ? '' : saved, readOnly:linked, mode:'scriptin', lineWrapping:true, autofocus:true, cursorBlinkRate:0, styleSelectedText:true});
     // The editor fills the htmlCapacitor element, leaving the same 80px gap at the bottom as at the top
     var box = host.parentNode, boxH = box ? box.clientHeight : 0;
     if (boxH > 240) cm.setSize(null, boxH - 160);
@@ -150,6 +259,8 @@
     var activeCue = -1, clicked = false;
     function save(){ try { window.localStorage.setItem(STORE_KEY, cm.getValue()); } catch (e){} }
     window.addEventListener('pagehide', save);
+    var sync = makeSync(cm, saved);
+    window.addEventListener('pagehide', function(){ sync.flush(); });
     // Slugline bars, shot blocks and the cursor get the same band height as cue blocks and selections (the text's own box inside the line)
     function measureBand(){
       var sp = host.querySelector('.CodeMirror-line > span');
@@ -628,6 +739,7 @@
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
       clearTimeout(timer); timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
+      sync.changed();
     });
     cm.on('cursorActivity', barCursor);
     // For now the text is capped about one line before the bottom of the editor: typing, Tab and pasting that would
