@@ -762,7 +762,7 @@
     var transKey = '';
     function decorate(){
       var tk = '', noted = {}, ps = paragraphs(true);
-      // A scene holding notes shows a blue dot at the right end of its slugline bar
+      // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
       for (var k = 0; k < ps.length; k++){ if (ps[k].type === 'note' && ps[k].scene >= 0) noted[ps[k].scene] = 1; }
       cm.operation(function(){
         for (var i = 0; i < cm.lineCount(); i++){
