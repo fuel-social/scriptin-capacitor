@@ -14,3 +14,6 @@
 #sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .CodeMirror-selected{background:transparent !important}
 #sm-editor .CodeMirror-selectedtext{background:var(--sm-blue) !important;color:var(--sm-bg) !important}
+#sm-editor pre.sm-t-note{color:var(--sm-blue)}
+#sm-editor .sm-n-note{position:relative}
+#sm-editor .sm-n-note::after{content:'\2022';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-blue-alt);pointer-events:none}

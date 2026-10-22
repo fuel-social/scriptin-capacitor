@@ -13,6 +13,8 @@
   var SHOT = /^\.s(\s|$)/i;
   // Transition: .t at the start of a paragraph, right aligned at the page edge; not part of the Tab ring
   var TRANS = /^\.t(\s|$)/i;
+  // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
+  var NOTE = /^\/\//;
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // The script is kept in this browser's localStorage (no sync between browsers or devices)
   var STORE_KEY = 'scriptin.capacitor.text', SAVE_MS = 400;
@@ -323,9 +325,12 @@
     function isShotLn(ln){ return !isBlank(line(ln)) && isShotHead(paraHead(ln)); }
     function isTransHead(ln){ return paraStart(ln) && TRANS.test(line(ln)); }
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
-    // Cursor in a shot block uses the other theme's colorBlue
+    function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
+    function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
+    // Cursor in a shot block or a note uses the other theme's colorBlue
     function barCursor(){
-      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
+      var ln = cm.getCursor().line;
+      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(ln) || isNoteLn(ln));
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
     function cueParts(ln){
@@ -350,7 +355,7 @@
     // 1 whole script, 2 sluglines and transitions, 3 dialogue (only one character when pressed between the commas of a cue),
     // 4 action and shots; views 3 and 4 show only the sluglines of scenes that hold such paragraphs.
     // The paragraph holding the cursor always stays visible, so text typed in a view does not vanish.
-    var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null;
+    var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null, notesOff = false;
     function paragraphs(noCursor){
       var out = [], n = cm.lineCount(), i = 0;
       while (i < n){
@@ -359,10 +364,15 @@
         while (i < n && !isBlank(line(i))) i++;
         var h = line(s), type = 'action', name = '', c;
         if (slugDelta(h) >= 0) type = 'slug';
+        else if (NOTE.test(h)) type = 'note';
         else if (SHOT.test(h)) type = 'shot';
         else if (TRANS.test(h)) type = 'trans';
         else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
-        out.push({s:s, e:i - 1, type:type, name:name, scene:-1});
+        out.push({s:s, e:i - 1, type:type, name:name, scene:-1, owner:null});
+      }
+      // A note belongs to the nearest element above it that is not a note
+      for (var q = 0, own = null; q < out.length; q++){
+        if (out[q].type === 'note') out[q].owner = own; else own = out[q];
       }
       // In views 3 and 4 a slugline only shows when its scene holds something the view shows,
       // or when the cursor is in its scene (so text typed there never floats without its slugline)
@@ -371,7 +381,7 @@
         if (out[k].type === 'slug') scene = out[k].s;
         out[k].scene = scene;
         if (out[k].s <= cl) curScene = scene;
-        if (out[k].type !== 'slug' && matches(out[k])) has[scene] = 1;
+        if (out[k].type !== 'slug' && out[k].type !== 'note' && matches(out[k])) has[scene] = 1;
       }
       for (k = 0; k < out.length; k++){
         if (out[k].type === 'slug') out[k].keep = view <= 2 || !!has[out[k].s] || out[k].s === curScene;
@@ -385,8 +395,10 @@
       return false;
     }
     function shows(p, cl){
-      if (view === 1) return true;
       if (cl >= p.s && cl <= p.e) return true;
+      // Notes follow their element; with notes hidden only the note holding the cursor stays
+      if (p.type === 'note') return !notesOff && (!p.owner || shows(p.owner, cl));
+      if (view === 1) return true;
       if (p.type === 'slug') return p.keep;
       return matches(p);
     }
@@ -399,7 +411,7 @@
     function applyView(){
       for (var m = 0; m < marks.length; m++) marks[m].clear();
       marks = []; hid = [];
-      if (view === 1) return;
+      if (view === 1 && !notesOff) return;
       var ps = paragraphs(), cl = cm.getCursor().line, prevEnd = -1, run = false;
       for (var k = 0; k < ps.length; k++){
         if (shows(ps[k], cl)){
@@ -718,8 +730,9 @@
       'Cmd-Alt-3': function(){ setView(3); }, 'Shift-Ctrl-3': function(){ setView(3); },
       'Cmd-Alt-4': function(){ setView(4); }, 'Shift-Ctrl-4': function(){ setView(4); },
       // Cmd+Option+5 to 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
-      'Cmd-Alt-5': function(){}, 'Cmd-Alt-6': function(){}, 'Cmd-Alt-7': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
-      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-6': function(){}, 'Shift-Ctrl-7': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
+      'Cmd-Alt-6': function(){ toggleNotes(); }, 'Shift-Ctrl-6': function(){ toggleNotes(); },
+      'Cmd-Alt-5': function(){}, 'Cmd-Alt-7': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
+      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-7': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
       'Backspace': function(){ return guard(-1); },
       'Delete': function(){ return guard(1); }
@@ -749,7 +762,9 @@
     // Right aligned transition lines change where characters sit, so CodeMirror is told to measure again when they change
     var transKey = '';
     function decorate(){
-      var tk = '';
+      var tk = '', noted = {}, ps = paragraphs(true);
+      // A scene holding notes shows a blue dot at the right end of its slugline bar
+      for (var k = 0; k < ps.length; k++){ if (ps[k].type === 'note' && ps[k].scene >= 0) noted[ps[k].scene] = 1; }
       cm.operation(function(){
         for (var i = 0; i < cm.lineCount(); i++){
           cm.removeLineClass(i, 'wrap');
@@ -757,9 +772,10 @@
           var s = line(i);
           if (hid[i] || isBlank(s)) continue;
           if (isSlugLn(i)){
-            cm.addLineClass(i, 'wrap', 'sm-l-slug');
+            cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
             cm.addLineClass(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
           }
+          else if (isNoteLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
           else if (isShotLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-shot');
           else if (isTransLn(i)){ cm.addLineClass(i, 'text', 'sm-t-trans'); tk += i + ','; }
           else if (isCueLn(i)) {}
@@ -779,6 +795,15 @@
       sync.changed();
     });
     cm.on('cursorActivity', barCursor);
+    // Notes on and off (Cmd+Option+6, Ctrl+Shift+6), independent of the views; Escape leaves it as it is.
+    // While notes are hidden, the note holding the cursor stays visible until the cursor leaves it.
+    var noteCur = -1;
+    function toggleNotes(){ notesOff = !notesOff; refresh(); }
+    cm.on('cursorActivity', function(){
+      var ln = cm.getCursor().line, inNote = isNoteLn(ln) ? paraHead(ln) : -1;
+      if (notesOff && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
+      else noteCur = inNote;
+    });
     // For now the text is capped about one line before the bottom of the editor: typing, Tab and pasting that would
     // go further are refused; deleting, undo, redo and Reformat always work
     cm.on('beforeChange', function(_cm, ch){
