@@ -133,7 +133,7 @@
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
   // Bridge to Bubble through Toolbox "JavaScript to Bubble" elements and "Run javascript" actions on the page scriptin:
   //   bubble_fn_scriptCreate('new')            -> Bubble runs script-create, then calls window.smCreated('<token>')
-  //   bubble_fn_scriptSave('<token>|<cipher>') -> Bubble runs script-save (optional reply: window.smSaved('yes'|'no'))
+  //   bubble_fn_scriptSave('<token>|<cipher>') -> Bubble runs script-save, then calls window.smSaved('yes'|'no')
   //   bubble_fn_scriptLoad('<token>')          -> Bubble runs script-load, then calls window.smLoaded('yes'|'no', <cipher as JSON-safe text>)
   // Cipher format: v1.<iv>.<ciphertext>, both base64url
   function b64u(bytes){
@@ -151,7 +151,7 @@
   function makeSync(cm, localText){
     var m = HASH.exec(window.location.hash || '');
     var token = m ? m[1] : '', keyStr = m ? m[2] : '', key = null;
-    var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false;
+    var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false, inflight = false, inflightTimer = null;
     var subtle = window.crypto && window.crypto.subtle;
     function getKey(){
       if (key) return Promise.resolve(key);
@@ -197,11 +197,20 @@
         setTimeout(function(){ if (state === 'creating'){ state = 'idle'; schedule(); } }, LOAD_WAIT_MS);
         return;
       }
-      dirty = false;
+      // One save at a time: changes made meanwhile stay dirty and go out once Bubble has answered with smSaved
+      if (inflight) return;
+      dirty = false; inflight = true;
       var t = token;
       encrypt(cm.getValue()).then(function(c){
-        if (!bridge('scriptSave', t + '|' + c)){ dirty = true; schedule(); }
-      }, function(){ dirty = true; });
+        if (!bridge('scriptSave', t + '|' + c)){ settle(false); return; }
+        inflightTimer = setTimeout(function(){ settle(false); }, LOAD_WAIT_MS);
+      }, function(){ settle(false); });
+    }
+    function settle(ok){
+      clearTimeout(inflightTimer);
+      inflight = false;
+      if (!ok) dirty = true;
+      if (dirty) schedule();
     }
     window.smCreated = function(t){
       t = String(t || '').trim();
@@ -212,7 +221,7 @@
         state = 'idle'; dirty = true; flush();
       });
     };
-    window.smSaved = function(ok){ if (String(ok) !== 'yes'){ dirty = true; schedule(); } };
+    window.smSaved = function(ok){ if (inflight) settle(String(ok).trim() === 'yes'); };
     window.smLoaded = function(found, payload){
       if (state !== 'loading') return;
       var done = function(text){ state = 'idle'; setText(text); };
