@@ -327,10 +327,9 @@
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
-    // Cursor in a shot block or a note uses the other theme's colorBlue
+    // Cursor in a shot block uses the other theme's colorBlue
     function barCursor(){
-      var ln = cm.getCursor().line;
-      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(ln) || isNoteLn(ln));
+      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
     function cueParts(ln){
