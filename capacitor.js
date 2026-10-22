@@ -19,7 +19,7 @@
   // The script is also kept in Bubble (DB Script), encrypted in this browser before it leaves:
   // the address ends in #<token>.<key>; the token names the record, the key stays in the URL fragment,
   // which browsers never send to a server, so the database only ever holds ciphertext
-  var HASH = /^#([a-z0-9]{32})\.([A-Za-z0-9_-]{43})$/, SYNC_MS = 2000, LOAD_WAIT_MS = 15000;
+  var HASH = /^#([a-z0-9]{32})\.([A-Za-z0-9_-]{43})$/, SYNC_MS = 2000, LOAD_WAIT_MS = 15000, PEND_PREFIX = 'scriptin.capacitor.pending.';
   function isBlank(s){ return s.trim() === ''; }
   function alpha(a, b){ return a.localeCompare(b, undefined, {sensitivity:'base'}); }
   // colorBlue of the other theme in OptS_theme_ui, used for the cursor on shot blocks
@@ -135,7 +135,7 @@
   //   bubble_fn_scriptCreate('new')            -> Bubble runs script-create, then calls window.smCreated('<token>')
   //   bubble_fn_scriptSave('<token>|<cipher>') -> Bubble runs script-save, then calls window.smSaved('yes'|'no')
   //   bubble_fn_scriptLoad('<token>')          -> Bubble runs script-load, then calls window.smLoaded('yes'|'no', <cipher as JSON-safe text>)
-  // Cipher format: v1.<iv>.<ciphertext>, both base64url
+  // Cipher format: v2.<iv>.<ciphertext>, both base64url; the ciphertext holds {"t": text, "at": save time} (v1: text only)
   function b64u(bytes){
     var s = '', a = new Uint8Array(bytes);
     for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
@@ -151,23 +151,40 @@
   function makeSync(cm, localText){
     var m = HASH.exec(window.location.hash || '');
     var token = m ? m[1] : '', keyStr = m ? m[2] : '', key = null;
-    var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false, inflight = false, inflightTimer = null;
+    var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false, inflight = false, inflightTimer = null, inflightAt = 0, inflightToken = '';
     var subtle = window.crypto && window.crypto.subtle;
     function getKey(){
       if (key) return Promise.resolve(key);
       if (!keyStr) keyStr = b64u(window.crypto.getRandomValues(new Uint8Array(32)));
       return subtle.importKey('raw', unb64u(keyStr), {name:'AES-GCM'}, false, ['encrypt', 'decrypt']).then(function(k){ key = k; return k; });
     }
-    function encrypt(text){
+    // v2 packs the text with its save time, so the time stays as private as the text; v1 (text only) is still read
+    function encrypt(text, at){
       var iv = window.crypto.getRandomValues(new Uint8Array(12));
-      return getKey().then(function(k){ return subtle.encrypt({name:'AES-GCM', iv:iv}, k, new TextEncoder().encode(text)); })
-        .then(function(ct){ return 'v1.' + b64u(iv) + '.' + b64u(ct); });
+      var plain = JSON.stringify({t:text, at:at});
+      return getKey().then(function(k){ return subtle.encrypt({name:'AES-GCM', iv:iv}, k, new TextEncoder().encode(plain)); })
+        .then(function(ct){ return 'v2.' + b64u(iv) + '.' + b64u(ct); });
     }
     function decrypt(payload){
       var p = String(payload || '').split('.');
-      if (p.length !== 3 || p[0] !== 'v1') return Promise.reject(new Error('format'));
+      if (p.length !== 3 || (p[0] !== 'v1' && p[0] !== 'v2')) return Promise.reject(new Error('format'));
       return getKey().then(function(k){ return subtle.decrypt({name:'AES-GCM', iv:unb64u(p[1])}, k, unb64u(p[2])); })
-        .then(function(buf){ return new TextDecoder().decode(buf); });
+        .then(function(buf){
+          var s = new TextDecoder().decode(buf);
+          if (p[0] === 'v1') return {t:s, at:0};
+          var o = JSON.parse(s);
+          return {t:String(o.t || ''), at:Number(o.at) || 0};
+        });
+    }
+    // A save not yet confirmed by Bubble is kept in this browser under the script's token until smSaved('yes')
+    function pendKey(t){ return PEND_PREFIX + t; }
+    function readPending(t){
+      try { var o = JSON.parse(window.localStorage.getItem(pendKey(t)) || 'null'); return o && typeof o.t === 'string' ? o : null; } catch (e){ return null; }
+    }
+    function writePending(t, o){ try { window.localStorage.setItem(pendKey(t), JSON.stringify(o)); } catch (e){} }
+    function dropPending(t, at){
+      var o = readPending(t);
+      if (o && (at === undefined || o.at === at)) { try { window.localStorage.removeItem(pendKey(t)); } catch (e){} }
     }
     function bridge(name, value){
       var fn = window['bubble_fn_' + name];
@@ -200,8 +217,10 @@
       // One save at a time: changes made meanwhile stay dirty and go out once Bubble has answered with smSaved
       if (inflight) return;
       dirty = false; inflight = true;
-      var t = token;
-      encrypt(cm.getValue()).then(function(c){
+      var t = token, text = cm.getValue(), at = Date.now();
+      inflightAt = at; inflightToken = t;
+      writePending(t, {t:text, at:at});
+      encrypt(text, at).then(function(c){
         if (!bridge('scriptSave', t + '|' + c)){ settle(false); return; }
         inflightTimer = setTimeout(function(){ settle(false); }, LOAD_WAIT_MS);
       }, function(){ settle(false); });
@@ -209,7 +228,8 @@
     function settle(ok){
       clearTimeout(inflightTimer);
       inflight = false;
-      if (!ok) dirty = true;
+      if (ok) dropPending(inflightToken, inflightAt);
+      else dirty = true;
       if (dirty) schedule();
     }
     window.smCreated = function(t){
@@ -226,7 +246,15 @@
       if (state !== 'loading') return;
       var done = function(text){ state = 'idle'; setText(text); };
       if (String(found) !== 'yes' || !payload){ unlink(); done(localText); return; }
-      decrypt(payload).then(done, function(){ unlink(); done(localText); });
+      var t = token;
+      decrypt(payload).then(function(srv){
+        done(srv.t);
+        // A newer unconfirmed save from this browser goes on top as one undoable change (Cmd+Z returns to the server version)
+        var p = readPending(t);
+        if (p && p.at > srv.at && p.t !== srv.t){
+          cm.replaceRange(p.t, {line:0, ch:0}, {line:cm.lastLine(), ch:cm.getLine(cm.lastLine()).length}, '+restore');
+        } else dropPending(t);
+      }, function(){ unlink(); done(localText); });
     };
     if (state === 'loading'){
       // Wait for Bubble's bridge elements, then ask for the record; without an answer the editor stays read only
@@ -754,7 +782,7 @@
     // For now the text is capped about one line before the bottom of the editor: typing, Tab and pasting that would
     // go further are refused; deleting, undo, redo and Reformat always work
     cm.on('beforeChange', function(_cm, ch){
-      if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat') return;
+      if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
       var add = ch.text.length - 1;
       if (add === 0 && ch.text[0] === '') return;
       var last = cm.lastLine(), bottom = cm.heightAtLine(last, 'local') + cm.getLineHandle(last).height;
