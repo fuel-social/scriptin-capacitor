@@ -395,8 +395,8 @@
     }
     function shows(p, cl){
       if (cl >= p.s && cl <= p.e) return true;
-      // Notes follow their element; with notes hidden only the note holding the cursor stays
-      if (p.type === 'note') return !notesOff && (!p.owner || shows(p.owner, cl));
+      // Notes ignore the views: Cmd+Option+6 alone shows or hides them; hidden, only the note holding the cursor stays
+      if (p.type === 'note') return !notesOff;
       if (view === 1) return true;
       if (p.type === 'slug') return p.keep;
       return matches(p);
