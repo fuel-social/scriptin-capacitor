@@ -382,8 +382,13 @@
         if (out[k].s <= cl) curScene = scene;
         if (out[k].type !== 'slug' && out[k].type !== 'note' && matches(out[k])) has[scene] = 1;
       }
+      var keepOf = {};
       for (k = 0; k < out.length; k++){
-        if (out[k].type === 'slug') out[k].keep = view <= 2 || !!has[out[k].s] || out[k].s === curScene;
+        if (out[k].type === 'slug') keepOf[out[k].s] = out[k].keep = view <= 2 || !!has[out[k].s] || out[k].s === curScene;
+      }
+      // A note shows only together with its scene's slugline; a note before the first slugline only in view 1
+      for (k = 0; k < out.length; k++){
+        if (out[k].type === 'note') out[k].keep = view === 1 || (out[k].scene >= 0 && !!keepOf[out[k].scene]);
       }
       return out;
     }
@@ -395,8 +400,9 @@
     }
     function shows(p, cl){
       if (cl >= p.s && cl <= p.e) return true;
-      // Notes ignore the views: Cmd+Option+6 alone shows or hides them; hidden, only the note holding the cursor stays
-      if (p.type === 'note') return !notesOff;
+      // Notes: Cmd+Option+6 shows or hides them all; shown, a note appears only when its scene's slugline is visible
+      // (before the first slugline only in view 1); the note holding the cursor always stays
+      if (p.type === 'note') return !notesOff && p.keep;
       if (view === 1) return true;
       if (p.type === 'slug') return p.keep;
       return matches(p);
@@ -736,10 +742,18 @@
       'Backspace': function(){ return guard(-1); },
       'Delete': function(){ return guard(1); }
     });
-    // Also works when the editor has lost focus
+    // Cursor finding, views and notes also work when the editor has lost focus; the other numbers are swallowed there too,
+    // so the browser never opens bookmarks or other pages with Cmd+Option+number (Ctrl+Shift+number on Windows)
     document.addEventListener('keydown', function(e){
       var mac = e.metaKey && e.altKey && !e.ctrlKey, win = e.ctrlKey && e.shiftKey && !e.metaKey && !e.altKey;
-      if ((mac || win) && e.code === 'Period' && !cm.hasFocus()){ e.preventDefault(); findCursor(); }
+      if (!(mac || win) || cm.hasFocus()) return;
+      if (e.code === 'Period'){ e.preventDefault(); findCursor(); return; }
+      var d = /^(Digit|Numpad)([0-9])$/.exec(e.code);
+      if (!d) return;
+      e.preventDefault(); e.stopPropagation();
+      var n = +d[2];
+      if (n >= 1 && n <= 4) setView(n);
+      else if (n === 6) toggleNotes();
     }, true);
     // Typed , and ( : take the character back out, apply the shortcut, or put it back; other characters may add the slug/shot space or complete a name
     cm.on('inputRead', function(_cm, ch){
@@ -794,13 +808,13 @@
       sync.changed();
     });
     cm.on('cursorActivity', barCursor);
-    // Notes on and off (Cmd+Option+6, Ctrl+Shift+6), independent of the views; Escape leaves it as it is.
-    // While notes are hidden, the note holding the cursor stays visible until the cursor leaves it.
+    // Notes on and off (Cmd+Option+6, Ctrl+Shift+6); Escape leaves it as it is.
+    // A note hidden by Cmd+Option+6 or by the view stays visible while it holds the cursor, until the cursor leaves it.
     var noteCur = -1;
     function toggleNotes(){ notesOff = !notesOff; refresh(); }
     cm.on('cursorActivity', function(){
       var ln = cm.getCursor().line, inNote = isNoteLn(ln) ? paraHead(ln) : -1;
-      if (notesOff && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
+      if ((notesOff || view !== 1) && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
       else noteCur = inNote;
     });
     // For now the text is capped about one line before the bottom of the editor: typing, Tab and pasting that would
