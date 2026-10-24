@@ -725,6 +725,33 @@
       }
       return guard(-1);
     }
+    // Option+Up/Down (Ctrl+Up/Down on Windows) move to the start or end of the paragraph, then on to the next one;
+    // with Shift they select, so Option+Shift+Down from the start of a paragraph selects all of it
+    function paraTarget(dir){
+      var h = cm.getCursor('head'), ln = h.line, n = cm.lineCount(), j;
+      if (dir > 0){
+        if (isBlank(line(ln)) || (h.ch === line(ln).length && (ln + 1 >= n || isBlank(line(ln + 1))))){
+          j = ln + 1;
+          while (j < n && isBlank(line(j))) j++;
+          if (j >= n) return {line:n - 1, ch:line(n - 1).length};
+          ln = j;
+        }
+        while (ln + 1 < n && !isBlank(line(ln + 1))) ln++;
+        return {line:ln, ch:line(ln).length};
+      }
+      if (isBlank(line(ln)) || (h.ch === 0 && paraStart(ln))){
+        j = ln - 1;
+        while (j >= 0 && isBlank(line(j))) j--;
+        if (j < 0) return {line:0, ch:0};
+        ln = j;
+      }
+      return {line:paraHead(ln), ch:0};
+    }
+    function paraMove(dir, extend){
+      var t = paraTarget(dir);
+      if (extend) cm.setSelection(cm.getCursor('anchor'), t, {scroll:true});
+      else cm.setCursor(t, null, {scroll:true});
+    }
     function comma(){
       var ln = cm.getCursor().line, s = line(ln);
       if (s === '' && paraStart(ln) && blockCue(ln) < 0){
@@ -992,6 +1019,10 @@
       'Shift-Enter': 'newlineAndIndent',
       // Up/Down pick names or extensions on an active cue and move the cursor everywhere else
       'Down': function(){ return arrow(1); },
+      'Alt-Up': function(){ paraMove(-1, false); }, 'Alt-Down': function(){ paraMove(1, false); },
+      'Shift-Alt-Up': function(){ paraMove(-1, true); }, 'Shift-Alt-Down': function(){ paraMove(1, true); },
+      'Ctrl-Up': function(){ paraMove(-1, false); }, 'Ctrl-Down': function(){ paraMove(1, false); },
+      'Shift-Ctrl-Up': function(){ paraMove(-1, true); }, 'Shift-Ctrl-Down': function(){ paraMove(1, true); },
       'Up': function(){ return arrow(-1); },
       // All other commands: Cmd+Option on Mac, Ctrl+Shift on Windows
       'Cmd-Alt-Enter': function(){ reformat(); }, 'Shift-Ctrl-Enter': function(){ reformat(); },

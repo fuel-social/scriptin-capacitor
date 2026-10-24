@@ -129,6 +129,20 @@ start(',JANE,\n(asda'); enter(); doc('Enter in an unclosed parenthetical closes 
 start(',JANE,\n(asda)\nHi.'); cm.setCursor({line:1, ch:2}); enter(); doc('Enter in a parenthetical with dialogue below moves there', ',JANE,\n(asda)\nHi. @2:0');
 start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetical starts a new paragraph', ',JANE,\n(asda)\n\n @3:0');
 
+// Option+Shift+Up/Down select whole paragraphs
+{
+  const ak = (code, shift) => cm.triggerOnKeyDown({ type:'keydown', keyCode:code, altKey:true, shiftKey:!!shift, preventDefault(){}, stopPropagation(){} });
+  const sel = () => JSON.stringify(cm.getSelection()) + ' @' + cm.getCursor('head').line + ':' + cm.getCursor('head').ch;
+  function chk(label, want){ const got = sel(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + got + (ok ? '' : '   wanted ' + want)); }
+  cm.setValue('One two.\nThree.\n\n,ANNA,\nHi.\n\nEnd.');
+  cm.setCursor({line:0, ch:0}); ak(40, true); chk('Option+Shift+Down selects the paragraph', '"One two.\\nThree." @1:6');
+  ak(40, true); chk('again extends to the next paragraph', '"One two.\\nThree.\\n\\n,ANNA,\\nHi." @4:3');
+  ak(38, true); chk('Option+Shift+Up goes back to its start', '"One two.\\nThree.\\n\\n" @3:0');
+  cm.setCursor({line:4, ch:1}); ak(38, true); chk('from inside a paragraph to its start', '",ANNA,\\nH" @3:0');
+  cm.setCursor({line:0, ch:3}); ak(40); chk('Option+Down moves to the paragraph end', '"" @1:6');
+  ak(40); chk('again to the end of the next one', '"" @4:3');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
