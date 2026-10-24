@@ -24,7 +24,7 @@
 #sm-editor .sm-pagenum,#sm-editor .sm-scenenum{position:absolute;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);height:var(--sm-lh);white-space:nowrap}
 /* Page number: colorForeground in a thin colorForeground outline with 3px corners, exactly as high as the bars
    (one line) and as wide as the number needs; an outline, because every filled bar in the editor is an element */
-#sm-editor .sm-pagenum{right:0;box-sizing:border-box;height:var(--sm-band);margin-top:var(--sm-gap);line-height:calc(var(--sm-band) - 2px);padding:0 2px;border:1px solid var(--sm-fg);border-radius:3px;color:var(--sm-fg)}
+#sm-editor .sm-pagenum{right:0;box-sizing:border-box;height:var(--sm-band);margin-top:var(--sm-gap);line-height:calc(var(--sm-band) - 2px);padding:0 2px 0 1ch;border:1px solid var(--sm-fg);border-radius:3px;color:var(--sm-fg)}
 #sm-editor .sm-scenenum{left:0;color:var(--sm-inactive)}
 /* Single spaced like Final Draft (line height = font size); the font's own text box is taller than a line, so
    cue, shot, transition and selection backgrounds are painted only on the line's height (--sm-inset trims them) */
