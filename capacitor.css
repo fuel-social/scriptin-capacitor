@@ -25,3 +25,5 @@
 #sm-editor .CodeMirror-scroll{min-height:calc(100vh - 160px)}
 /* Bubble clips its HTML elements; the page numbers sit outside, left of the frame line */
 .bubble-element:has(> #sm-editor){overflow:visible !important}
+/* The empty line above a slugline or shot counts twice, as in Final Draft */
+#sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}

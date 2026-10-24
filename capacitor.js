@@ -1029,6 +1029,13 @@
           cm.removeLineClass(i, 'wrap');
           cm.removeLineClass(i, 'text');
           var s = line(i);
+          // Final Draft spacing: two empty lines before a slugline or shot, one before everything else; the writer types
+          // one, so the empty line right above a slugline or shot is shown at double height
+          if (isBlank(s) && !hid[i] && i > 0 && !isBlank(line(i - 1))){
+            var nx = i + 1;
+            while (nx < cm.lineCount() && isBlank(line(nx))) nx++;
+            if (nx < cm.lineCount() && (isSlugHead(nx) || isShotHead(nx))) cm.addLineClass(i, 'wrap', 'sm-sp2');
+          }
           if (hid[i] || isBlank(s)) continue;
           if (isSlugLn(i)){
             cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
