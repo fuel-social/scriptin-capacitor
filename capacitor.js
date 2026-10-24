@@ -17,12 +17,19 @@
   var NOTE = /^\/\//;
   // Preamble (scriptin:flux documentation p. 24 and 39): title page information, a paragraph of commands such as
   // /title/ and /author/; colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var PRE = /^\/(title|author|revised|company)\//i, PRE_TEMPLATE = '/title/ \n/author/ \n/revised/ \n/company/ ';
-  // Scripts saved with the older :title: form are read as /title/
+  var PRE = /^\/(title|author|revised|company)\//i, PRE_TEMPLATE = '/title/ \n\n/author/ \n\n/revised/ \n\n/company/ ';
+  // Scripts saved with the older forms are read as today's: :title: becomes /title/, and commands written on lines
+  // directly below each other become one paragraph each
   function migratePre(t){
-    var ls = t.split('\n');
-    for (var i = 0; i < ls.length && /^:(title|author|revised|company):/i.test(ls[i]); i++) ls[i] = ls[i].replace(/^:(\w+):/, '/$1/');
-    return ls.join('\n');
+    var ls = t.split('\n'), out = [], OLD = /^:(title|author|revised|company):/i, i = 0;
+    for (; i < ls.length; i++){
+      var l = ls[i];
+      if (OLD.test(l)) l = l.replace(/^:(\w+):/, '/$1/');
+      if (PRE.test(l)){ if (out.length && out[out.length - 1].trim() !== '') out.push(''); out.push(l); }
+      else if (l.trim() === '') out.push(l);
+      else break;
+    }
+    return i ? out.concat(ls.slice(i)).join('\n') : t;
   }
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
@@ -493,13 +500,18 @@
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
     function isPreHead(ln){ return paraStart(ln) && PRE.test(line(ln)); }
     function isPreLn(ln){ return !isBlank(line(ln)) && isPreHead(paraHead(ln)); }
-    // The preamble at the top: the first paragraph, when it starts with a preamble command; null if there is none
+    // The preamble at the top: the command paragraphs the script starts with, one command each; null if there is none
     function preRange(){
       var s = 0, n = cm.lineCount();
       while (s < n && isBlank(line(s))) s++;
       if (s >= n || !PRE.test(line(s))) return null;
-      var e = s;
-      while (e + 1 < n && !isBlank(line(e + 1))) e++;
+      var e = s, k = s;
+      while (k < n && PRE.test(line(k))){
+        e = k;
+        while (e + 1 < n && !isBlank(line(e + 1))) e++;
+        k = e + 1;
+        while (k < n && isBlank(line(k))) k++;
+      }
       return {s:s, e:e};
     }
     function hasPre(){ return !!preRange(); }
@@ -677,9 +689,12 @@
       if (isBlank(s)) return cm.getValue().trim() === '' ? -1 : 2;
       return null;
     }
-    // Tab and Enter in the preamble go to the end of the next command line; Enter on the last one adds a line
+    // Tab and Enter in the preamble go to the end of the next command; after the last one Enter starts a new paragraph
+    // as everywhere, Tab stays
     function preStep(ln, isEnter){
-      if (ln + 1 < cm.lineCount() && !isBlank(line(ln + 1))){ caret(ln + 1, line(ln + 1).length); return true; }
+      var nx = ln + 1;
+      while (nx < cm.lineCount() && isBlank(line(nx))) nx++;
+      if (nx < cm.lineCount() && isPreLn(nx)){ caret(nx, line(nx).length); return true; }
       return !isEnter;
     }
     function tab(){
@@ -735,7 +750,7 @@
     // new line, and Shift+Enter always is one
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
-      if (isPreLn(ln) && !cm.somethingSelected()) return preStep(ln, true) ? undefined : CodeMirror.Pass;
+      if (isPreLn(ln) && !cm.somethingSelected() && preStep(ln, true)) return;
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
@@ -1142,7 +1157,7 @@
           if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
             var nx = i + 1;
             while (nx < cm.lineCount() && empty(nx)) nx++;
-            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx)) cm.addLineClass(i, 'wrap', 'sm-sp2');
+            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && !isPreLn(i - 1)) cm.addLineClass(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
           if (isSlugLn(i)){

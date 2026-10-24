@@ -2,7 +2,7 @@
 const fs = require('fs');
 let src = fs.readFileSync(require('path').join(__dirname, '..', 'capacitor.js'), 'utf8');
 src = src.replace('var PAGE_LINES = 58,', 'var PAGE_LINES = (global.__LINES || 58),');
-src = src.replace('  function defineMode(){', '  globalThis.__pg = {paginate:paginate, els:pageElements, lines:elLines};\n  function defineMode(){');
+src = src.replace('  function defineMode(){', '  globalThis.__pg = {paginate:paginate, els:pageElements, lines:elLines, migrate:migratePre};\n  function defineMode(){');
 global.window = { SM_THEME:{}, location:{hash:''}, addEventListener(){} };
 global.document = { readyState:'complete', getElementById(){ return null; }, addEventListener(){}, createElement(){ return {}; }, head:{ appendChild(){} } };
 global.CodeMirror = { defineMode(){} };
@@ -62,5 +62,9 @@ eq('the preamble takes no space', starts('/title/ Night\n/author/ F.\n\n' + act(
   eq('Final Draft A4: three pages', P58(text).length, 2);
 }
 
+const M = globalThis.__pg.migrate;
+eq('old :title: lines become one paragraph per command', M(':title: Night\n:author: F.\n:company: Fuel\n\n.i HOUSE - DAY\n:title: x'), '/title/ Night\n\n/author/ F.\n\n/company/ Fuel\n\n.i HOUSE - DAY\n:title: x');
+eq('today\'s form is left alone', M('/title/ A\n\n/author/ B\n\nAction.'), '/title/ A\n\n/author/ B\n\nAction.');
+eq('a script without a preamble is left alone', M('Action.\n:title: no'), 'Action.\n:title: no');
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;
