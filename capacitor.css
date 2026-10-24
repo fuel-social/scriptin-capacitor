@@ -21,3 +21,5 @@
 #sm-editor .sm-pagenum{position:absolute;right:0;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);color:var(--sm-inactive);white-space:nowrap}
 /* The editor grows with its text; the frame lines reach at least down to 80px above the bottom of the window */
 #sm-editor .CodeMirror-scroll{min-height:calc(100vh - 160px)}
+/* Bubble clips its HTML elements; the page numbers sit outside, left of the frame line */
+.bubble-element:has(> #sm-editor){overflow:visible !important}
