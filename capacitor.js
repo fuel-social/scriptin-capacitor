@@ -169,7 +169,8 @@
         el.keep = true; el.space = SPACE_SLUG;
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
       } else if (SHOT.test(h) || TRANS.test(h)){
-        el.keep = SHOT.test(h); if (el.keep) el.space = SPACE_SLUG;
+        // A shot keeps with the element after it, but has one empty line before it like action
+        el.keep = SHOT.test(h);
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
           if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
@@ -1029,12 +1030,12 @@
           cm.removeLineClass(i, 'wrap');
           cm.removeLineClass(i, 'text');
           var s = line(i);
-          // Final Draft spacing: two empty lines before a slugline or shot, one before everything else; the writer types
-          // one, so the empty line right above a slugline or shot is shown at double height
+          // Final Draft spacing: two empty lines before a slugline, one before everything else (shots included); the writer
+          // types one, so the empty line right above a slugline is shown at double height
           if (isBlank(s) && !hid[i] && i > 0 && !isBlank(line(i - 1))){
             var nx = i + 1;
             while (nx < cm.lineCount() && isBlank(line(nx))) nx++;
-            if (nx < cm.lineCount() && (isSlugHead(nx) || isShotHead(nx))) cm.addLineClass(i, 'wrap', 'sm-sp2');
+            if (nx < cm.lineCount() && isSlugHead(nx)) cm.addLineClass(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
           if (isSlugLn(i)){
