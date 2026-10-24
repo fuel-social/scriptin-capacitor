@@ -1226,9 +1226,17 @@
     // place the numbers again after every redraw, once CodeMirror has measured the lines
     cm.on('update', placePages);
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
-    function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
+    // The title page always has an empty line right after the opening --- and right before the closing ---
+    function preGaps(){
+      var te = preEnd();
+      if (te < 0) return;
+      if (!isBlank(line(te - 1))) cm.replaceRange('\n', {line:te, ch:0}, {line:te, ch:0}, '+pre');
+      if (!isBlank(line(1))) cm.replaceRange('\n', {line:0, ch:line(0).length}, {line:0, ch:line(0).length}, '+pre');
+    }
+    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
+      preGaps();
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
       clearTimeout(timer); timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
@@ -1253,9 +1261,6 @@
           cm.replaceRange(PRE_TEMPLATE + (rest ? '\n\n' : ''), {line:0, ch:0}, {line:0, ch:0}, '+pre');
           r = preRange();
         }
-        // Always an empty line after the opening --- and before the closing ---
-        if (!isBlank(line(r.e - 1))){ put('\n', {line:r.e - 1, ch:line(r.e - 1).length}); r = preRange(); }
-        if (!isBlank(line(1))){ put('\n', {line:0, ch:line(0).length}); r = preRange(); }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
         var first = 1;
         while (first < r.e && isBlank(line(first))) first++;

@@ -186,6 +186,11 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   doc('showing adds the empty lines after and before ---', '---\n\nTitle: A\n\nAuthor: B\n\n---\n\n.i HOUSE - DAY\n\nAction. @8:0');
 }
 
+{
+  cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:7});
+  doc('a loaded title page gets its empty lines at once', '---\n\nTitle: A\n\n---\n\nAction. @6:7');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
