@@ -704,6 +704,17 @@
       caret(ln + 2, 0);
       cyc = null;
     }
+    // Backspace on the empty line of a new paragraph (empty line above, text above that) takes back the whole break
+    // Enter or Tab made: the cursor returns to the end of the paragraph above and the spacing is as before
+    function backspace(){
+      var cur = cm.getCursor(), ln = cur.line;
+      if (!cm.somethingSelected() && cur.ch === 0 && ln >= 2 && isBlank(line(ln)) && isBlank(line(ln - 1)) && !isBlank(line(ln - 2)) && !hid[ln - 1] && !hid[ln - 2]){
+        put('', {line:ln - 2, ch:line(ln - 2).length}, {line:ln, ch:0});
+        cyc = null;
+        return;
+      }
+      return guard(-1);
+    }
     function comma(){
       var ln = cm.getCursor().line, s = line(ln);
       if (s === '' && paraStart(ln) && blockCue(ln) < 0){
@@ -985,7 +996,7 @@
       'Cmd-Alt-5': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
       'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
-      'Backspace': function(){ return guard(-1); },
+      'Backspace': function(){ return backspace(); },
       'Delete': function(){ return guard(1); }
     });
     // Cursor finding, views and notes also work when the editor has lost focus; the other numbers are swallowed there too,

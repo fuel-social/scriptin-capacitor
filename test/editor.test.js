@@ -106,6 +106,18 @@ start('// a note'); enter(); doc('Enter in a note: plain new line', '// a note\n
   if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'cursor on the single empty line above a slugline keeps the double space');
 }
 
+{
+  cm.setValue(',JOHN,\nhey.\n\n.e STREET - NIGHT'); cm.setCursor({line:1, ch:4}); enter();
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('Backspace after Enter returns to the end of the line above', ',JOHN,\nhey.\n\n.e STREET - NIGHT @1:4');
+  cm.setValue('One.\nTwo.'); cm.setCursor({line:0, ch:4}); enter();
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('Backspace after Enter between two lines leaves two paragraphs (Cmd+Z restores one)', 'One.\n\nTwo. @0:4');
+  cm.setValue('One.\n\nTwo.'); cm.setCursor({line:1, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('Backspace on a single empty line is a normal backspace', 'One.\nTwo. @0:4');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
