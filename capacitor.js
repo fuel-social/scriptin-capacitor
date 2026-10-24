@@ -692,15 +692,23 @@
       newEl(ln, s, 2);
     }
     // Enter at the end of a slugline, shot, transition, action or dialogue line starts a new paragraph (an empty line
-    // between); in a cue it moves on to the dialogue like Tab; in a parenthetical, a note or in the middle of a line it is a
-    // plain new line, and Shift+Enter always is one
+    // between); in a cue or a parenthetical it moves on to the dialogue; in a note or in the middle of a line it is a plain
+    // new line, and Shift+Enter always is one
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
+      // In a parenthetical (anywhere in it) Enter closes the bracket and goes on with the dialogue, as in Final Draft:
+      // to the dialogue line below, or to a new one; Enter on that empty line then starts a new paragraph
+      if (!isBlank(s) && blockCue(ln) >= 0 && /^\s*\(/.test(s)){
+        if (s.indexOf(')') < 0){ put(')', {line:ln, ch:s.length}); s = line(ln); }
+        if (ln + 1 < cm.lineCount() && !isBlank(line(ln + 1))) caret(ln + 1, 0);
+        else { put('\n', {line:ln, ch:s.length}); caret(ln + 1, 0); }
+        cyc = null;
+        return;
+      }
       if (isBlank(s) || cur.ch !== s.length || isNoteLn(ln) || isCueLn(ln)) return CodeMirror.Pass;
-      if (blockCue(ln) >= 0 && /^\s*\(/.test(s)) return CodeMirror.Pass;
       var below = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1));
       put(below ? '\n\n\n' : '\n\n', {line:ln, ch:s.length});
       caret(ln + 2, 0);

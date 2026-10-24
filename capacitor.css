@@ -18,7 +18,7 @@
 #sm-editor .sm-n-note{position:relative}
 #sm-editor .sm-n-note::after{content:'//';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-bg);pointer-events:none}
 #sm-editor .sm-pages{position:absolute;left:-96px;width:80px;pointer-events:none;user-select:none;-webkit-user-select:none}
-#sm-editor .sm-pagenum{position:absolute;right:0;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);color:var(--sm-inactive);white-space:nowrap}
+#sm-editor .sm-pagenum{position:absolute;right:0;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);color:var(--sm-fg);white-space:nowrap}
 /* Single spaced like Final Draft (line height = font size); the font's own text box is taller than a line, so
    cue, shot, transition and selection backgrounds are painted only on the line's height (--sm-inset trims them) */
 /* The editor grows with its text; the frame lines reach at least down to 80px above the bottom of the window */
