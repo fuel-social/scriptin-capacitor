@@ -143,6 +143,19 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   ak(40); chk('again to the end of the next one', '"" @4:3');
 }
 
+// Preamble: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands; again hides it
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  start('Action.'); k9();
+  doc('Cmd+Option+9 shows the preamble commands at the top', ':title: \n:author: \n:revised: \n:company: \n\nAction. @0:8');
+  type('Night'); tab(); doc('Tab goes to the next command line', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @1:9');
+  k9();
+  const hidden = cm.getAllMarks().some(m => m.collapsed && m.find() && m.find().from.line === 0);
+  const ok = hidden && cm.getCursor().line === 5;
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden, cursor moves below it');
+  k9(); doc('shown again with what was typed, no second template', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @0:13');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

@@ -15,6 +15,9 @@
   var TRANS = /^\.t(\s|$)/i;
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
+  // Preamble (scriptin:flux documentation p. 24 and 39): title page information, a paragraph of commands such as
+  // :title: and :author:; colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
+  var PRE = /^:(title|author|revised|company):/i, PRE_TEMPLATE = ':title: \n:author: \n:revised: \n:company: ';
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
   var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
@@ -164,7 +167,7 @@
       var s0 = i, ps = [];
       while (i < lines.length && lines[i].trim() !== '') ps.push(lines[i++]);
       var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, runs:[]}, d, m;
-      if (NOTE.test(h)) continue;
+      if (NOTE.test(h) || PRE.test(h)) continue;
       if ((d = slugDelta(h)) >= 0){
         el.keep = true; el.space = SPACE_SLUG;
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
@@ -482,6 +485,18 @@
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
+    function isPreHead(ln){ return paraStart(ln) && PRE.test(line(ln)); }
+    function isPreLn(ln){ return !isBlank(line(ln)) && isPreHead(paraHead(ln)); }
+    // The preamble at the top: the first paragraph, when it starts with a preamble command; null if there is none
+    function preRange(){
+      var s = 0, n = cm.lineCount();
+      while (s < n && isBlank(line(s))) s++;
+      if (s >= n || !PRE.test(line(s))) return null;
+      var e = s;
+      while (e + 1 < n && !isBlank(line(e + 1))) e++;
+      return {s:s, e:e};
+    }
+    function hasPre(){ return !!preRange(); }
     // Cursor in a shot block uses the other theme's colorBlue
     function barCursor(){
       cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
@@ -509,7 +524,7 @@
     // 1 whole script, 2 sluglines and transitions, 3 dialogue (only one character when pressed between the commas of a cue),
     // 4 action and shots; views 3 and 4 show only the sluglines of scenes that hold such paragraphs.
     // The paragraph holding the cursor always stays visible, so text typed in a view does not vanish.
-    var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null, notesOff = false;
+    var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null, notesOff = false, preOn = false;
     function paragraphs(noCursor){
       var out = [], n = cm.lineCount(), i = 0;
       while (i < n){
@@ -519,6 +534,7 @@
         var h = line(s), type = 'action', name = '', c;
         if (slugDelta(h) >= 0) type = 'slug';
         else if (NOTE.test(h)) type = 'note';
+        else if (PRE.test(h)) type = 'pre';
         else if (SHOT.test(h)) type = 'shot';
         else if (TRANS.test(h)) type = 'trans';
         else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
@@ -555,6 +571,7 @@
     }
     function shows(p, cl){
       if (cl >= p.s && cl <= p.e) return true;
+      if (p.type === 'pre') return preOn;
       // Notes: Cmd+Option+6 shows or hides them all; shown, a note appears only when its scene's slugline is visible
       // (before the first slugline only in view 1); the note holding the cursor always stays
       if (p.type === 'note') return !notesOff && p.keep;
@@ -571,7 +588,7 @@
     function applyView(){
       for (var m = 0; m < marks.length; m++) marks[m].clear();
       marks = []; hid = [];
-      if (view === 1 && !notesOff) return;
+      if (view === 1 && !notesOff && (preOn || !hasPre())) return;
       var ps = paragraphs(), cl = cm.getCursor().line, prevEnd = -1, run = false;
       for (var k = 0; k < ps.length; k++){
         if (shows(ps[k], cl)){
@@ -644,8 +661,14 @@
       if (isBlank(s)) return cm.getValue().trim() === '' ? -1 : 2;
       return null;
     }
+    // Tab and Enter in the preamble go to the end of the next command line; Enter on the last one adds a line
+    function preStep(ln, isEnter){
+      if (ln + 1 < cm.lineCount() && !isBlank(line(ln + 1))){ caret(ln + 1, line(ln + 1).length); return true; }
+      return !isEnter;
+    }
     function tab(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      if (isPreLn(ln)){ preStep(ln, false); return; }
       if (tabSlug(ln)) return;
       var cb = blockCue(ln);
       if (cb >= 0){
@@ -696,6 +719,7 @@
     // new line, and Shift+Enter always is one
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      if (isPreLn(ln) && !cm.somethingSelected()) return preStep(ln, true) ? undefined : CodeMirror.Pass;
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
@@ -1031,12 +1055,13 @@
       'Cmd-Alt-2': function(){ setView(2); }, 'Shift-Ctrl-2': function(){ setView(2); },
       'Cmd-Alt-3': function(){ setView(3); }, 'Shift-Ctrl-3': function(){ setView(3); },
       'Cmd-Alt-4': function(){ setView(4); }, 'Shift-Ctrl-4': function(){ setView(4); },
-      // Cmd+Option+5, 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
+      // Cmd+Option+5 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
       'Cmd-Alt-6': function(){ toggleNotes(); }, 'Shift-Ctrl-6': function(){ toggleNotes(); },
       'Cmd-Alt-7': function(){ togglePages(); }, 'Shift-Ctrl-7': function(){ togglePages(); },
       'Cmd-Alt-8': function(){ toggleScenes(); }, 'Shift-Ctrl-8': function(){ toggleScenes(); },
-      'Cmd-Alt-5': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
-      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
+      'Cmd-Alt-9': function(){ togglePre(); }, 'Shift-Ctrl-9': function(){ togglePre(); },
+      'Cmd-Alt-5': function(){}, 'Cmd-Alt-0': function(){},
+      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
       'Backspace': function(){ return backspace(); },
       'Delete': function(){ return guard(1); }
@@ -1055,6 +1080,7 @@
       else if (n === 6) toggleNotes();
       else if (n === 7) togglePages();
       else if (n === 8) toggleScenes();
+      else if (n === 9) togglePre();
     }, true);
     // Typed , and ( : take the character back out, apply the shortcut, or put it back; other characters may add the slug/shot space or complete a name
     cm.on('inputRead', function(_cm, ch){
@@ -1107,6 +1133,7 @@
             cm.addLineClass(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
           }
           else if (isNoteLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
+          else if (isPreLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
           else if (isShotLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-shot');
           else if (isTransLn(i)){ cm.addLineClass(i, 'text', 'sm-t-trans'); tk += i + ','; }
           else if (isCueLn(i)) {}
@@ -1120,8 +1147,8 @@
     // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
     // Page numbers (reading script) left of the left frame line, at the line where each page begins: text in colorBackground
     // on a colorForeground bar as wide as the number; whole script only (hidden in views 2 to 4); Cmd+Option+7 (Ctrl+Shift+7).
-    // Scene numbers left of the left frame line, in their own column next to it (the page numbers then move one column
-    // further out), at each slugline, in colorInactive, without a period; off until Cmd+Option+8 (Ctrl+Shift+8);
+    // Scene numbers left of the left frame line, next to it like the page numbers (a page number on the same line moves
+    // out to the left of the scene number), at each slugline, in colorInactive, without a period; off until Cmd+Option+8 (Ctrl+Shift+8);
     // shown in every view for the sluglines that are visible.
     var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
     function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
@@ -1145,10 +1172,14 @@
         layer.style.top = wrap.offsetTop + 'px';
         for (var k = 0; k < starts.length; k++) layer.children[k].style.top = (cm.charCoords(starts[k], 'local').top + lead) + 'px';
       }
-      // The scene column is as wide as its longest number; the page numbers stand left of it
-      var widest = 0;
-      for (var k = 0; k < sceneStarts.length; k++) widest = Math.max(widest, sceneLayer.children[k].offsetWidth);
-      pageLayer.style.right = scenesOn ? 'calc(100% + ' + (32 + widest) + 'px)' : '';
+      // Page numbers stand next to the frame line like scene numbers; only on a line that also carries a scene number
+      // (a page that begins with a scene) the page number moves out, 16px left of that scene number
+      var sceneW = {};
+      if (scenesOn) for (var k = 0; k < sceneStarts.length; k++) sceneW[sceneStarts[k].line] = sceneLayer.children[k].offsetWidth;
+      if (showPages) for (var j = 0; j < pageStarts.length; j++){
+        var w = pageStarts[j].ch === 0 ? sceneW[pageStarts[j].line] : undefined;
+        pageLayer.children[j].style.right = w === undefined ? '0' : (w + 16) + 'px';
+      }
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
     }
@@ -1185,6 +1216,30 @@
     // A note hidden by Cmd+Option+6 or by the view stays visible while it holds the cursor, until the cursor leaves it.
     var noteCur = -1;
     function toggleNotes(){ notesOff = !notesOff; refresh(); }
+    // Cmd+Option+9 (Ctrl+Shift+9): show or hide the preamble at the top; the first time it is just the commands
+    function togglePre(){
+      preOn = !preOn;
+      var r = preRange();
+      if (preOn){
+        if (!r){
+          var rest = cm.getValue().replace(/^\s+/, '');
+          cm.replaceRange(PRE_TEMPLATE + (rest ? '\n\n' : ''), {line:0, ch:0}, {line:0, ch:0}, '+pre');
+          r = preRange();
+        }
+        refresh(); // unhide first, a cursor cannot be placed inside hidden lines
+        cm.setCursor({line:r.s, ch:line(r.s).length});
+        window.scrollTo(0, 0);
+      } else if (r){
+        var c = cm.getCursor().line;
+        if (c >= r.s && c <= r.e + 1){
+          var nx = r.e + 1;
+          while (nx < cm.lineCount() - 1 && isBlank(line(nx))) nx++;
+          cm.setCursor({line:nx, ch:0});
+        }
+      }
+      refresh();
+      cm.focus();
+    }
     cm.on('cursorActivity', function(){
       var ln = cm.getCursor().line, inNote = isNoteLn(ln) ? paraHead(ln) : -1;
       if ((notesOff || view !== 1) && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
