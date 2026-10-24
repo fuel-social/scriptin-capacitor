@@ -62,11 +62,27 @@
       else cur.push(l);
     });
     if (cur.length) paras.push(cur);
+    // Slugline separators all become the dash used most often in the script's sluglines (a tie goes to the one used first),
+    // with one space on each side: 3 x - and 13 x – turn the three - into –
+    var isSlugPara = function(p){ return /^\.(IE|EI|I|E)(\s|$)/i.test(p[0]); };
+    var kindOf = function(run){ return run.indexOf('—') >= 0 ? '—' : run.indexOf('–') >= 0 ? '–' : '-'; };
+    var count = {}, first = [];
+    paras.forEach(function(p){
+      if (!isSlugPara(p)) return;
+      p.forEach(function(l){
+        (l.match(new RegExp(SLUG_SEP.source, 'g')) || []).forEach(function(sep){
+          var k = kindOf(sep);
+          if (!count[k]){ count[k] = 0; first.push(k); }
+          count[k]++;
+        });
+      });
+    });
+    var dash = first.reduce(function(best, k){ return count[k] > count[best] ? k : best; }, first[0] || '-');
     return paras.map(function(p){
       var h = p[0], m;
-      if (/^\.(IE|EI|I|E)(\s|$)/i.test(h)){
+      if (isSlugPara(p)){
         return p.map(function(l, i){
-          l = l.toUpperCase();
+          l = l.toUpperCase().replace(new RegExp(SLUG_SEP.source, 'g'), ' ' + dash + ' ').trim();
           if (i === 0) l = l.replace(/^\.(IE|EI|I|E)\s*/, function(_, x){ return '.' + x + ' '; }).trim();
           return l;
         }).join('\n');
