@@ -173,6 +173,19 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   { const ok = !cm.getAllMarks().length && !/sm-t-note/.test(cm.getLineHandle(0).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Background: in the script is plain action'); }
 }
 
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  // a script opens with the cursor on line 0: the hidden title page stays hidden all of it
+  cm.setValue('---\nTitle: A\n\nAuthor: B\n---\n\n.i HOUSE - DAY\n\nAction.'); cm.setCursor({line:0, ch:0});
+  k9(); k9();
+  cm.setValue('---\nTitle: A\n\nAuthor: B\n---\n\n.i HOUSE - DAY\n\nAction.'); cm.setCursor({line:0, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const gone = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  { const ok = gone; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden title page hides all its lines, cursor or not'); }
+  doc('showing adds the empty lines after and before ---', '---\n\nTitle: A\n\nAuthor: B\n\n---\n\n.i HOUSE - DAY\n\nAction. @8:0');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

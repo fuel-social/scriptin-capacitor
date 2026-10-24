@@ -584,8 +584,9 @@
       return false;
     }
     function shows(p, cl){
-      if (cl >= p.s && cl <= p.e) return true;
+      // The title page shows only with Cmd+Option+9, wherever the cursor is (a script opens with the cursor on line 0)
       if (p.type === 'pre') return preOn;
+      if (cl >= p.s && cl <= p.e) return true;
       if (p.type === 'mark') return view === 1;
       // Notes: Cmd+Option+6 shows or hides them all; shown, a note appears only when its scene's slugline is visible
       // (before the first slugline only in view 1); the note holding the cursor always stays
@@ -1252,6 +1253,9 @@
           cm.replaceRange(PRE_TEMPLATE + (rest ? '\n\n' : ''), {line:0, ch:0}, {line:0, ch:0}, '+pre');
           r = preRange();
         }
+        // Always an empty line after the opening --- and before the closing ---
+        if (!isBlank(line(r.e - 1))){ put('\n', {line:r.e - 1, ch:line(r.e - 1).length}); r = preRange(); }
+        if (!isBlank(line(1))){ put('\n', {line:0, ch:line(0).length}); r = preRange(); }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
         var first = 1;
         while (first < r.e && isBlank(line(first))) first++;
