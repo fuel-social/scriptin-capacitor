@@ -1031,11 +1031,12 @@
       'Cmd-Alt-2': function(){ setView(2); }, 'Shift-Ctrl-2': function(){ setView(2); },
       'Cmd-Alt-3': function(){ setView(3); }, 'Shift-Ctrl-3': function(){ setView(3); },
       'Cmd-Alt-4': function(){ setView(4); }, 'Shift-Ctrl-4': function(){ setView(4); },
-      // Cmd+Option+5, 8, 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
+      // Cmd+Option+5, 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
       'Cmd-Alt-6': function(){ toggleNotes(); }, 'Shift-Ctrl-6': function(){ toggleNotes(); },
       'Cmd-Alt-7': function(){ togglePages(); }, 'Shift-Ctrl-7': function(){ togglePages(); },
-      'Cmd-Alt-5': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
-      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
+      'Cmd-Alt-8': function(){ toggleScenes(); }, 'Shift-Ctrl-8': function(){ toggleScenes(); },
+      'Cmd-Alt-5': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
+      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
       'Backspace': function(){ return backspace(); },
       'Delete': function(){ return guard(1); }
@@ -1053,6 +1054,7 @@
       if (n >= 1 && n <= 4) setView(n);
       else if (n === 6) toggleNotes();
       else if (n === 7) togglePages();
+      else if (n === 8) toggleScenes();
     }, true);
     // Typed , and ( : take the character back out, apply the shortcut, or put it back; other characters may add the slug/shot space or complete a name
     cm.on('inputRead', function(_cm, ch){
@@ -1115,31 +1117,53 @@
       if (tk !== transKey){ transKey = tk; cm.refresh(); }
       barCursor();
     }
-    // ---- Page numbers (reading script): left of the left frame line, at the line where each page begins ----
-    // Not part of the text, so never edited, copied or saved; whole script only (hidden in views 2 to 4);
-    // Cmd+Option+7 (Ctrl+Shift+7) shows and hides them
-    var pagesOn = true, pageStarts = [], pageLayer = document.createElement('div');
-    pageLayer.className = 'sm-pages';
-    host.appendChild(pageLayer);
+    // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
+    // Page numbers (reading script) left of the left frame line, at the line where each page begins: text in colorBackground
+    // on a colorForeground bar as wide as the number; whole script only (hidden in views 2 to 4); Cmd+Option+7 (Ctrl+Shift+7).
+    // Scene numbers right of the right frame line, at each slugline, in colorInactive, without a period; off until
+    // Cmd+Option+8 (Ctrl+Shift+8); shown in every view for the sluglines that are visible.
+    var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
+    function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
+    var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes');
+    function fill(layer, labels, cls){
+      while (layer.children.length > labels.length) layer.removeChild(layer.lastChild);
+      while (layer.children.length < labels.length){ var n = document.createElement('div'); n.className = cls; layer.appendChild(n); }
+      for (var k = 0; k < labels.length; k++) if (layer.children[k].textContent !== labels[k]) layer.children[k].textContent = labels[k];
+    }
     // The editor has no inner scrolling, so each number keeps its place next to its line: positions are worked out
     // in document coordinates whenever the text or the layout changes, and the page scrolls numbers and text together
     function placePages(){
-      pageLayer.style.display = (pagesOn && view === 1) ? '' : 'none';
-      if (!pagesOn || view !== 1) return;
+      var showPages = pagesOn && view === 1;
+      pageLayer.style.display = showPages ? '' : 'none';
+      sceneLayer.style.display = scenesOn ? '' : 'none';
+      if (!showPages && !scenesOn) return;
       var wrap = cm.getWrapperElement(), origin = {line:0, ch:0};
-      pageLayer.style.top = wrap.offsetTop + 'px';
       // From the editor's top edge to the top of its first line (the lines' padding)
       var lead = cm.charCoords(origin, 'window').top - wrap.getBoundingClientRect().top - cm.charCoords(origin, 'local').top;
-      for (var k = 0; k < pageStarts.length; k++) pageLayer.children[k].style.top = (cm.charCoords(pageStarts[k], 'local').top + lead) + 'px';
+      function place(layer, starts){
+        layer.style.top = wrap.offsetTop + 'px';
+        for (var k = 0; k < starts.length; k++) layer.children[k].style.top = (cm.charCoords(starts[k], 'local').top + lead) + 'px';
+      }
+      if (showPages) place(pageLayer, pageStarts);
+      if (scenesOn) place(sceneLayer, sceneStarts);
     }
     function paginatePages(){
       pageStarts = paginate(cm.getValue());
-      while (pageLayer.children.length > pageStarts.length) pageLayer.removeChild(pageLayer.lastChild);
-      while (pageLayer.children.length < pageStarts.length){ var n = document.createElement('div'); n.className = 'sm-pagenum'; pageLayer.appendChild(n); }
-      for (var k = 0; k < pageStarts.length; k++) pageLayer.children[k].textContent = (k + 2) + '.';
+      fill(pageLayer, pageStarts.map(function(_, k){ return (k + 2) + '.'; }), 'sm-pagenum');
+      // Scenes are counted over the whole script, so a number stays the same in every view
+      var labels = [], scene = 0;
+      sceneStarts = [];
+      for (var i = 0; i < cm.lineCount(); i++){
+        if (!isSlugHead(i)) continue;
+        scene++;
+        if (hid[i]) continue;
+        sceneStarts.push({line:i, ch:0}); labels.push(String(scene));
+      }
+      fill(sceneLayer, labels, 'sm-scenenum');
       placePages();
     }
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
+    function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
     function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
