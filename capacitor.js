@@ -630,9 +630,10 @@
       viewPos = cm.getCursor();
       centerCursor();
     }
-    // In a view, Backspace and Delete never join a visible paragraph with hidden text
+    // Hidden text (views, notes switched off, the hidden preamble) is never joined to visible text,
+    // in any view: Backspace at the start or Delete at the end next to hidden lines does nothing
     function guard(dir){
-      if (view === 1 || cm.somethingSelected()) return CodeMirror.Pass;
+      if (!marks.length || cm.somethingSelected()) return CodeMirror.Pass;
       var cur = cm.getCursor();
       if (dir < 0 && cur.ch === 0 && (hid[cur.line] || hid[cur.line - 1])) return;
       if (dir > 0 && cur.ch === line(cur.line).length && (hid[cur.line] || hid[cur.line + 1])) return;

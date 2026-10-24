@@ -156,6 +156,16 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   k9(); doc('shown again with what was typed, no second template', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @0:13');
 }
 
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  start('.i HOUSE - DAY\n\nAction.');
+  const hiddenNow = () => cm.getAllMarks().some(m => m.collapsed && m.find() && m.find().from.line === 0);
+  for (let i = 0; i < 3 && !hiddenNow(); i++) k9();
+  cm.setCursor({line:5, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('Backspace never joins a slugline to the hidden preamble', ':title: \n:author: \n:revised: \n:company: \n\n.i HOUSE - DAY\n\nAction. @5:0');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
