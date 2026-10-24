@@ -127,6 +127,7 @@
   // Page size: DIN A4 (297 mm = 11.69 in), 1 inch top and bottom margin, 6 lines per inch (12 pt Courier) = 58 lines.
   // A4 is 210 mm wide: with 1.5 in left and 1 in right margin there is room for 57 characters, so the 55 character
   // line lengths stay as they are.
+  var MAX_PAGES = 3;
   var PAGE_LINES = 58, SPACE_SLUG = 2, SPACE_OTHER = 1;
   var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
   // Start offsets of the printed lines of s, wrapped word by word at width characters
@@ -438,12 +439,9 @@
     try { saved = window.localStorage.getItem(STORE_KEY) || ''; } catch (e){}
     // An address ending in #<token>.<key> opens a script from the database: start empty and read only until it has arrived
     var linked = HASH.test(window.location.hash || '');
-    var cm = CodeMirror(host, {value:linked ? '' : saved, readOnly:linked, mode:'scriptin', lineWrapping:true, autofocus:true, cursorBlinkRate:0, styleSelectedText:true});
-    // The editor fills the htmlCapacitor element, leaving the same 80px gap at the bottom as at the top
-    var box = host.parentNode, boxH = box ? box.clientHeight : 0;
-    // Bubble clips its HTML elements; the page numbers sit outside, left of the frame line
-    if (box) box.style.overflow = 'visible';
-    if (boxH > 240) cm.setSize(null, boxH - 160);
+    // The editor grows with its text (all lines rendered, no inner scroll bar): the browser page has the only scroll bar.
+    // The text is capped at the end of page MAX_PAGES (see beforeChange below), so rendering every line stays cheap.
+    var cm = CodeMirror(host, {value:linked ? '' : saved, readOnly:linked, mode:'scriptin', lineWrapping:true, autofocus:true, cursorBlinkRate:0, styleSelectedText:true, viewportMargin:Infinity});
     var cyc = null, lastAuto = -1, saveTimer = null;
     // Active cue (or transition): plain Up/Down pick names, extensions or transitions only where the writer is working
     // (created with Tab or comma, clicked into, typed in); moving onto a cue with the arrow keys never changes it
@@ -579,8 +577,8 @@
       if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, cm.lineCount() - 1, prevEnd < 0);
     }
     function centerCursor(){
-      var lc = cm.charCoords(cm.getCursor(), 'local'), info = cm.getScrollInfo();
-      cm.scrollTo(null, Math.max(0, lc.top - info.clientHeight / 2));
+      var c = cm.cursorCoords(cm.getCursor(), 'window');
+      window.scrollBy(0, (c.top + c.bottom) / 2 - window.innerHeight / 2);
     }
     function setView(v){
       var cur = cm.getCursor();
@@ -933,10 +931,8 @@
     // Find the cursor (Cmd+Option+. or Ctrl+Shift+.): focus, center it in view, grow to the right from 3px to FIND_PX and back
     function findCursor(){
       cm.focus();
-      var r = host.getBoundingClientRect();
-      if (r.top < 0 || r.top > window.innerHeight) window.scrollTo(0, 0);
-      var pos = cm.getCursor(), lc = cm.charCoords(pos, 'local'), info = cm.getScrollInfo();
-      cm.scrollTo(null, Math.max(0, lc.top - info.clientHeight / 2));
+      var pos = cm.getCursor();
+      centerCursor();
       requestAnimationFrame(function(){
         var c = cm.cursorCoords(pos, 'window'), cs = getComputedStyle(host);
         var gap = parseFloat(cs.getPropertyValue('--sm-gap')) || 0, band = parseFloat(cs.getPropertyValue('--sm-band')) || (c.bottom - c.top);
@@ -1036,18 +1032,16 @@
     var pagesOn = true, pageStarts = [], pageLayer = document.createElement('div');
     pageLayer.className = 'sm-pages';
     host.appendChild(pageLayer);
+    // The editor has no inner scrolling, so each number keeps its place next to its line: positions are worked out
+    // in document coordinates whenever the text or the layout changes, and the page scrolls numbers and text together
     function placePages(){
-      var wrap = cm.getWrapperElement();
-      pageLayer.style.top = wrap.offsetTop + 'px';
-      pageLayer.style.height = wrap.offsetHeight + 'px';
       pageLayer.style.display = (pagesOn && view === 1) ? '' : 'none';
       if (!pagesOn || view !== 1) return;
-      var base = pageLayer.getBoundingClientRect().top, kids = pageLayer.children;
-      for (var k = 0; k < pageStarts.length; k++){
-        var p = pageStarts[k];
-        if (p.line > cm.lastLine()) continue;
-        kids[k].style.top = (cm.charCoords(p, 'window').top - base) + 'px';
-      }
+      var wrap = cm.getWrapperElement(), origin = {line:0, ch:0};
+      pageLayer.style.top = wrap.offsetTop + 'px';
+      // From the editor's top edge to the top of its first line (the lines' padding)
+      var lead = cm.charCoords(origin, 'window').top - wrap.getBoundingClientRect().top - cm.charCoords(origin, 'local').top;
+      for (var k = 0; k < pageStarts.length; k++) pageLayer.children[k].style.top = (cm.charCoords(pageStarts[k], 'local').top + lead) + 'px';
     }
     function paginatePages(){
       pageStarts = paginate(cm.getValue());
@@ -1057,7 +1051,6 @@
       placePages();
     }
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
-    cm.on('scroll', placePages); cm.on('update', placePages); window.addEventListener('resize', placePages);
     function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
@@ -1076,6 +1069,16 @@
       if ((notesOff || view !== 1) && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
       else noteCur = inNote;
     });
+    // The text ends with page MAX_PAGES: typing, Tab and pasting that would start another page are refused;
+    // deleting, undo, redo, Reformat and loading a script always work
+    cm.on('beforeChange', function(_cm, ch){
+      if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
+      if (ch.text.join('') === '') return;
+      var from = cm.indexFromPos(ch.from), to = cm.indexFromPos(ch.to), old = cm.getValue();
+      var next = old.slice(0, from) + ch.text.join('\n') + old.slice(to);
+      var pages = paginate(next).length + 1;
+      if (pages > MAX_PAGES && pages > paginate(old).length + 1) ch.cancel();
+    });
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
       clicked = true;
@@ -1088,6 +1091,7 @@
     measureBand();
     paginatePages();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); placePages(); });
+    window.addEventListener('resize', placePages);
   }
   // Load CodeMirror plus the mark-selection addon (selected text gets its own class, so the highlight can match the text height)
   var BASE = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/';

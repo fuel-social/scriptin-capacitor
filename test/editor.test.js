@@ -1,0 +1,86 @@
+// Simulated typing in a jsdom CodeMirror: completion, Tab, Reformat. Run with: npm test
+const fs = require('fs');
+const { JSDOM } = require('jsdom');
+const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://fuel.social/version-test/scriptin' });
+const w = dom.window;
+Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3000; } });
+Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
+w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
+w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
+const nm = require('path').join(__dirname, '..', 'node_modules', 'codemirror') + '/';
+w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
+w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
+w.__smMarkSelection = 1;
+// Capture the editor instance
+const Orig = w.CodeMirror; let cm;
+w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); return cm; }, Orig);
+w.CodeMirror.prototype = Orig.prototype;
+w.eval(fs.readFileSync(require('path').join(__dirname, '..', 'capacitor.js'), 'utf8'));
+setTimeout(main, 100);
+function main(){
+if (!cm) { console.log('no editor'); process.exit(1); }
+cm.state.focused = true;
+const inp = cm.display.input;
+function type(str){
+  for (const ch of str){
+    cm.state.focused = true;
+    inp.reset();
+    const ta = inp.textarea;
+    ta.value = ch; ta.selectionStart = ta.selectionEnd = 1;
+    inp.poll();
+  }
+}
+function key(name, code){ cm.triggerOnKeyDown({ type:'keydown', keyCode: code, key: name, preventDefault(){}, stopPropagation(){} }); }
+const tab = () => key('Tab', 9), right = () => key('ArrowRight', 39);
+function state(){
+  const c = cm.getCursor(), sel = cm.getSelection();
+  return JSON.stringify(cm.getLine(c.line)) + ' cursor ' + c.line + ':' + c.ch + (sel ? ' selected ' + JSON.stringify(sel) : '');
+}
+let fails = 0;
+function check(label, want){ const got = state(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + got + (ok ? '' : '   wanted ' + want)); }
+function start(text){ cm.setValue(text); cm.setCursor({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length}); }
+
+const base = '.i HOUSE - LIVING ROOM - DAY\n\nAction.\n\n.e GARDEN - NIGHT\n\nMore.\n\n';
+// First DAY is never completed: only GARDEN and HOUSE as locations, times DAY and NIGHT
+start('.i HOUSE\n\nAction.\n\n'); type('.id'); check('no time words in script yet, d stays d', '".i d" cursor 4:4');
+start(base); type('.ih'); check('h completes house (typed lowercase)', '".i HOUSE" cursor 8:4 selected "OUSE"');
+tab(); check('Tab after location stays on the line', '".i HOUSE" cursor 8:8');
+type(' - l'); check('l completes living room under HOUSE', '".i HOUSE - LIVING ROOM" cursor 8:12 selected "IVING ROOM"');
+right(); check('Right arrow keeps it', '".i HOUSE - LIVING ROOM" cursor 8:22');
+type(' - d'); check('d completes day (only time with D)', '".i HOUSE - LIVING ROOM - DAY" cursor 8:26 selected "AY"');
+tab(); check('Tab after time moves on to action', '"" cursor 10:0');
+start(base); type('.iH'); check('typed capital keeps stored case', '".i HOUSE" cursor 8:4 selected "OUSE"');
+start(base); type('.il'); check('L at the start offers only first segments', '".i l" cursor 8:4');
+start(base); type('.egx'); check('typing overwrites the completion', '".e Gx" cursor 8:5');
+start(base); type('.egarden'); check('typing the whole word leaves it as typed', '".e GARDEN" cursor 8:9');
+type(' - n'); check('n completes night', '".e GARDEN - NIGHT" cursor 8:13 selected "IGHT"');
+start(base); type('.ihouse - k'); check('unknown room, nothing', '".i HOUSE - k" cursor 8:12');
+start(base); type('.ioffice - d'); check('time words come from the whole script', '".i office - DAY" cursor 8:13 selected "AY"');
+start(base + '.i HOUSE - DUSK\n\nX.\n\n'); type('.ihouse - d'); check('DAY and DUSK used, d ambiguous', '".i HOUSE - d" cursor 12:12');
+type('u'); check('du completes dusk', '".i HOUSE - DUSK" cursor 12:13 selected "SK"');
+start(base); type('.ihouse - day - x'); check('nothing after the time', '".i HOUSE - DAY - x" cursor 8:18');
+start('.i HOUSE - SAME\n\n.i HOUSE - SAME TIME\n\n'); type('.ihouse - same'); check('SAME and SAME TIME, same stays', '".i HOUSE - same" cursor 4:15');
+type(' '); check('same + space completes same time', '".i HOUSE - SAME TIME" cursor 4:16 selected "TIME"');
+start('.i TWENTY-ONE CLUB - DAY\n\n'); type('.it'); check('hyphen inside a word is not a separator', '".i TWENTY-ONE CLUB" cursor 2:4 selected "WENTY-ONE CLUB"');
+start('.i HOUSE - DAY (FLASHBACK)\n\n'); type('.ex - d'); check('completion stops at the time word', '".e x - DAY" cursor 2:8 selected "AY"');
+start('.i HOUSE – DAY\n\n'); type('.ex -d'); check('en dash and missing space still separate', '".e x -DAY" cursor 2:7 selected "AY"');
+start('.i HOUSE - DAY\n\nThe house is old.\n\n'); type('h'); check('action lines are not completed', '"h" cursor 4:1');
+start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type(',a'); check('cue completion unchanged', '",ANNA," cursor 5:2 selected "NNA"');
+start('.i HOUSE - DAY\n\n'); type('.ieh'); check('.ie sluglines complete too', '".ie HOUSE" cursor 2:5 selected "OUSE"');
+start('.i HOUSE - DAY\n\n'); type('.ih'); tab(); tab(); check('second Tab goes to action', '"" cursor 4:0');
+start('.i HOUSE - DAY\n\n,anna,\nHi.\n\n'); type(',a'); check('cue from lowercase name completes in capitals', '",ANNA," cursor 5:2 selected "NNA"');
+start('.i house - day\n\n'); type('.eh'); check('slugline from lowercase completes in capitals', '".e HOUSE" cursor 2:4 selected "OUSE"');
+start('.i HOUSE - DAY\n\n,JOHN,\nHi.\n\n,JO,\nYes.\n\n'); type(',joh'); type('n'); check('name typed to the end ends in capitals', '",JOHN," cursor 8:5');
+
+function reformatAll(){ cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); }
+function rf(label, text, want){ cm.setValue(text); cm.setCursor({line:0, ch:0}); reformatAll(); const got = cm.getValue(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + JSON.stringify(got) + (ok ? '' : '   wanted ' + JSON.stringify(want))); }
+const N = '–', M = '—';
+rf('majority en dash wins', '.i a - b\n\n.i c '+N+' d\n\n.i e '+N+' f\n\n.e g - h '+N+' i '+N+' day', '.I A '+N+' B\n\n.I C '+N+' D\n\n.I E '+N+' F\n\n.E G '+N+' H '+N+' I '+N+' DAY');
+rf('majority hyphen wins, spacing fixed', '.i a'+M+' b\n\n.i c -d\n\n.i e  -  f', '.I A - B\n\n.I C - D\n\n.I E - F');
+rf('tie goes to the dash used first', '.i a '+M+' b\n\n.i c - d', '.I A '+M+' B\n\n.I C '+M+' D');
+rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', '.I TWENTY-ONE '+N+' DAY\n\n.I X '+N+' Y');
+rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.I A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
+rf('no separators, nothing changes', '.i house\n\nAction.', '.I HOUSE\n\nAction.');
+console.log(fails ? fails + ' failed' : 'all passed');
+process.exitCode = fails ? 1 : 0;
+}
