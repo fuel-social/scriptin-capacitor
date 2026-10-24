@@ -2,23 +2,25 @@
   font-family: 'GTPressuraMonoRegular';
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1705585947012x778432208426352100/GT-Pressura-Mono-Regular.woff');
 }
-#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:33px;--sm-band:26.5px;--sm-gap:3.25px}
-#sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1.5714;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
+#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px}
+#sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
 #sm-editor .CodeMirror-lines{padding:10px 0}
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
 #sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:var(--sm-band) !important;margin-top:var(--sm-gap)}
 #sm-editor .sm-on-bar .CodeMirror-cursor{border-left-color:var(--sm-blue-alt) !important}
-#sm-editor .cm-smcue{background:var(--sm-frame);color:var(--sm-fg)}
+#sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-fg)}
 #sm-editor .sm-l-slug{background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
-#sm-editor pre.sm-t-shot > span{background:var(--sm-inactive);color:var(--sm-bg);box-shadow:-16px 0 0 var(--sm-inactive),16px 0 0 var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+#sm-editor pre.sm-t-shot > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-bg);box-shadow:calc(-16px - var(--sm-inset)) 0 0 calc(0px - var(--sm-inset)) var(--sm-inactive),calc(16px + var(--sm-inset)) 0 0 calc(0px - var(--sm-inset)) var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
 #sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .CodeMirror-selected{background:transparent !important}
-#sm-editor .CodeMirror-selectedtext{background:var(--sm-blue) !important;color:var(--sm-bg) !important}
+#sm-editor .CodeMirror-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}
 #sm-editor pre.sm-t-note{color:var(--sm-blue)}
 #sm-editor .sm-n-note{position:relative}
 #sm-editor .sm-n-note::after{content:'//';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-bg);pointer-events:none}
 #sm-editor .sm-pages{position:absolute;left:-96px;width:80px;pointer-events:none;user-select:none;-webkit-user-select:none}
 #sm-editor .sm-pagenum{position:absolute;right:0;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);color:var(--sm-inactive);white-space:nowrap}
+/* Single spaced like Final Draft (line height = font size); the font's own text box is taller than a line, so
+   cue, shot, transition and selection backgrounds are painted only on the line's height (--sm-inset trims them) */
 /* The editor grows with its text; the frame lines reach at least down to 80px above the bottom of the window */
 #sm-editor .CodeMirror-scroll{min-height:calc(100vh - 160px)}
 /* Bubble clips its HTML elements; the page numbers sit outside, left of the frame line */

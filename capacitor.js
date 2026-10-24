@@ -280,7 +280,7 @@
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
     // the line spans the whole editor and the text's own padding carries the block on to the right frame line,
     // so the block is one piece with the same height as cue blocks (as shot blocks run to the left frame line)
-    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:var(--sm-frame);color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:-16px 0 0 var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
+    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px - var(--sm-inset)) 0 0 calc(0px - var(--sm-inset)) var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -457,8 +457,12 @@
       var r = sp.getBoundingClientRect(), lr = sp.parentNode.getBoundingClientRect();
       if (!r.height) return;
       host.style.setProperty('--sm-lh', cm.defaultTextHeight() + 'px');
-      host.style.setProperty('--sm-band', r.height + 'px');
-      host.style.setProperty('--sm-gap', (r.top - lr.top) + 'px');
+      // Single spaced: the font's text box (r) can be taller than the line; bars and the cursor take the line's height,
+      // and --sm-inset is how far the text box reaches beyond the line above and below
+      var lh = cm.defaultTextHeight();
+      host.style.setProperty('--sm-band', Math.min(r.height, lh) + 'px');
+      host.style.setProperty('--sm-gap', Math.max(0, r.top - lr.top) + 'px');
+      host.style.setProperty('--sm-inset', Math.max(0, lr.top - r.top) + 'px');
       // Distance from the page's right text edge to the editor's right frame line
       host.style.setProperty('--sm-trans-tail', (cm.display.lineDiv.clientWidth - (W_ACTION * cm.defaultCharWidth() + PAD / 2)) + 'px');
     }
