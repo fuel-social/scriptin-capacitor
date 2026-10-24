@@ -1055,7 +1055,7 @@
       placePages();
     }
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
-    cm.on('scroll', placePages);
+    cm.on('scroll', placePages); cm.on('update', placePages); window.addEventListener('resize', placePages);
     function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
