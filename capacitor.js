@@ -118,6 +118,134 @@
       return p.join('\n');
     }).join('\n\n');
   }
+  // ---- Pagination (reading script): where each printed page begins, as editor positions ----
+  // The printed layout is built from the elements, not from the writer's own blank lines; notes (//) take no space.
+  // Rules from the scriptin:flux documentation (Cole/Haag component): sluglines and shots never stand alone at the
+  // bottom of a page; action breaks at the end of a sentence (or after ... or --); dialogue breaks at the end of a
+  // sentence with (MORE) below and the cue with (CONT'D) on the next page, never right after a parenthetical;
+  // a cue never stays alone at the bottom. Reading script: no (CONTINUED), page numbers from page 2.
+  // Page size until calibrated against a Final Draft .fdx: US Letter, 1 inch top and bottom, 6 lines per inch.
+  var PAGE_LINES = 54, SPACE_SLUG = 2, SPACE_OTHER = 1;
+  var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
+  // Start offsets of the printed lines of s, wrapped word by word at width characters
+  function wrapStarts(s, width){
+    var out = [], len = -1, re = /\S+/g, m;
+    while ((m = re.exec(s))){
+      var w = m[0].length, at = m.index;
+      if (len >= 0 && len + 1 + w <= width){ len += 1 + w; continue; }
+      while (w > width){ out.push(at); at += width; w -= width; }
+      out.push(at); len = w;
+    }
+    return out.length ? out : [0];
+  }
+  function runLines(runs){ var n = 0; for (var i = 0; i < runs.length; i++) n += wrapStarts(runs[i].s, runs[i].w).length; return n; }
+  function piece(s, ln, ch, w, par){
+    var lead = s.length - s.replace(/^\s+/, '').length;
+    return {s:s.trim(), line:ln, ch:ch + lead, w:w, par:!!par};
+  }
+  // A dialogue line, split like Reformat does: every parenthetical on its own printed line
+  function dialogPieces(s, ln, ch, out){
+    if (/^\s*\(/.test(s) && s.indexOf(')') < 0){ out.push(piece(s, ln, ch, W_PAREN, true)); return; }
+    var re = /\(([^()]*)\)?/g, last = 0, m;
+    while ((m = re.exec(s))){
+      if (s.slice(last, m.index).trim()) out.push(piece(s.slice(last, m.index), ln, ch + last, W_DIALOG));
+      out.push(piece(m[0], ln, ch + m.index, W_PAREN, true));
+      last = re.lastIndex;
+    }
+    if (s.slice(last).trim()) out.push(piece(s.slice(last), ln, ch + last, W_DIALOG));
+  }
+  function pageElements(text){
+    var lines = text.split('\n'), els = [], i = 0;
+    while (i < lines.length){
+      if (lines[i].trim() === ''){ i++; continue; }
+      var s0 = i, ps = [];
+      while (i < lines.length && lines[i].trim() !== '') ps.push(lines[i++]);
+      var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, runs:[]}, d, m;
+      if (NOTE.test(h)) continue;
+      if ((d = slugDelta(h)) >= 0){
+        el.keep = true; el.space = SPACE_SLUG;
+        ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
+      } else if (SHOT.test(h) || TRANS.test(h)){
+        el.keep = SHOT.test(h); if (el.keep) el.space = SPACE_SLUG;
+        ps.forEach(function(l, k){
+          var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
+          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
+        });
+        if (!el.runs.length) el.runs.push(piece('', s0, 0, W_ACTION));
+      } else if ((m = h.match(/^,([^,]*),(.*)$/))){
+        el.cue = true; el.split = true;
+        var off = m[1].length + 2;
+        if (m[2].trim()) dialogPieces(m[2], s0, off, el.runs);
+        for (var k = 1; k < ps.length; k++) dialogPieces(ps[k], s0 + k, 0, el.runs);
+      } else {
+        el.split = true;
+        ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, W_ACTION)); });
+      }
+      els.push(el);
+    }
+    return els;
+  }
+  function elLines(el){ return (el.cue ? 1 : 0) + runLines(el.runs); }
+  // Allowed breaks of an action or dialogue element, from the smallest first part to the largest
+  function breakOptions(el){
+    var out = [], runs = el.runs;
+    for (var j = 0; j < runs.length; j++){
+      var r = runs[j], m, re = new RegExp(SENT_END.source, 'g');
+      if (!r.par){
+        while ((m = re.exec(r.s))){
+          var e = m.index + m[0].length, rs = e + (r.s.slice(e).length - r.s.slice(e).replace(/^\s+/, '').length);
+          out.push({first:runs.slice(0, j).concat([{s:r.s.slice(0, e), w:r.w, par:false, line:r.line, ch:r.ch}]),
+            rest:[{s:r.s.slice(rs), w:r.w, par:false, line:r.line, ch:r.ch + rs}].concat(runs.slice(j + 1))});
+        }
+      }
+      if (j < runs.length - 1 && !r.par && (SENT_TAIL.test(r.s) || (el.cue && runs[j + 1].par)))
+        out.push({first:runs.slice(0, j + 1), rest:runs.slice(j + 1)});
+    }
+    // Dialogue: the part left at the bottom holds at least one line of dialogue
+    if (el.cue) out = out.filter(function(o){ return o.first.some(function(r){ return !r.par; }); });
+    return out;
+  }
+  // Lines a break leaves at the bottom: the cue and (MORE) come with dialogue
+  function firstLines(el, o){ return runLines(o.first) + (el.cue ? 2 : 0); }
+  function minHead(el){
+    var o = el.split ? breakOptions(el) : [];
+    return o.length ? Math.min(firstLines(el, o[0]), elLines(el)) : elLines(el);
+  }
+  // Last resort for an element taller than a page: break after as many printed lines as fit
+  function forceBreak(el, room){
+    var first = [], left = Math.max(1, room - (el.cue ? 2 : 0));
+    for (var j = 0; j < el.runs.length; j++){
+      var r = el.runs[j], st = wrapStarts(r.s, r.w);
+      if (st.length <= left){ first.push(r); left -= st.length; if (!left) return {first:first, rest:el.runs.slice(j + 1)}; continue; }
+      var cut = st[left];
+      first.push({s:r.s.slice(0, cut), w:r.w, par:r.par, line:r.line, ch:r.ch});
+      return {first:first, rest:[{s:r.s.slice(cut), w:r.w, par:r.par, line:r.line, ch:r.ch + cut}].concat(el.runs.slice(j + 1))};
+    }
+    return null;
+  }
+  function paginate(text){
+    var els = pageElements(text), y = 0, starts = [];
+    for (var i = 0; i < els.length; i++){
+      var el = els[i], guard = 0;
+      while (guard++ < 1000){
+        var sp = y === 0 ? 0 : el.space, h = elLines(el);
+        if (el.keep){
+          var nx = els[i + 1], need = sp + h + (nx && !nx.keep ? nx.space + minHead(nx) : 0);
+          if (y > 0 && y + need > PAGE_LINES){ starts.push(el.pos); y = 0; continue; }
+          y += sp + h; break;
+        }
+        if (y + sp + h <= PAGE_LINES || (y === 0 && !el.split)){ y += sp + h; break; }
+        var room = PAGE_LINES - y - sp, best = null;
+        if (el.split) breakOptions(el).forEach(function(o){ if (firstLines(el, o) <= room) best = o; });
+        if (!best && y > 0){ starts.push(el.pos); y = 0; continue; }
+        if (!best) best = forceBreak(el, room);
+        if (!best || !best.rest.length){ y += sp + h; break; }
+        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest};
+        starts.push(el.pos); y = 0;
+      }
+    }
+    return starts;
+  }
   function defineMode(){
     CodeMirror.defineMode('scriptin', function(){
       return {
@@ -831,10 +959,11 @@
       'Cmd-Alt-2': function(){ setView(2); }, 'Shift-Ctrl-2': function(){ setView(2); },
       'Cmd-Alt-3': function(){ setView(3); }, 'Shift-Ctrl-3': function(){ setView(3); },
       'Cmd-Alt-4': function(){ setView(4); }, 'Shift-Ctrl-4': function(){ setView(4); },
-      // Cmd+Option+5 to 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
+      // Cmd+Option+5, 8, 9 and 0 (Ctrl+Shift on Windows) are swallowed, so the browser does not open bookmarks or tabs while writing
       'Cmd-Alt-6': function(){ toggleNotes(); }, 'Shift-Ctrl-6': function(){ toggleNotes(); },
-      'Cmd-Alt-5': function(){}, 'Cmd-Alt-7': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
-      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-7': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
+      'Cmd-Alt-7': function(){ togglePages(); }, 'Shift-Ctrl-7': function(){ togglePages(); },
+      'Cmd-Alt-5': function(){}, 'Cmd-Alt-8': function(){}, 'Cmd-Alt-9': function(){}, 'Cmd-Alt-0': function(){},
+      'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-8': function(){}, 'Shift-Ctrl-9': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
       'Backspace': function(){ return guard(-1); },
       'Delete': function(){ return guard(1); }
@@ -851,6 +980,7 @@
       var n = +d[2];
       if (n >= 1 && n <= 4) setView(n);
       else if (n === 6) toggleNotes();
+      else if (n === 7) togglePages();
     }, true);
     // Typed , and ( : take the character back out, apply the shortcut, or put it back; other characters may add the slug/shot space or complete a name
     cm.on('inputRead', function(_cm, ch){
@@ -896,7 +1026,35 @@
       if (tk !== transKey){ transKey = tk; cm.refresh(); }
       barCursor();
     }
-    function refresh(){ cm.operation(function(){ applyView(); decorate(); }); }
+    // ---- Page numbers (reading script): left of the left frame line, at the line where each page begins ----
+    // Not part of the text, so never edited, copied or saved; whole script only (hidden in views 2 to 4);
+    // Cmd+Option+7 (Ctrl+Shift+7) shows and hides them
+    var pagesOn = true, pageStarts = [], pageLayer = document.createElement('div');
+    pageLayer.className = 'sm-pages';
+    host.appendChild(pageLayer);
+    function placePages(){
+      var wrap = cm.getWrapperElement();
+      pageLayer.style.top = wrap.offsetTop + 'px';
+      pageLayer.style.height = wrap.offsetHeight + 'px';
+      pageLayer.style.display = (pagesOn && view === 1) ? '' : 'none';
+      if (!pagesOn || view !== 1) return;
+      var base = pageLayer.getBoundingClientRect().top, kids = pageLayer.children;
+      for (var k = 0; k < pageStarts.length; k++){
+        var p = pageStarts[k];
+        if (p.line > cm.lastLine()) continue;
+        kids[k].style.top = (cm.charCoords(p, 'window').top - base) + 'px';
+      }
+    }
+    function paginatePages(){
+      pageStarts = paginate(cm.getValue());
+      while (pageLayer.children.length > pageStarts.length) pageLayer.removeChild(pageLayer.lastChild);
+      while (pageLayer.children.length < pageStarts.length){ var n = document.createElement('div'); n.className = 'sm-pagenum'; pageLayer.appendChild(n); }
+      for (var k = 0; k < pageStarts.length; k++) pageLayer.children[k].textContent = (k + 2) + '.';
+      placePages();
+    }
+    function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
+    cm.on('scroll', placePages);
+    function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
@@ -914,16 +1072,6 @@
       if ((notesOff || view !== 1) && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
       else noteCur = inNote;
     });
-    // For now the text is capped about one line before the bottom of the editor: typing, Tab and pasting that would
-    // go further are refused; deleting, undo, redo and Reformat always work
-    cm.on('beforeChange', function(_cm, ch){
-      if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
-      var add = ch.text.length - 1;
-      if (add === 0 && ch.text[0] === '') return;
-      var last = cm.lastLine(), bottom = cm.heightAtLine(last, 'local') + cm.getLineHandle(last).height;
-      var lh = cm.defaultTextHeight(), limit = cm.getScrollInfo().clientHeight - 10 - lh;
-      if (bottom + (add - (ch.to.line - ch.from.line)) * lh > limit) ch.cancel();
-    });
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
       clicked = true;
@@ -934,7 +1082,8 @@
     });
     decorate();
     measureBand();
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); });
+    paginatePages();
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); placePages(); });
   }
   // Load CodeMirror plus the mark-selection addon (selected text gets its own class, so the highlight can match the text height)
   var BASE = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/';

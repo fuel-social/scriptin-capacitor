@@ -2,7 +2,7 @@
   font-family: 'GTPressuraMonoRegular';
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1705585947012x778432208426352100/GT-Pressura-Mono-Regular.woff');
 }
-#sm-editor{width:720px;margin:80px auto 0;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:33px;--sm-band:26.5px;--sm-gap:3.25px}
+#sm-editor{position:relative;width:720px;margin:80px auto 0;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:33px;--sm-band:26.5px;--sm-gap:3.25px}
 #sm-editor .CodeMirror{height:calc(100vh - 80px);font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1.5714;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
 #sm-editor .CodeMirror-lines{padding:10px 0}
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
@@ -17,3 +17,5 @@
 #sm-editor pre.sm-t-note{color:var(--sm-blue)}
 #sm-editor .sm-n-note{position:relative}
 #sm-editor .sm-n-note::after{content:'//';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-bg);pointer-events:none}
+#sm-editor .sm-pages{position:absolute;left:-96px;width:80px;overflow:hidden;pointer-events:none;user-select:none;-webkit-user-select:none}
+#sm-editor .sm-pagenum{position:absolute;right:0;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);color:var(--sm-inactive);white-space:nowrap}
