@@ -16,6 +16,10 @@
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
+  // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
+  var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
+  // Separator between slugline segments: a hyphen (or en/em dash) with a space on at least one side, so TWENTY-ONE stays one word
+  var SLUG_SEP = /\s+[-–—]+\s*|[-–—]+\s+/g;
   // The script is kept in this browser's localStorage (no sync between browsers or devices)
   var STORE_KEY = 'scriptin.capacitor.text', SAVE_MS = 400;
   // The script is also kept in Bubble (DB Script), encrypted in this browser before it leaves:
@@ -491,6 +495,7 @@
     }
     function tab(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      if (tabSlug(ln)) return;
       var cb = blockCue(ln);
       if (cb >= 0){
         if (/^\(/.test(s)){
@@ -669,6 +674,79 @@
       put(hits[0], {line:ln, ch:1}, {line:ln, ch:c.nameEnd});
       cm.setSelection({line:ln, ch:1 + hits[0].length}, {line:ln, ch:1 + typed.length});
     }
+    // ---- Slugline completion: one segment at a time (HOUSE, then LIVING ROOM, then DAY), never the whole chain ----
+    // A segment is completed as soon as the typed letters match exactly one segment already used at the same place
+    // (same segments before it); times of day come only from times already used anywhere in the script, and nothing
+    // after the time is offered. The completed rest is selected: typing overwrites it, Right arrow keeps it, Tab keeps it
+    // (after a time Tab also moves on to the action line, after a location the cursor stays for " - ").
+    var slugPend = null;
+    function slugBody(s){ var m = s.match(/^\.(IE|EI|I|E)\s*/i); return m ? m[0].length : -1; }
+    function slugSplit(body){
+      var segs = [], re = new RegExp(SLUG_SEP.source, 'g'), last = 0, m;
+      while ((m = re.exec(body))){ segs.push(body.slice(last, m.index)); last = re.lastIndex; }
+      return {segs:segs, tail:body.slice(last)};
+    }
+    // The time word a segment starts with (longest match: SAME TIME before SAME), or ''
+    function timeOf(seg){
+      var t = seg.trim(), u = t.toUpperCase(), best = '';
+      TIME_LIST.forEach(function(w){
+        if (u.indexOf(w) === 0 && !/[A-Z0-9']/.test(u.charAt(w.length)) && w.length > best.length) best = w;
+      });
+      return best ? t.slice(0, best.length) : '';
+    }
+    // Segments of another slugline, cut after its time of day; parts.time is the index of the time segment or -1
+    function slugParts(ln){
+      var s = line(ln), p = slugSplit(s.slice(slugBody(s))), all = p.segs.concat([p.tail]), out = [];
+      out.time = -1;
+      for (var i = 0; i < all.length; i++){
+        var x = all[i].trim(), tm = i > 0 ? timeOf(x) : '';
+        if (tm){ out.push(tm); out.time = i; break; }
+        out.push(x);
+      }
+      return out;
+    }
+    function completeSlug(){
+      slugPend = null;
+      if (cm.somethingSelected()) return;
+      var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      if (!isSlugHead(ln) || cur.ch !== s.length) return;
+      var off = slugBody(s);
+      if (cur.ch <= off) return;
+      var me = slugSplit(s.slice(off)), typed = me.tail.replace(/^\s+/, ''), up = typed.toUpperCase(), k = me.segs.length;
+      if (!typed) return;
+      var pre = me.segs.map(function(x){ return x.trim().toUpperCase(); });
+      // Nothing is completed after the time of day
+      for (var q = 1; q < k; q++){ if (timeOf(pre[q])) return; }
+      var seen = {}, cands = [];
+      function add(x){ var u = x.toUpperCase(); if (x && !seen[u]){ seen[u] = 1; cands.push(x); } }
+      for (var i = 0; i < cm.lineCount(); i++){
+        if (i === ln || !isSlugHead(i)) continue;
+        var parts = slugParts(i);
+        if (k > 0 && parts.time >= 0) add(parts[parts.time]);
+        if (parts.length <= k) continue;
+        var same = true;
+        for (var j = 0; j < k; j++){ if (parts[j].toUpperCase() !== pre[j]){ same = false; break; } }
+        if (same) add(parts[k]);
+      }
+      var hits = cands.filter(function(x){ return x.toUpperCase().indexOf(up) === 0; });
+      if (hits.length !== 1 || hits[0].length === typed.length) return;
+      // The typed letters stay as typed; the rest follows in lowercase while the writer types lowercase (Reformat capitalizes)
+      var from = s.length - typed.length, rest = hits[0].slice(typed.length);
+      if (typed === typed.toLowerCase()) rest = rest.toLowerCase();
+      put(rest, {line:ln, ch:s.length}, {line:ln, ch:s.length});
+      cm.setSelection({line:ln, ch:from + hits[0].length}, {line:ln, ch:from + typed.length});
+      slugPend = {line:ln, a:from + typed.length, b:from + hits[0].length, time:!!timeOf(hits[0]) && k > 0};
+    }
+    // Tab on a pending slugline completion: keep it; after a location stay on the line, after a time go on as usual
+    function tabSlug(ln){
+      var p = slugPend; slugPend = null;
+      if (!p || p.line !== ln || !cm.somethingSelected()) return false;
+      var r = cm.listSelections()[0];
+      if (r.head.line !== ln || r.anchor.line !== ln || r.head.ch !== p.a || r.anchor.ch !== p.b) return false;
+      if (p.time) return false;
+      caret(ln, line(ln).length);
+      return true;
+    }
     // Reformat the whole script in one undoable step, keeping the cursor on the same character
     function reformat(){
       var old = cm.getValue(), nt = reformatText(old);
@@ -761,7 +839,7 @@
       if (cueParts(cm.getCursor().line) || isTransHead(cm.getCursor().line)) activeCue = cm.getCursor().line;
       var t = ch.text[0];
       if (t !== ',' && t !== '('){
-        if (t.length === 1 && !autoSpace()) completeName();
+        if (t.length === 1 && !autoSpace()){ completeName(); completeSlug(); }
         return;
       }
       lastAuto = -1;
