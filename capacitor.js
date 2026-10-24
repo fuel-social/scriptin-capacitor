@@ -580,14 +580,23 @@
       return matches(p);
     }
     // Hidden runs collapse into the empty line that already separates the visible paragraphs; they are read only
+    // Hidden text at the very top (a hidden preamble, or paragraphs a view hides before the first visible one) takes no
+    // height at all: its lines get a zero height class instead of being collapsed into one empty line
+    var topGone = -1;
     function hideRange(a, b, fromStart){
       if (b < a) return;
+      if (fromStart){
+        marks.push(cm.markText({line:0, ch:0}, {line:b, ch:line(b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
+        for (var t = 0; t <= b; t++) hid[t] = 1;
+        topGone = b;
+        return;
+      }
       marks.push(cm.markText({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
       for (var i = a; i <= b; i++) hid[i] = 1;
     }
     function applyView(){
       for (var m = 0; m < marks.length; m++) marks[m].clear();
-      marks = []; hid = [];
+      marks = []; hid = []; topGone = -1;
       if (view === 1 && !notesOff && (preOn || !hasPre())) return;
       var ps = paragraphs(), cl = cm.getCursor().line, prevEnd = -1, run = false;
       for (var k = 0; k < ps.length; k++){
@@ -1119,6 +1128,7 @@
         for (var i = 0; i < cm.lineCount(); i++){
           cm.removeLineClass(i, 'wrap');
           cm.removeLineClass(i, 'text');
+          if (i <= topGone){ cm.addLineClass(i, 'wrap', 'sm-gone'); continue; }
           var s = line(i);
           // Final Draft spacing: two empty lines before a slugline, one before everything else (shots included); the writer
           // types one, so the empty line right above a slugline is shown at double height
@@ -1213,6 +1223,10 @@
       sync.changed();
     });
     cm.on('cursorActivity', barCursor);
+    // The cursor never rests in hidden lines at the top (they have no height); it goes to the first visible line
+    cm.on('cursorActivity', function(){
+      if (topGone >= 0 && cm.getCursor().line <= topGone && !cm.somethingSelected() && topGone + 1 < cm.lineCount()) cm.setCursor({line:topGone + 1, ch:0});
+    });
     // Notes on and off (Cmd+Option+6, Ctrl+Shift+6); Escape leaves it as it is.
     // A note hidden by Cmd+Option+6 or by the view stays visible while it holds the cursor, until the cursor leaves it.
     var noteCur = -1;

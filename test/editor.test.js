@@ -150,7 +150,7 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   doc('Cmd+Option+9 shows the preamble commands at the top', ':title: \n:author: \n:revised: \n:company: \n\nAction. @0:8');
   type('Night'); tab(); doc('Tab goes to the next command line', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @1:9');
   k9();
-  const hidden = cm.getAllMarks().some(m => m.collapsed && m.find() && m.find().from.line === 0);
+  const hidden = /sm-gone/.test(cm.getLineHandle(0).wrapClass || '');
   const ok = hidden && cm.getCursor().line === 5;
   if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden, cursor moves below it');
   k9(); doc('shown again with what was typed, no second template', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @0:13');
@@ -163,6 +163,13 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   for (let i = 0; i < 3 && !hiddenNow(); i++) k9();
   cm.setCursor({line:5, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  {
+    const gone = [0,1,2,3,4].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')) && !/sm-gone/.test(cm.getLineHandle(5).wrapClass || '');
+    cm.setCursor({line:0, ch:0});
+    const ok = gone && cm.getCursor().line === 5;
+    if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden preamble takes no height and the cursor cannot enter it');
+    cm.setCursor({line:5, ch:0});
+  }
   doc('Backspace never joins a slugline to the hidden preamble', ':title: \n:author: \n:revised: \n:company: \n\n.i HOUSE - DAY\n\nAction. @5:0');
 }
 

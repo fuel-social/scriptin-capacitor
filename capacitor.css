@@ -34,3 +34,5 @@
 .bubble-element:has(> #sm-editor){overflow:visible !important}
 /* The empty line above a slugline counts twice, as in Final Draft */
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
+/* Hidden lines at the very top take no space */
+#sm-editor .sm-gone{height:0 !important;overflow:hidden}
