@@ -124,8 +124,10 @@
   // bottom of a page; action breaks at the end of a sentence (or after ... or --); dialogue breaks at the end of a
   // sentence with (MORE) below and the cue with (CONT'D) on the next page, never right after a parenthetical;
   // a cue never stays alone at the bottom. Reading script: no (CONTINUED), page numbers from page 2.
-  // Page size until calibrated against a Final Draft .fdx: US Letter, 1 inch top and bottom, 6 lines per inch.
-  var PAGE_LINES = 54, SPACE_SLUG = 2, SPACE_OTHER = 1;
+  // Page size: DIN A4 (297 mm = 11.69 in), 1 inch top and bottom margin, 6 lines per inch (12 pt Courier) = 58 lines.
+  // A4 is 210 mm wide: with 1.5 in left and 1 in right margin there is room for 57 characters, so the 55 character
+  // line lengths stay as they are.
+  var PAGE_LINES = 58, SPACE_SLUG = 2, SPACE_OTHER = 1;
   var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
   // Start offsets of the printed lines of s, wrapped word by word at width characters
   function wrapStarts(s, width){
