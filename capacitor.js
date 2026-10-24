@@ -16,9 +16,9 @@
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
   // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
-  // two is title page (one paragraph per command, such as Title: and Author:), everything after the closing --- is
+  // two is title page (one paragraph per command, Title: and Author: to start with), everything after the closing --- is
   // script. colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var FENCE = /^---\s*$/, PRE_TEMPLATE = '---\n\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n\n---';
+  var FENCE = /^---\s*$/, PRE_TEMPLATE = '---\n\nTitle: \n\nAuthor: \n\n---';
   // Line of the closing ---, or -1 when the script has no title page; get(i) returns line i
   function titleEnd(get, n){
     if (!n || !FENCE.test(get(0))) return -1;
