@@ -82,6 +82,19 @@ rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', 
 rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.I A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
 rf('no separators, nothing changes', '.i house\n\nAction.', '.I HOUSE\n\nAction.');
 
+// Enter: a new paragraph after sluglines, actions and dialogue; a plain new line in cues, parentheticals and mid-line
+const enter = () => key('Enter', 13), shiftEnter = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', shiftKey:true, preventDefault(){}, stopPropagation(){} });
+function doc(label, want){ const got = cm.getValue() + ' @' + cm.getCursor().line + ':' + cm.getCursor().ch; const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + JSON.stringify(got) + (ok ? '' : '   wanted ' + JSON.stringify(want))); }
+start('.i HOUSE - DAY'); enter(); doc('Enter after a slugline: new paragraph', '.i HOUSE - DAY\n\n @2:0');
+start('She waits.'); enter(); doc('Enter after an action: new paragraph', 'She waits.\n\n @2:0');
+start(',ANNA,\nHi.'); enter(); doc('Enter after dialogue: new paragraph', ',ANNA,\nHi.\n\n @3:0');
+start(',ANNA,'); enter(); doc('Enter in a cue: plain new line', ',ANNA,\n @1:0');
+start(',ANNA,\n(quiet)'); enter(); doc('Enter after a parenthetical: plain new line', ',ANNA,\n(quiet)\n @2:0');
+start('She waits.\nThen goes.'); cm.setCursor({line:0, ch:10}); enter(); doc('Enter between two lines of a paragraph: separated on both sides', 'She waits.\n\n\n\nThen goes. @2:0');
+start('She waits.'); cm.setCursor({line:0, ch:3}); enter(); doc('Enter in the middle of a line: plain new line', 'She\nwaits. @1:0');
+start('She waits.'); shiftEnter(); doc('Shift+Enter: plain new line', 'She waits.\n @1:0');
+start('// a note'); enter(); doc('Enter in a note: plain new line', '// a note\n @1:0');
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

@@ -43,5 +43,22 @@ eq('element taller than a page is forced over pages', P(big).length >= 1, true);
 
 eq('same without the notes', starts(act(26) + '\n\nLast.'), []);
 eq('one more line with notes breaks', starts(act(27) + '\n\n// a note\n\nLast.'), ['56:0']);
+
+// Final Draft 13 reference (Untitled_Screenplay.pdf, A4): the same block four times; Final Draft starts page 2 at the
+// second EXT. STREET - DAY and page 3 at the last JOHN of the fourth block
+{
+  const block = '.i HOUSE - DAY\n\n,JOHN,\n(slow)\nHallo.\n\nAction.\n\nAction.\n\nAction.\n\n,MARY,\nHallo.\n\n,JOHN,\nHallo.\n\nAction.\n\nAction.\n\n.t CUT TO:\n\n.e STREET - DAY\n\nAction.\n\nAction.\n\nAction.';
+  const text = [block, block, block, block].join('\n\n'), lines = text.split('\n');
+  const saved = global.__LINES;
+  const src2 = src.replace('(global.__LINES || 58)', '58');
+  const P58 = (function(){ eval(src2); return globalThis.__pg.paginate; })();
+  const got = P58(text).map(p => lines[p.line]);
+  const ex = lines.map((l, i) => [l, i]);
+  const streets = ex.filter(x => x[0] === '.e STREET - DAY'), johns = ex.filter(x => x[0] === ',JOHN,');
+  eq('Final Draft A4: page 2 at the second EXT. STREET', P58(text)[0].line, streets[1][1]);
+  eq('Final Draft A4: page 3 at the last JOHN', P58(text)[1].line, johns[7][1]);
+  eq('Final Draft A4: three pages', P58(text).length, 2);
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;

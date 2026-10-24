@@ -686,6 +686,19 @@
       }
       newEl(ln, s, 2);
     }
+    // Enter at the end of a slugline, shot, transition, action or dialogue line starts a new paragraph (an empty line
+    // between); in a cue, a parenthetical, a note or in the middle of a line it is a plain new line, and Shift+Enter
+    // always is one
+    function enter(){
+      if (cm.somethingSelected()) return CodeMirror.Pass;
+      var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      if (isBlank(s) || cur.ch !== s.length || isNoteLn(ln) || isCueLn(ln)) return CodeMirror.Pass;
+      if (blockCue(ln) >= 0 && /^\s*\(/.test(s)) return CodeMirror.Pass;
+      var below = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1));
+      put(below ? '\n\n\n' : '\n\n', {line:ln, ch:s.length});
+      caret(ln + 2, 0);
+      cyc = null;
+    }
     function comma(){
       var ln = cm.getCursor().line, s = line(ln);
       if (s === '' && paraStart(ln) && blockCue(ln) < 0){
@@ -949,6 +962,8 @@
     cm.setOption('extraKeys', {
       'Tab': function(){ tab(); },
       'Shift-Tab': function(){},
+      'Enter': function(){ return enter(); },
+      'Shift-Enter': 'newlineAndIndent',
       // Up/Down pick names or extensions on an active cue and move the cursor everywhere else
       'Down': function(){ return arrow(1); },
       'Up': function(){ return arrow(-1); },
