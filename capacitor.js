@@ -670,9 +670,12 @@
       var typed = line(ln).slice(1, c.nameEnd), up = typed.toUpperCase();
       if (!typed.trim()) return;
       var hits = allNames(ln).filter(function(n){ return n.toUpperCase().indexOf(up) === 0; });
-      if (hits.length !== 1 || hits[0].length === typed.length) return;
-      put(hits[0], {line:ln, ch:1}, {line:ln, ch:c.nameEnd});
-      cm.setSelection({line:ln, ch:1 + hits[0].length}, {line:ln, ch:1 + typed.length});
+      if (hits.length !== 1) return;
+      // A completed name is always in capitals, also the letters already typed
+      var full = hits[0].toUpperCase();
+      if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:1}, {line:ln, ch:c.nameEnd}); return; }
+      put(full, {line:ln, ch:1}, {line:ln, ch:c.nameEnd});
+      cm.setSelection({line:ln, ch:1 + full.length}, {line:ln, ch:1 + typed.length});
     }
     // ---- Slugline completion: one segment at a time (HOUSE, then LIVING ROOM, then DAY), never the whole chain ----
     // A segment is completed as soon as the typed letters match exactly one segment already used at the same place
@@ -729,13 +732,13 @@
         if (same) add(parts[k]);
       }
       var hits = cands.filter(function(x){ return x.toUpperCase().indexOf(up) === 0; });
-      if (hits.length !== 1 || hits[0].length === typed.length) return;
-      // The typed letters stay as typed; the rest follows in lowercase while the writer types lowercase (Reformat capitalizes)
-      var from = s.length - typed.length, rest = hits[0].slice(typed.length);
-      if (typed === typed.toLowerCase()) rest = rest.toLowerCase();
-      put(rest, {line:ln, ch:s.length}, {line:ln, ch:s.length});
-      cm.setSelection({line:ln, ch:from + hits[0].length}, {line:ln, ch:from + typed.length});
-      slugPend = {line:ln, a:from + typed.length, b:from + hits[0].length, time:!!timeOf(hits[0]) && k > 0};
+      if (hits.length !== 1) return;
+      // A completed segment is always in capitals, also the letters already typed
+      var from = s.length - typed.length, full = hits[0].toUpperCase();
+      if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:from}, {line:ln, ch:s.length}); return; }
+      put(full, {line:ln, ch:from}, {line:ln, ch:s.length});
+      cm.setSelection({line:ln, ch:from + full.length}, {line:ln, ch:from + typed.length});
+      slugPend = {line:ln, a:from + typed.length, b:from + full.length, time:!!timeOf(full) && k > 0};
     }
     // Tab on a pending slugline completion: keep it; after a location stay on the line, after a time go on as usual
     function tabSlug(ln){
