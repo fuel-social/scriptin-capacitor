@@ -439,6 +439,8 @@
     var cm = CodeMirror(host, {value:linked ? '' : saved, readOnly:linked, mode:'scriptin', lineWrapping:true, autofocus:true, cursorBlinkRate:0, styleSelectedText:true});
     // The editor fills the htmlCapacitor element, leaving the same 80px gap at the bottom as at the top
     var box = host.parentNode, boxH = box ? box.clientHeight : 0;
+    // Bubble clips its HTML elements; the page numbers sit outside, left of the frame line
+    if (box) box.style.overflow = 'visible';
     if (boxH > 240) cm.setSize(null, boxH - 160);
     var cyc = null, lastAuto = -1, saveTimer = null;
     // Active cue (or transition): plain Up/Down pick names, extensions or transitions only where the writer is working
