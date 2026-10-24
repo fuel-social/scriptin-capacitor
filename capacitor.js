@@ -15,9 +15,20 @@
   var TRANS = /^\.t(\s|$)/i;
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
-  // Preamble (scriptin:flux documentation p. 24 and 39): title page information, a paragraph of commands such as
-  // /title/ and /author/; colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var PRE = /^\/(title|author|revised|company)\//i, PRE_TEMPLATE = '/title/ \n\n/author/ \n\n/revised/ \n\n/company/ ';
+  // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
+  // two is title page (one paragraph per command, such as Title: and Author:), everything after the closing --- is
+  // script. colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
+  var FENCE = /^---\s*$/, PRE_TEMPLATE = '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---';
+  // Line of the closing ---, or -1 when the script has no title page; get(i) returns line i
+  function titleEnd(get, n){
+    if (!n || !FENCE.test(get(0))) return -1;
+    for (var k = 1; k < n; k++) if (FENCE.test(get(k))) return k;
+    return -1;
+  }
+  // Page break: a line of only === (as in Fountain). Section to share: === with the section title after it, the first
+  // one opens the section, the next one with the same title closes it. Both take no space in the pagination
+  var BREAK = /^={3,}\s*$/, SECTION = /^===\s+\S/;
+  function isMark(s){ return BREAK.test(s) || SECTION.test(s); }
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
   var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
@@ -161,13 +172,15 @@
     if (s.slice(last).trim()) out.push(piece(s.slice(last), ln, ch + last, W_DIALOG));
   }
   function pageElements(text){
-    var lines = text.split('\n'), els = [], i = 0;
+    var lines = text.split('\n'), els = [], i = titleEnd(function(k){ return lines[k]; }, lines.length) + 1, brk = false;
     while (i < lines.length){
       if (lines[i].trim() === ''){ i++; continue; }
+      if (isMark(lines[i])){ if (BREAK.test(lines[i])) brk = true; i++; continue; }
       var s0 = i, ps = [];
-      while (i < lines.length && lines[i].trim() !== '') ps.push(lines[i++]);
-      var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, runs:[]}, d, m;
-      if (NOTE.test(h) || PRE.test(h)) continue;
+      while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) ps.push(lines[i++]);
+      var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[]}, d, m;
+      if (NOTE.test(h)) continue;
+      el.brk = brk; brk = false;
       if ((d = slugDelta(h)) >= 0){
         el.keep = true; el.space = SPACE_SLUG;
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
@@ -234,6 +247,7 @@
     var els = pageElements(text), y = 0, starts = [];
     for (var i = 0; i < els.length; i++){
       var el = els[i], guard = 0;
+      if (el.brk && y > 0){ starts.push(el.pos); y = 0; }
       while (guard++ < 1000){
         var sp = y === 0 ? 0 : el.space, h = elLines(el);
         if (el.keep){
@@ -485,21 +499,15 @@
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
-    function isPreHead(ln){ return paraStart(ln) && PRE.test(line(ln)); }
-    function isPreLn(ln){ return !isBlank(line(ln)) && isPreHead(paraHead(ln)); }
-    // The preamble at the top: the command paragraphs the script starts with, one command each; null if there is none
+    function preEnd(){ return titleEnd(line, cm.lineCount()); }
+    function isPreLn(ln){ return ln <= preEnd(); }
+    // A command of the title page: the first line of a paragraph between the two ---
+    function isPreHead(ln, te){ return ln > 0 && ln < te && !isBlank(line(ln)) && (ln === 1 || isBlank(line(ln - 1))); }
+    function isMarkLn(ln){ return isMark(line(ln)); }
+    // The title page: from the opening to the closing ---; null if there is none
     function preRange(){
-      var s = 0, n = cm.lineCount();
-      while (s < n && isBlank(line(s))) s++;
-      if (s >= n || !PRE.test(line(s))) return null;
-      var e = s, k = s;
-      while (k < n && PRE.test(line(k))){
-        e = k;
-        while (e + 1 < n && !isBlank(line(e + 1))) e++;
-        k = e + 1;
-        while (k < n && isBlank(line(k))) k++;
-      }
-      return {s:s, e:e};
+      var e = preEnd();
+      return e < 0 ? null : {s:0, e:e};
     }
     function hasPre(){ return !!preRange(); }
     // Cursor in a shot block uses the other theme's colorBlue
@@ -531,15 +539,16 @@
     // The paragraph holding the cursor always stays visible, so text typed in a view does not vanish.
     var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null, notesOff = false, preOn = false;
     function paragraphs(noCursor){
-      var out = [], n = cm.lineCount(), i = 0;
+      var out = [], n = cm.lineCount(), i = 0, te = preEnd();
       while (i < n){
         if (isBlank(line(i))){ i++; continue; }
         var s = i;
         while (i < n && !isBlank(line(i))) i++;
         var h = line(s), type = 'action', name = '', c;
-        if (slugDelta(h) >= 0) type = 'slug';
+        if (s <= te) type = 'pre';
+        else if (isMark(h)) type = 'mark';
+        else if (slugDelta(h) >= 0) type = 'slug';
         else if (NOTE.test(h)) type = 'note';
-        else if (PRE.test(h)) type = 'pre';
         else if (SHOT.test(h)) type = 'shot';
         else if (TRANS.test(h)) type = 'trans';
         else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
@@ -577,6 +586,7 @@
     function shows(p, cl){
       if (cl >= p.s && cl <= p.e) return true;
       if (p.type === 'pre') return preOn;
+      if (p.type === 'mark') return view === 1;
       // Notes: Cmd+Option+6 shows or hides them all; shown, a note appears only when its scene's slugline is visible
       // (before the first slugline only in view 1); the note holding the cursor always stays
       if (p.type === 'note') return !notesOff && p.keep;
@@ -676,17 +686,18 @@
       if (isBlank(s)) return cm.getValue().trim() === '' ? -1 : 2;
       return null;
     }
-    // Tab and Enter in the preamble go to the end of the next command; after the last one Enter starts a new paragraph
-    // as everywhere, Tab stays
+    // Tab and Enter on the title page go to the end of the next command; after the last one Enter starts a new command
+    // paragraph above the closing ---, Tab stays. Shift+Enter adds a line to the command (a second address line)
     function preStep(ln, isEnter){
-      var nx = ln + 1;
-      while (nx < cm.lineCount() && isBlank(line(nx))) nx++;
-      if (nx < cm.lineCount() && isPreLn(nx)){ caret(nx, line(nx).length); return true; }
-      return !isEnter;
+      var te = preEnd();
+      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); return; }
+      if (!isEnter || ln >= te) return;
+      var last = te - 1;
+      put('\n\n', {line:last, ch:line(last).length}); caret(last + 2, 0);
     }
     function tab(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
-      if (isPreLn(ln)){ preStep(ln, false); return; }
+      if (isPreLn(ln) && ln < preEnd()){ preStep(ln, false); return; }
       if (tabSlug(ln)) return;
       var cb = blockCue(ln);
       if (cb >= 0){
@@ -737,7 +748,7 @@
     // new line, and Shift+Enter always is one
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
-      if (isPreLn(ln) && !cm.somethingSelected() && preStep(ln, true)) return;
+      if (isPreLn(ln) && ln < preEnd() && !cm.somethingSelected()){ preStep(ln, true); return; }
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
@@ -1127,7 +1138,7 @@
     }
     cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
     function decorate(){
-      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine();
+      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd();
       function empty(j){ return j !== curLn && isBlank(line(j)); }
       spacedFor = curLn;
       // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
@@ -1144,15 +1155,15 @@
           if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
             var nx = i + 1;
             while (nx < cm.lineCount() && empty(nx)) nx++;
-            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && !isPreLn(i - 1)) cm.addLineClass(i, 'wrap', 'sm-sp2');
+            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && i - 1 > te) cm.addLineClass(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
-          if (isSlugLn(i)){
+          if (i <= te || isMarkLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
+          else if (isSlugLn(i)){
             cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
             cm.addLineClass(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
           }
           else if (isNoteLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
-          else if (isPreLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
           else if (isShotLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-shot');
           else if (isTransLn(i)){ cm.addLineClass(i, 'text', 'sm-t-trans'); tk += i + ','; }
           else if (isCueLn(i)) {}
@@ -1250,7 +1261,7 @@
           r = preRange();
         }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
-        cm.setCursor({line:r.s, ch:line(r.s).length});
+        cm.setCursor({line:1, ch:line(1).length});
         window.scrollTo(0, 0);
       } else if (r){
         var c = cm.getCursor().line;

@@ -44,7 +44,12 @@ eq('element taller than a page is forced over pages', P(big).length >= 1, true);
 eq('same without the notes', starts(act(26) + '\n\nLast.'), []);
 eq('one more line with notes breaks', starts(act(27) + '\n\n// a note\n\nLast.'), ['56:0']);
 
-eq('the preamble takes no space', starts('/title/ Night\n/author/ F.\n\n' + act(28)), ['57:0']);
+eq('the title page takes no space', starts('---\nTitle: Night\n\nAuthor: F.\n---\n\n' + act(28)), ['60:0']);
+eq('without its closing --- there is no title page', starts('---\nTitle: Night\n\n' + act(28)).length, 1);
+eq('=== starts a new page', starts('One.\n\n===\n\nTwo.'), ['4:0']);
+eq('=== right below text works too', starts('One.\n===\nTwo.'), ['2:0']);
+eq('a section marker takes no space and breaks nothing', starts('=== Ending\n\n' + act(27) + '\n\n=== Ending'), []);
+eq('=== at the very top adds no empty page', starts('===\n\nOne.'), []);
 
 // Final Draft 13 reference (Untitled_Screenplay.pdf, A4): the same block four times; Final Draft starts page 2 at the
 // second EXT. STREET - DAY and page 3 at the last JOHN of the fourth block

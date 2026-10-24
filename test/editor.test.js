@@ -143,39 +143,35 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   ak(40); chk('again to the end of the next one', '"" @4:3');
 }
 
-// Preamble: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands; again hides it
+// Title page: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands between two ---; again hides it
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const T = '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---';
   start('Action.'); k9();
-  doc('Cmd+Option+9 shows the preamble commands at the top', '/title/ \n\n/author/ \n\n/revised/ \n\n/company/ \n\nAction. @0:8');
-  type('Night'); tab(); doc('Tab goes to the next command line', '/title/ Night\n\n/author/ \n\n/revised/ \n\n/company/ \n\nAction. @2:9');
+  doc('Cmd+Option+9 shows the title page commands at the top', T + '\n\nAction. @1:7');
+  type('Night'); tab(); doc('Tab goes to the next command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\nAction. @3:8');
+  tab(); tab(); doc('Tab through to the last command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\nAction. @7:9');
+  type('Fuel'); shiftEnter(); type('Street 1'); doc('Shift+Enter adds a second line to the command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n---\n\nAction. @8:8');
+  enter(); type('Background: x'); doc('Enter after the last command starts a new command above the closing ---', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n---\n\nAction. @10:13');
   k9();
-  const hidden = /sm-gone/.test(cm.getLineHandle(0).wrapClass || '');
-  const ok = hidden && cm.getCursor().line === 8;
-  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden, cursor moves below it');
-  k9(); doc('shown again with what was typed, no second template', '/title/ Night\n\n/author/ \n\n/revised/ \n\n/company/ \n\nAction. @0:13');
-  tab(); tab(); tab(); doc('Tab through to the last command', '/title/ Night\n\n/author/ \n\n/revised/ \n\n/company/ \n\nAction. @6:10');
-  key('Enter', 13); doc('Enter after the last command starts a new paragraph', '/title/ Night\n\n/author/ \n\n/revised/ \n\n/company/ \n\n\n\nAction. @8:0');
+  const hidden = [0,1,2,3,4,5,6,7,8,9,10,11,12].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  const ok = hidden && cm.getCursor().line === 13;
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden without any height, cursor below it');
+  cm.setCursor({line:0, ch:0});
+  { const ok2 = cm.getCursor().line === 13; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
+  k9(); doc('shown again with what was typed, no second template', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n---\n\nAction. @1:12');
+  k9();
 }
-
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  start('.i HOUSE - DAY\n\nAction.');
-  const hiddenNow = () => cm.getAllMarks().some(m => m.collapsed && m.find() && m.find().from.line === 0);
-  for (let i = 0; i < 3 && !hiddenNow(); i++) k9();
-  cm.setCursor({line:8, ch:0});
+  start('.i HOUSE - DAY\n\nAction.'); k9();
+  const sp = cm.getLineHandle(9).wrapClass || '';
+  { const ok = !/sm-sp2/.test(sp); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one empty line between title page and slugline'); }
+  k9(); cm.setCursor({line:10, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  {
-    const gone = [0,1,2,3,4,5,6,7].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')) && !/sm-gone/.test(cm.getLineHandle(8).wrapClass || '');
-    cm.setCursor({line:0, ch:0});
-    const ok = gone && cm.getCursor().line === 8;
-    if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden preamble takes no height and the cursor cannot enter it');
-    cm.setCursor({line:8, ch:0});
-  }
-  doc('Backspace never joins a slugline to the hidden preamble', '/title/ \n\n/author/ \n\n/revised/ \n\n/company/ \n\n.i HOUSE - DAY\n\nAction. @8:0');
-  k9(); const sp = cm.getLineHandle(7).wrapClass || '';
-  { const ok = !/sm-sp2/.test(sp); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one empty line between preamble and slugline'); }
-  k9(); cm.setCursor({line:8, ch:0});
+  doc('Backspace never joins a slugline to the hidden title page', '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\n.i HOUSE - DAY\n\nAction. @10:0');
+  start('Background: she grew up here.\n\n.i HOUSE - DAY\n\nAction.');
+  { const ok = !cm.getAllMarks().length && !/sm-t-note/.test(cm.getLineHandle(0).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Background: in the script is plain action'); }
 }
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
