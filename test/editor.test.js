@@ -143,6 +143,55 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
   ak(40); chk('again to the end of the next one', '"" @4:3');
 }
 
+// Title page: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands between two ---; again hides it
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  start('Action.'); k9();
+  doc('Cmd+Option+9 shows the title page commands at the top, one per line', '---\n\nTitle: \nAuthor: \n\n---\n\nAction. @2:7');
+  type('Night'); tab(); doc('Tab goes to the next command', '---\n\nTitle: Night\nAuthor: \n\n---\n\nAction. @3:8');
+  tab(); doc('Tab stays on the last command', '---\n\nTitle: Night\nAuthor: \n\n---\n\nAction. @3:8');
+  type('Fabrizio'); shiftEnter(); type('Peter'); doc('Shift+Enter adds a second line to the command', '---\n\nTitle: Night\nAuthor: Fabrizio\nPeter\n\n---\n\nAction. @4:5');
+  enter(); type('Background: x'); doc('Enter after the last command starts a new command line right below', '---\n\nTitle: Night\nAuthor: Fabrizio\nPeter\nBackground: x\n\n---\n\nAction. @5:13');
+  k9();
+  const hidden = [0,1,2,3,4,5,6,7,8].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  const ok = hidden && cm.getCursor().line === 9;
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden without any height, cursor below it');
+  cm.setCursor({line:0, ch:0});
+  { const ok2 = cm.getCursor().line === 9; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
+  k9(); doc('shown again with what was typed, no second template', '---\n\nTitle: Night\nAuthor: Fabrizio\nPeter\nBackground: x\n\n---\n\nAction. @2:12');
+  cm.setCursor({line:4, ch:2}); tab(); doc('Tab from a second line goes to the next command', '---\n\nTitle: Night\nAuthor: Fabrizio\nPeter\nBackground: x\n\n---\n\nAction. @5:13');
+  k9();
+}
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  start('.i HOUSE - DAY\n\nAction.'); k9();
+  const sp = cm.getLineHandle(6).wrapClass || '';
+  { const ok = !/sm-sp2/.test(sp); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one empty line between title page and slugline'); }
+  k9(); cm.setCursor({line:7, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('Backspace never joins a slugline to the hidden title page', '---\n\nTitle: \nAuthor: \n\n---\n\n.i HOUSE - DAY\n\nAction. @7:0');
+  start('Background: she grew up here.\n\n.i HOUSE - DAY\n\nAction.');
+  { const ok = !cm.getAllMarks().length && !/sm-t-note/.test(cm.getLineHandle(0).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Background: in the script is plain action'); }
+}
+
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  // a script opens with the cursor on line 0: the hidden title page stays hidden all of it
+  cm.setValue('---\nTitle: A\n\nAuthor: B\n---\n\n.i HOUSE - DAY\n\nAction.'); cm.setCursor({line:0, ch:0});
+  k9(); k9();
+  cm.setValue('---\nTitle: A\n\nAuthor: B\n---\n\n.i HOUSE - DAY\n\nAction.'); cm.setCursor({line:0, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const gone = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  { const ok = gone; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden title page hides all its lines, cursor or not'); }
+  doc('showing adds the empty lines after and before ---', '---\n\nTitle: A\n\nAuthor: B\n\n---\n\n.i HOUSE - DAY\n\nAction. @8:0');
+}
+
+{
+  cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:7});
+  doc('a loaded title page gets its empty lines at once', '---\n\nTitle: A\n\n---\n\nAction. @6:7');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
