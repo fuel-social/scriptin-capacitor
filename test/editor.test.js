@@ -81,6 +81,16 @@ rf('tie goes to the dash used first', '.i a '+M+' b\n\n.i c - d', '.I A '+M+' B\
 rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', '.I TWENTY-ONE '+N+' DAY\n\n.I X '+N+' Y');
 rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.I A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
 rf('no separators, nothing changes', '.i house\n\nAction.', '.I HOUSE\n\nAction.');
+
+// Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
+const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
+cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
+cm.replaceRange('\n\nOne more.', endPos(), endPos(), '+input');
+{ const ok = cm.getValue() === full; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a fourth page is refused'); }
+cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
+{ const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 3 works'); }
+cm.setValue(full + '\n\nOne more.');
+{ const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
 console.log(fails ? fails + ' failed' : 'all passed');
-process.exitCode = fails ? 1 : 0;
+process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }
