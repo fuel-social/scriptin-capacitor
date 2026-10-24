@@ -1020,9 +1020,18 @@
       if (r === CodeMirror.Pass){ put(t, at, at); caret(at.line, at.ch + 1); }
     });
     // Right aligned transition lines change where characters sit, so CodeMirror is told to measure again when they change
-    var transKey = '';
+    var transKey = '', spacedFor = -1;
+    // A new paragraph about to be written: the cursor on an empty line with another empty line above it (what Enter and Tab
+    // make); it counts as a paragraph for the spacing, so nothing moves once typing starts. -1 if there is none
+    function slotLine(){
+      var c = cm.getCursor().line;
+      return (c > 0 && isBlank(line(c)) && isBlank(line(c - 1))) ? c : -1;
+    }
+    cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
     function decorate(){
-      var tk = '', noted = {}, ps = paragraphs(true);
+      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine();
+      function empty(j){ return j !== curLn && isBlank(line(j)); }
+      spacedFor = curLn;
       // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
       for (var k = 0; k < ps.length; k++){ if (ps[k].type === 'note' && ps[k].scene >= 0) noted[ps[k].scene] = 1; }
       cm.operation(function(){
@@ -1032,10 +1041,11 @@
           var s = line(i);
           // Final Draft spacing: two empty lines before a slugline, one before everything else (shots included); the writer
           // types one, so the empty line right above a slugline is shown at double height
-          if (isBlank(s) && !hid[i] && i > 0 && !isBlank(line(i - 1))){
+          // An empty line holding the cursor is a paragraph being written, so the spacing does not jump once typing starts
+          if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
             var nx = i + 1;
-            while (nx < cm.lineCount() && isBlank(line(nx))) nx++;
-            if (nx < cm.lineCount() && isSlugHead(nx)) cm.addLineClass(i, 'wrap', 'sm-sp2');
+            while (nx < cm.lineCount() && empty(nx)) nx++;
+            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx)) cm.addLineClass(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
           if (isSlugLn(i)){

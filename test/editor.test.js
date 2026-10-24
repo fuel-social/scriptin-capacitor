@@ -95,6 +95,17 @@ start('She waits.'); cm.setCursor({line:0, ch:3}); enter(); doc('Enter in the mi
 start('She waits.'); shiftEnter(); doc('Shift+Enter: plain new line', 'She waits.\n @1:0');
 start('// a note'); enter(); doc('Enter in a note: plain new line', '// a note\n @1:0');
 
+// Spacing does not jump: Enter after dialogue above a slugline gives one empty line before the new paragraph and two before the slugline
+{
+  cm.setValue(',JOHN,\nhey.\n\n.e STREET - NIGHT'); cm.setCursor({line:1, ch:4}); enter();
+  const w = cm.getLineHandle(2).wrapClass || '', w3 = cm.getLineHandle(4).wrapClass || '';
+  const ok = cm.getCursor().line === 3 && !/sm-sp2/.test(w) && /sm-sp2/.test(w3);
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Enter above a slugline: double space stays above the slugline (' + JSON.stringify([w, w3]) + ')');
+  cm.setValue('Action.\n\n.e STREET - NIGHT'); cm.setCursor({line:1, ch:0});
+  const ok2 = /sm-sp2/.test(cm.getLineHandle(1).wrapClass || '');
+  if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'cursor on the single empty line above a slugline keeps the double space');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
