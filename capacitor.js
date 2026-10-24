@@ -18,7 +18,7 @@
   // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
   // two is title page (one paragraph per command, such as Title: and Author:), everything after the closing --- is
   // script. colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var FENCE = /^---\s*$/, PRE_TEMPLATE = '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---';
+  var FENCE = /^---\s*$/, PRE_TEMPLATE = '---\n\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n\n---';
   // Line of the closing ---, or -1 when the script has no title page; get(i) returns line i
   function titleEnd(get, n){
     if (!n || !FENCE.test(get(0))) return -1;
@@ -502,7 +502,7 @@
     function preEnd(){ return titleEnd(line, cm.lineCount()); }
     function isPreLn(ln){ return ln <= preEnd(); }
     // A command of the title page: the first line of a paragraph between the two ---
-    function isPreHead(ln, te){ return ln > 0 && ln < te && !isBlank(line(ln)) && (ln === 1 || isBlank(line(ln - 1))); }
+    function isPreHead(ln, te){ return ln > 0 && ln < te && !isBlank(line(ln)) && (FENCE.test(line(ln - 1)) || isBlank(line(ln - 1))); }
     function isMarkLn(ln){ return isMark(line(ln)); }
     // The title page: from the opening to the closing ---; null if there is none
     function preRange(){
@@ -693,6 +693,7 @@
       for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); return; }
       if (!isEnter || ln >= te) return;
       var last = te - 1;
+      while (last > 0 && isBlank(line(last))) last--;
       put('\n\n', {line:last, ch:line(last).length}); caret(last + 2, 0);
     }
     function tab(){
@@ -1175,11 +1176,10 @@
       barCursor();
     }
     // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
-    // Page numbers (reading script) left of the left frame line, at the line where each page begins: text in colorBackground
-    // on a colorForeground bar as wide as the number; whole script only (hidden in views 2 to 4); Cmd+Option+7 (Ctrl+Shift+7).
-    // Scene numbers left of the left frame line, next to it like the page numbers (a page number on the same line moves
-    // out to the left of the scene number), at each slugline, in colorInactive, without a period; off until Cmd+Option+8 (Ctrl+Shift+8);
-    // shown in every view for the sluglines that are visible.
+    // Page numbers (reading script) right of the editor, at the line where each page begins: colorForeground with a
+    // period; whole script only (hidden in views 2 to 4); Cmd+Option+7 (Ctrl+Shift+7).
+    // Scene numbers left of the left frame line, at each slugline, in colorInactive, without a period; off until
+    // Cmd+Option+8 (Ctrl+Shift+8); shown in every view for the sluglines that are visible.
     var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
     function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
     var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes');
@@ -1201,14 +1201,6 @@
       function place(layer, starts){
         layer.style.top = wrap.offsetTop + 'px';
         for (var k = 0; k < starts.length; k++) layer.children[k].style.top = (cm.charCoords(starts[k], 'local').top + lead) + 'px';
-      }
-      // Page numbers stand next to the frame line like scene numbers; only on a line that also carries a scene number
-      // (a page that begins with a scene) the page number moves out, 16px left of that scene number
-      var sceneW = {};
-      if (scenesOn) for (var k = 0; k < sceneStarts.length; k++) sceneW[sceneStarts[k].line] = sceneLayer.children[k].offsetWidth;
-      if (showPages) for (var j = 0; j < pageStarts.length; j++){
-        var w = pageStarts[j].ch === 0 ? sceneW[pageStarts[j].line] : undefined;
-        pageLayer.children[j].style.right = w === undefined ? '0' : (w + 16) + 'px';
       }
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
@@ -1261,7 +1253,9 @@
           r = preRange();
         }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
-        cm.setCursor({line:1, ch:line(1).length});
+        var first = 1;
+        while (first < r.e && isBlank(line(first))) first++;
+        cm.setCursor({line:first, ch:line(first).length});
         window.scrollTo(0, 0);
       } else if (r){
         var c = cm.getCursor().line;

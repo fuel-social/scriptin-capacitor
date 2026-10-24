@@ -146,30 +146,30 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 // Title page: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands between two ---; again hides it
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  const T = '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---';
+  const T = '---\n\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n\n---';
   start('Action.'); k9();
-  doc('Cmd+Option+9 shows the title page commands at the top', T + '\n\nAction. @1:7');
-  type('Night'); tab(); doc('Tab goes to the next command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\nAction. @3:8');
-  tab(); tab(); doc('Tab through to the last command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\nAction. @7:9');
-  type('Fuel'); shiftEnter(); type('Street 1'); doc('Shift+Enter adds a second line to the command', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n---\n\nAction. @8:8');
-  enter(); type('Background: x'); doc('Enter after the last command starts a new command above the closing ---', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n---\n\nAction. @10:13');
+  doc('Cmd+Option+9 shows the title page commands at the top', T + '\n\nAction. @2:7');
+  type('Night'); tab(); doc('Tab goes to the next command', '---\n\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n\n---\n\nAction. @4:8');
+  tab(); tab(); doc('Tab through to the last command', '---\n\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: \n\n---\n\nAction. @8:9');
+  type('Fuel'); shiftEnter(); type('Street 1'); doc('Shift+Enter adds a second line to the command', '---\n\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\n---\n\nAction. @9:8');
+  enter(); type('Background: x'); doc('Enter after the last command starts a new command above the closing ---', '---\n\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n\n---\n\nAction. @11:13');
   k9();
-  const hidden = [0,1,2,3,4,5,6,7,8,9,10,11,12].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
-  const ok = hidden && cm.getCursor().line === 13;
+  const hidden = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  const ok = hidden && cm.getCursor().line === 15;
   if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden without any height, cursor below it');
   cm.setCursor({line:0, ch:0});
-  { const ok2 = cm.getCursor().line === 13; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
-  k9(); doc('shown again with what was typed, no second template', '---\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n---\n\nAction. @1:12');
+  { const ok2 = cm.getCursor().line === 15; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
+  k9(); doc('shown again with what was typed, no second template', '---\n\nTitle: Night\n\nAuthor: \n\nRevised: \n\nCompany: Fuel\nStreet 1\n\nBackground: x\n\n---\n\nAction. @2:12');
   k9();
 }
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   start('.i HOUSE - DAY\n\nAction.'); k9();
-  const sp = cm.getLineHandle(9).wrapClass || '';
+  const sp = cm.getLineHandle(11).wrapClass || '';
   { const ok = !/sm-sp2/.test(sp); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one empty line between title page and slugline'); }
-  k9(); cm.setCursor({line:10, ch:0});
+  k9(); cm.setCursor({line:12, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  doc('Backspace never joins a slugline to the hidden title page', '---\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n---\n\n.i HOUSE - DAY\n\nAction. @10:0');
+  doc('Backspace never joins a slugline to the hidden title page', '---\n\nTitle: \n\nAuthor: \n\nRevised: \n\nCompany: \n\n---\n\n.i HOUSE - DAY\n\nAction. @12:0');
   start('Background: she grew up here.\n\n.i HOUSE - DAY\n\nAction.');
   { const ok = !cm.getAllMarks().length && !/sm-t-note/.test(cm.getLineHandle(0).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Background: in the script is plain action'); }
 }
