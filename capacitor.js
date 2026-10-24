@@ -1120,8 +1120,9 @@
     // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
     // Page numbers (reading script) left of the left frame line, at the line where each page begins: text in colorBackground
     // on a colorForeground bar as wide as the number; whole script only (hidden in views 2 to 4); Cmd+Option+7 (Ctrl+Shift+7).
-    // Scene numbers right of the right frame line, at each slugline, in colorInactive, without a period; off until
-    // Cmd+Option+8 (Ctrl+Shift+8); shown in every view for the sluglines that are visible.
+    // Scene numbers left of the left frame line, in their own column next to it (the page numbers then move one column
+    // further out), at each slugline, in colorInactive, without a period; off until Cmd+Option+8 (Ctrl+Shift+8);
+    // shown in every view for the sluglines that are visible.
     var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
     function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
     var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes');
@@ -1144,6 +1145,10 @@
         layer.style.top = wrap.offsetTop + 'px';
         for (var k = 0; k < starts.length; k++) layer.children[k].style.top = (cm.charCoords(starts[k], 'local').top + lead) + 'px';
       }
+      // The scene column is as wide as its longest number; the page numbers stand left of it
+      var widest = 0;
+      for (var k = 0; k < sceneStarts.length; k++) widest = Math.max(widest, sceneLayer.children[k].offsetWidth);
+      pageLayer.style.right = scenesOn ? 'calc(100% + ' + (32 + widest) + 'px)' : '';
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
     }
@@ -1163,6 +1168,9 @@
       placePages();
     }
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
+    // Lines move without a text change too (views, notes on and off, the spacing around a new paragraph):
+    // place the numbers again after every redraw, once CodeMirror has measured the lines
+    cm.on('update', placePages);
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
     function refresh(){ cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
