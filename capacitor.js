@@ -692,11 +692,13 @@
       newEl(ln, s, 2);
     }
     // Enter at the end of a slugline, shot, transition, action or dialogue line starts a new paragraph (an empty line
-    // between); in a cue, a parenthetical, a note or in the middle of a line it is a plain new line, and Shift+Enter
-    // always is one
+    // between); in a cue it moves on to the dialogue like Tab; in a parenthetical, a note or in the middle of a line it is a
+    // plain new line, and Shift+Enter always is one
     function enter(){
-      if (cm.somethingSelected()) return CodeMirror.Pass;
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
+      // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
+      if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
+      if (cm.somethingSelected()) return CodeMirror.Pass;
       if (isBlank(s) || cur.ch !== s.length || isNoteLn(ln) || isCueLn(ln)) return CodeMirror.Pass;
       if (blockCue(ln) >= 0 && /^\s*\(/.test(s)) return CodeMirror.Pass;
       var below = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1));

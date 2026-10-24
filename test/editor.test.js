@@ -88,7 +88,7 @@ function doc(label, want){ const got = cm.getValue() + ' @' + cm.getCursor().lin
 start('.i HOUSE - DAY'); enter(); doc('Enter after a slugline: new paragraph', '.i HOUSE - DAY\n\n @2:0');
 start('She waits.'); enter(); doc('Enter after an action: new paragraph', 'She waits.\n\n @2:0');
 start(',ANNA,\nHi.'); enter(); doc('Enter after dialogue: new paragraph', ',ANNA,\nHi.\n\n @3:0');
-start(',ANNA,'); enter(); doc('Enter in a cue: plain new line', ',ANNA,\n @1:0');
+start(',ANNA,'); enter(); doc('Enter at the end of a cue: dialogue line', ',ANNA,\n @1:0');
 start(',ANNA,\n(quiet)'); enter(); doc('Enter after a parenthetical: plain new line', ',ANNA,\n(quiet)\n @2:0');
 start('She waits.\nThen goes.'); cm.setCursor({line:0, ch:10}); enter(); doc('Enter between two lines of a paragraph: separated on both sides', 'She waits.\n\n\n\nThen goes. @2:0');
 start('She waits.'); cm.setCursor({line:0, ch:3}); enter(); doc('Enter in the middle of a line: plain new line', 'She\nwaits. @1:0');
@@ -117,6 +117,12 @@ start('// a note'); enter(); doc('Enter in a note: plain new line', '// a note\n
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   doc('Backspace on a single empty line is a normal backspace', 'One.\nTwo. @0:4');
 }
+
+// Enter in a cue works like Tab: on to the dialogue line, completion kept, missing comma added
+start(',JOHN,'); cm.setCursor({line:0, ch:5}); enter(); doc('Enter between name and closing comma goes to the dialogue line', ',JOHN,\n @1:0');
+start(',JOHN'); enter(); doc('Enter after a name without closing comma adds it', ',JOHN,\n @1:0');
+start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type(',a'); enter(); doc('Enter accepts a completed name', '.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n,ANNA,\n @6:0');
+start(',TOM (v.o,'); cm.setCursor({line:0, ch:9}); enter(); doc('Enter in an extension closes the bracket', ',TOM (v.o),\n @1:0');
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
