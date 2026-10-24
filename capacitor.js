@@ -16,8 +16,14 @@
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
   // Preamble (scriptin:flux documentation p. 24 and 39): title page information, a paragraph of commands such as
-  // :title: and :author:; colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var PRE = /^:(title|author|revised|company):/i, PRE_TEMPLATE = ':title: \n:author: \n:revised: \n:company: ';
+  // /title/ and /author/; colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
+  var PRE = /^\/(title|author|revised|company)\//i, PRE_TEMPLATE = '/title/ \n/author/ \n/revised/ \n/company/ ';
+  // Scripts saved with the older :title: form are read as /title/
+  function migratePre(t){
+    var ls = t.split('\n');
+    for (var i = 0; i < ls.length && /^:(title|author|revised|company):/i.test(ls[i]); i++) ls[i] = ls[i].replace(/^:(\w+):/, '/$1/');
+    return ls.join('\n');
+  }
   var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
   var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
@@ -350,7 +356,7 @@
     }
     function setText(text){
       quiet = true;
-      cm.setValue(text); cm.clearHistory();
+      cm.setValue(migratePre(text)); cm.clearHistory();
       quiet = false;
       cm.setOption('readOnly', false);
       cm.focus();

@@ -147,13 +147,13 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   start('Action.'); k9();
-  doc('Cmd+Option+9 shows the preamble commands at the top', ':title: \n:author: \n:revised: \n:company: \n\nAction. @0:8');
-  type('Night'); tab(); doc('Tab goes to the next command line', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @1:9');
+  doc('Cmd+Option+9 shows the preamble commands at the top', '/title/ \n/author/ \n/revised/ \n/company/ \n\nAction. @0:8');
+  type('Night'); tab(); doc('Tab goes to the next command line', '/title/ Night\n/author/ \n/revised/ \n/company/ \n\nAction. @1:9');
   k9();
   const hidden = /sm-gone/.test(cm.getLineHandle(0).wrapClass || '');
   const ok = hidden && cm.getCursor().line === 5;
   if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden, cursor moves below it');
-  k9(); doc('shown again with what was typed, no second template', ':title: Night\n:author: \n:revised: \n:company: \n\nAction. @0:13');
+  k9(); doc('shown again with what was typed, no second template', '/title/ Night\n/author/ \n/revised/ \n/company/ \n\nAction. @0:13');
 }
 
 {
@@ -170,7 +170,7 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
     if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden preamble takes no height and the cursor cannot enter it');
     cm.setCursor({line:5, ch:0});
   }
-  doc('Backspace never joins a slugline to the hidden preamble', ':title: \n:author: \n:revised: \n:company: \n\n.i HOUSE - DAY\n\nAction. @5:0');
+  doc('Backspace never joins a slugline to the hidden preamble', '/title/ \n/author/ \n/revised/ \n/company/ \n\n.i HOUSE - DAY\n\nAction. @5:0');
 }
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
