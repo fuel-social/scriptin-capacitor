@@ -246,7 +246,7 @@
       if (isSlugPara(p)){
         return p.map(function(l, i){
           l = l.toUpperCase().replace(new RegExp(SLUG_SEP.source, 'g'), ' ' + dash + ' ').trim();
-          if (i === 0) l = l.replace(/^\.(IE|EI|I|E)\s*/, function(_, x){ return '.' + x + ' '; }).trim();
+          if (i === 0) l = l.replace(/^\.(IE|EI|I|E)\s*/, function(_, x){ return '.' + x.toLowerCase() + ' '; }).trim();
           return l;
         }).join('\n');
       }

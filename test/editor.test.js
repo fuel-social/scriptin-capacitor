@@ -76,12 +76,12 @@ start('.i HOUSE - DAY\n\n,JOHN,\nHi.\n\n,JO,\nYes.\n\n'); type(',joh'); type('n'
 function reformatAll(){ cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); }
 function rf(label, text, want){ cm.setValue(text); cm.setCursor({line:0, ch:0}); reformatAll(); const got = cm.getValue(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + JSON.stringify(got) + (ok ? '' : '   wanted ' + JSON.stringify(want))); }
 const N = '–', M = '—';
-rf('majority en dash wins', '.i a - b\n\n.i c '+N+' d\n\n.i e '+N+' f\n\n.e g - h '+N+' i '+N+' day', '.I A '+N+' B\n\n.I C '+N+' D\n\n.I E '+N+' F\n\n.E G '+N+' H '+N+' I '+N+' DAY');
-rf('majority hyphen wins, spacing fixed', '.i a'+M+' b\n\n.i c -d\n\n.i e  -  f', '.I A - B\n\n.I C - D\n\n.I E - F');
-rf('tie goes to the dash used first', '.i a '+M+' b\n\n.i c - d', '.I A '+M+' B\n\n.I C '+M+' D');
-rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', '.I TWENTY-ONE '+N+' DAY\n\n.I X '+N+' Y');
-rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.I A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
-rf('no separators, nothing changes', '.i house\n\nAction.', '.I HOUSE\n\nAction.');
+rf('majority en dash wins', '.i a - b\n\n.i c '+N+' d\n\n.i e '+N+' f\n\n.e g - h '+N+' i '+N+' day', '.i A '+N+' B\n\n.i C '+N+' D\n\n.i E '+N+' F\n\n.e G '+N+' H '+N+' I '+N+' DAY');
+rf('majority hyphen wins, spacing fixed', '.i a'+M+' b\n\n.i c -d\n\n.i e  -  f', '.i A - B\n\n.i C - D\n\n.i E - F');
+rf('tie goes to the dash used first', '.i a '+M+' b\n\n.i c - d', '.i A '+M+' B\n\n.i C '+M+' D');
+rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', '.i TWENTY-ONE '+N+' DAY\n\n.i X '+N+' Y');
+rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.i A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
+rf('no separators, nothing changes', '.i house\n\nAction.', '.i HOUSE\n\nAction.');
 
 // Enter: a new paragraph after sluglines, actions and dialogue; a plain new line in cues, parentheticals and mid-line
 const enter = () => key('Enter', 13), shiftEnter = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', shiftKey:true, preventDefault(){}, stopPropagation(){} });
@@ -338,7 +338,7 @@ const TP = (t, a, size, lang, mode) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nA
   if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   cm.setCursor({line:15, ch:5}); type('x');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  { const ok = /\.I HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat with a hidden title page'); }
+  { const ok = /\.i HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat with a hidden title page'); }
   undo();
   { const ok = cm.getValue() === T + 'x'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+Z takes Reformat back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   undo();
@@ -414,7 +414,7 @@ const TP = (t, a, size, lang, mode) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nA
   { const ok = cm.getValue() === T && cm.historySize().undo === 0; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings everything back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-30)) + JSON.stringify(cm.historySize()))); }
   k9(); cm.setCursor({line:12, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  { const ok = /\n---\n\n\.I HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat sets the script off from --- by an empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-40)))); }
+  { const ok = /\n---\n\n\.i HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat sets the script off from --- by an empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-40)))); }
   k9();
 }
 
