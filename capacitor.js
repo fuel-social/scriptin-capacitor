@@ -1511,7 +1511,10 @@
       var te = preEnd();
       if (te < 0 || topGone < te) return;
       var P = CodeMirror.cmpPos, end = {line:cm.lastLine(), ch:line(cm.lastLine()).length};
-      if (P(ch.to, end) === 0 && P(ch.from, {line:te + 1, ch:0}) <= 0) ch.update(ch.from, ch.to, ['', '', '']);
+      // The change starts right after the hidden lines, so nothing lands before the title page (CodeMirror would put the
+      // new lines in front of a read only range); the result is always: title page, an empty line, the cursor line
+      if (P(ch.to, end) === 0 && P(ch.from, {line:topGone + 1, ch:0}) <= 0)
+      { ch.update({line:topGone, ch:line(topGone).length}, ch.to, topGone > te ? ['', ''] : ['', '', '']); ch.smKeep = true; }
     });
     // A whole new text laid over the old one (the newer local copy over the server version) must replace everything:
     // hidden text is read only, and CodeMirror would keep it and put the new text in front of it (a second title page)
@@ -1522,6 +1525,7 @@
     });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === ORIGIN || ch.origin === '+pre' || ch.origin === '+reformat' || ch.origin === '+restore') return;
+      if (ch.smKeep) return; // the editor's own delete of everything below a hidden title page
       var a = ch.from.line, b = ch.to.line;
       if (settingOf(a) || settingOf(b)) { ch.cancel(); return; }
       // The commands Title: and Author: (with the space after them) and the // headings are fixed, the values are free

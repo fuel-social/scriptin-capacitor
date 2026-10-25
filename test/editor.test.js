@@ -353,9 +353,9 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   cm.execCommand('selectAll');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  { const ok = !/She waits/.test(cm.getValue()) && /Title: A/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete the script, the hidden title page stays' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete the script, the hidden title page stays at the top' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   { const c = cm.getCursor().line, vis = !/sm-gone/.test(cm.getLineHandle(c).wrapClass || ''); const ok = vis && c > 10; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the cursor stays on a visible line below the title page (line ' + c + ')'); }
-  cm.replaceRange('Z', cm.getCursor(), null, '+input'); { const ok = /---\nZ$/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and typing starts the script there' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-15)))); }
+  cm.replaceRange('Z', cm.getCursor(), null, '+input'); { const ok = /---\n\nZ$/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and typing starts the script there' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-15)))); }
   cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings it back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
@@ -401,6 +401,7 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   { const ok = /sm-l-slug/.test(cm.getLineHandle(11).wrapClass || '') && !/sm-gone/.test(cm.getLineHandle(11).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a slugline right under --- is a slugline and stays visible when the title page is hidden'); }
   cm.execCommand('selectAll'); bs();
+  { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page stays at the top, followed by an empty line and the cursor line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   { const c = cm.getCursor().line, ok = !/She waits|HOUSE/.test(cm.getValue()) && !/sm-gone/.test(cm.getLineHandle(c).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete it, the cursor stays visible' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-20)) + ' line ' + c)); }
   cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   { const ok = cm.getValue() === T && cm.historySize().undo === 0; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings everything back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-30)) + JSON.stringify(cm.historySize()))); }
