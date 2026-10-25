@@ -349,10 +349,10 @@
           if (state.pre === -1){ state.pre = 1; stream.skipToEnd(); return null; }
           if (state.pre === 1){
             var c = cmdOf(stream.string), at = c ? c.label.length + 1 : 0;
-            if (!c || (c.key !== 'size' && c.key !== 'lang')){ stream.skipToEnd(); return null; }
+            if (!c){ stream.skipToEnd(); return null; }
             while (at < stream.string.length && stream.string.charAt(at) === ' ') at++;
             if (stream.pos < at){ stream.pos = at; return null; }
-            stream.skipToEnd(); return 'smsetval';
+            stream.skipToEnd(); return c.key === 'size' || c.key === 'lang' ? 'smsetval' : 'smfield';
           }
           if (stream.sol()){
             var para = state.prevBlank;

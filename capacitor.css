@@ -47,3 +47,6 @@
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
 #sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue-night) var(--sm-inset),var(--sm-blue-night) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));padding:0 8px;margin-left:-8px}
 #sm-editor .sm-set-on .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-bg)}
+/* Values on the night blue bars are written in colorForeground so they stay readable; an active chip in colorBackground */
+#sm-editor .cm-smfield,#sm-editor .cm-smsetval{color:var(--sm-fg)}
+#sm-editor .sm-set-on .cm-smsetval{color:var(--sm-bg)}
