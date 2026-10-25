@@ -96,6 +96,7 @@ start('She waits.'); cm.setCursor({line:0, ch:3}); enter(); doc('Enter in the mi
 start('She waits.'); shiftEnter(); doc('Shift+Enter after action: new paragraph with an empty cue, cursor on the dialogue line', 'She waits.\n\n,,\n @3:0');
 type('Wie gehts?'); shiftEnter(); doc('Shift+Enter after the dialogue: the next empty cue', 'She waits.\n\n,,\nWie gehts?\n\n,,\n @6:0');
 start('.i HOUSE - DAY\n\nShe waits.'); cm.setCursor({line:0, ch:14}); shiftEnter(); doc('from a slugline, text below stays apart', '.i HOUSE - DAY\n\n,,\n\n\nShe waits. @3:0');
+start('She waits.\n\n// a note'); shiftEnter(); doc('after a note too', 'She waits.\n\n// a note\n\n,,\n @5:0');
 start('She waits.\n\n'); shiftEnter(); doc('on an empty paragraph line: the cue goes right there', 'She waits.\n\n,,\n @3:0');
 start('She waits.'); cm.setCursor({line:0, ch:3}); shiftEnter(); doc('in the middle of a line: a plain new line', 'She\nwaits. @1:0');
 start('She waits.'); cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', altKey:true, preventDefault(){}, stopPropagation(){} }); doc('Option+Enter: plain new line', 'She waits.\n @1:0');

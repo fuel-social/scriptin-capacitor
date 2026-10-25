@@ -1093,11 +1093,11 @@
       cyc = null;
     }
     // Shift+Enter at the end of any line of the script: a new paragraph with an empty cue ,, and the cursor on the line below
-    // it, so the next speech can be typed straight away; Reformat (Cmd+Option+Enter) fills in the names later. On the
-    // title page, in a note, in the middle of a line or with a selection it is a plain new line
+    // it, so the next speech can be typed straight away (after a note too); Reformat (Cmd+Option+Enter) fills in the names
+    // later. On the title page, in the middle of a line or with a selection it is a plain new line
     function dialogueNext(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln), te = preEnd();
-      if (cm.somethingSelected() || ln <= te || isNoteLn(ln) || cur.ch !== s.length){ cm.execCommand('newlineAndIndent'); return; }
+      if (cm.somethingSelected() || ln <= te || cur.ch !== s.length){ cm.execCommand('newlineAndIndent'); return; }
       var next = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1)), at = {line:ln, ch:s.length}, tail = next ? '\n\n' : '\n';
       if (isBlank(s)){
         if (ln === 0 || ln - 1 === te || isBlank(line(ln - 1))){ put(',,' + tail, {line:ln, ch:0}, at); caret(ln + 1, 0); }
