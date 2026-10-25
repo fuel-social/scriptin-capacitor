@@ -1010,8 +1010,12 @@
       var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : LANGS.map(function(L){ return L.name; });
       var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
       i = i < 0 ? 0 : (i + dir + vals.length) % vals.length;
-      put(' ' + vals[i], {line:ln, ch:c.label.length + 1}, {line:ln, ch:line(ln).length});
-      caret(ln, line(ln).length);
+      // the new value and the renamed headings and commands are one change, so one Cmd+Z takes both back
+      cm.operation(function(){
+        put(' ' + vals[i], {line:ln, ch:c.label.length + 1}, {line:ln, ch:line(ln).length});
+        preLabels();
+        caret(ln, line(ln).length);
+      });
     }
     function isActiveLn(ln){ return !!(cueParts(ln) || isTransHead(ln) || settingOf(ln)); }
     function arrow(dir){
@@ -1348,7 +1352,11 @@
     cm.on('update', placePages);
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
     // The title page always has an empty line right after the opening --- and right before the closing ---
+    // Undo and redo leave the title page as they find it: the automatic fixes (empty lines, names, a script line below)
+    // would otherwise be redone at once after every Cmd+Z, and Cmd+Z could never get past them
+    var undoing = false;
     function preGaps(){
+      if (undoing) return;
       var te = preEnd();
       if (te < 0) return;
       if (!isBlank(line(te - 1))) cm.replaceRange('\n', {line:te, ch:0}, {line:te, ch:0}, '+pre');
@@ -1357,6 +1365,7 @@
     // The language on the title page names its headings and commands: switching Language: English to Deutsch turns
     // Title: into Titel: and //TITLE PAGE into //TITELSEITE; values stay as written
     function preLabels(){
+      if (undoing) return;
       var te = preEnd();
       if (te < 0) return;
       var lv = preValue(line, te, 'lang');
@@ -1379,12 +1388,13 @@
     function belowPre(){
       var te = preEnd();
       if (te < 0 || topGone < te) return;
-      if (te === cm.lastLine()){ cm.replaceRange('\n\n', {line:te, ch:line(te).length}, null, '+pre'); cm.setCursor({line:cm.lastLine(), ch:0}); return; }
+      if (te === cm.lastLine() && !undoing){ cm.replaceRange('\n\n', {line:te, ch:line(te).length}, null, '+pre'); cm.setCursor({line:cm.lastLine(), ch:0}); return; }
       // a script opens with the cursor on line 0, inside the hidden title page: it goes to the first script line
       if (cm.getCursor().line <= te && !cm.somethingSelected()) cm.setCursor({line:Math.min(topGone + 1, cm.lastLine()), ch:0});
     }
     var timer = null;
     cm.on('changes', function(_cm, list){
+      undoing = list.some(function(c){ return c.origin === 'undo' || c.origin === 'redo'; });
       preGaps(); preLabels();
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
       // A whole new text (a script arriving from the database, or the newer local copy laid over it) is hidden and

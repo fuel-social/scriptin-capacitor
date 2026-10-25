@@ -298,6 +298,30 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   { const ok = /sm-gone/.test(cm.getLineHandle(0).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and the title page is hidden again'); }
 }
 
+// Cmd+Z after a language switch takes back the value and the names together, and goes on further back
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const undo = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\nAction.';
+  cm.setValue(T); cm.clearHistory();
+  if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.setCursor({line:3, ch:8}); type('x');
+  cm.setCursor({line:7, ch:0}); cm.setCursor({line:7, ch:3}); tab(); down();
+  { const ok = /Sprache: Deutsch/.test(cm.getValue()) && /Titel: Ax/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'switched to Deutsch'); }
+  undo();
+  { const ok = cm.getValue() === T.replace('Title: A', 'Title: Ax'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z: all English again' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  undo();
+  { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'next Cmd+Z goes on to the typed x' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  // deleting the empty line after the opening ---: it comes back, and Cmd+Z still gets past it
+  cm.setValue(T); cm.clearHistory();
+  cm.setCursor({line:13, ch:7}); type('y');
+  cm.setCursor({line:2, ch:0}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  undo(); undo(); undo();
+  { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+Z gets past an automatic empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  k9();
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
