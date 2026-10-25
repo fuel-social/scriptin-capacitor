@@ -54,3 +54,5 @@
 .colorForeground{color:var(--sm-page-fg,#1C2F42) !important}
 .colorForeground a{color:inherit !important}
 .a1731945775167x870722393325770900,.a1731945775132x124084055742705760{border-top-color:var(--sm-page-fg,#1C2F42) !important}
+/* The footer is as wide as the editor (720px) and centred like it */
+.main-page > .bubble-element:has(.a1731945775167x870722393325770900){width:720px !important;min-width:720px !important;max-width:720px !important;align-self:center !important;margin-left:auto !important;margin-right:auto !important}
