@@ -25,7 +25,7 @@
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
     {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SCRIPT SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'SKRIPTEINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}},
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}},
     {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES DU SCÉNARIO'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}},
     {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}}
   ];
@@ -323,9 +323,22 @@
   function defineMode(){
     CodeMirror.defineMode('scriptin', function(){
       return {
-        startState: function(){ return {cue:false, prevBlank:true}; },
-        blankLine: function(state){ state.prevBlank = true; },
+        // pre: 0 first line not read yet, 1 inside the title page, 2 after it (or no title page)
+        startState: function(){ return {cue:false, prevBlank:true, pre:0}; },
+        copyState: function(st){ return {cue:st.cue, prevBlank:st.prevBlank, pre:st.pre}; },
+        blankLine: function(state){ state.prevBlank = true; if (!state.pre) state.pre = 2; },
         token: function(stream, state){
+          // Title page: the value of Page size and Language is a chip, changed only with Up/Down
+          if (stream.sol() && state.pre === 0) state.pre = FENCE.test(stream.string) ? -1 : 2;
+          else if (stream.sol() && state.pre === 1 && FENCE.test(stream.string)) state.pre = 2;
+          if (state.pre === -1){ state.pre = 1; stream.skipToEnd(); return null; }
+          if (state.pre === 1){
+            var c = cmdOf(stream.string), at = c ? c.label.length + 1 : 0;
+            if (!c || (c.key !== 'size' && c.key !== 'lang')){ stream.skipToEnd(); return null; }
+            while (at < stream.string.length && stream.string.charAt(at) === ' ') at++;
+            if (stream.pos < at){ stream.pos = at; return null; }
+            stream.skipToEnd(); return 'smsetval';
+          }
           if (stream.sol()){
             var para = state.prevBlank;
             state.prevBlank = false; state.cue = false;
@@ -744,7 +757,9 @@
     // line right below it, Tab stays. Shift+Enter adds a line to the command (a second address line)
     function preStep(ln, isEnter){
       var te = preEnd();
-      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); if (settingOf(nx)) activeCue = nx; return; }
+      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); if (settingOf(nx)){ activeCue = nx; decorate(); } return; }
+      // Tab on the last command stays there; on a setting it makes the chip active
+      if (!isEnter && settingOf(ln)){ activeCue = ln; caret(ln, line(ln).length); decorate(); }
       if (!isEnter || ln >= te) return;
       var last = te - 1;
       while (last > 0 && isBlank(line(last))) last--;
@@ -1230,7 +1245,11 @@
             if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && i - 1 > te) cm.addLineClass(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
-          if (i <= te || isMarkLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
+          if (i <= te || isMarkLn(i)){
+            cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
+            if (i < te && headOf(s)) cm.addLineClass(i, 'wrap', 'sm-head');
+            if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
+          }
           else if (isSlugLn(i)){
             cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
             cm.addLineClass(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
@@ -1356,6 +1375,15 @@
           cm.replaceRange('\n\n' + preSettings(LANGS[0], 'A4'), {line:last, ch:line(last).length}, null, '+pre');
           r = preRange();
         }
+        // A title page without its heading gets it, in its own language
+        var hasHead = false;
+        for (var hk = 1; hk < r.e; hk++){ if (headOf(line(hk)) === 'title') hasHead = true; }
+        if (!hasHead){
+          refresh();
+          var HL = langOf(preValue(line, r.e, 'lang')) || LANGS[0];
+          cm.replaceRange('//' + HL.head.title + '\n', {line:2, ch:0}, null, '+pre');
+          r = preRange();
+        }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
         var first = 1;
         while (first < r.e - 1 && !isPreHead(first, r.e)) first++;
@@ -1382,6 +1410,13 @@
     });
     // The text ends with page MAX_PAGES: typing, Tab and pasting that would start another page are refused;
     // deleting, undo, redo, Reformat and loading a script always work
+    // Page size and Language lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
+    // takes the whole line with it (a selection from above to below it) still works
+    cm.on('beforeChange', function(_cm, ch){
+      if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === ORIGIN || ch.origin === '+pre' || ch.origin === '+reformat' || ch.origin === '+restore') return;
+      var a = ch.from.line, b = ch.to.line;
+      if (settingOf(a) || settingOf(b)) ch.cancel();
+    });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
       if (ch.text.join('') === '') return;
@@ -1396,7 +1431,10 @@
       setTimeout(function(){ clicked = false; var ln = cm.getCursor().line; activeCue = isActiveLn(ln) ? ln : -1; }, 0);
     });
     cm.on('cursorActivity', function(){
-      if (!clicked && cm.getCursor().line !== activeCue) activeCue = -1;
+      var was = activeCue, ln = cm.getCursor().line;
+      if (clicked) activeCue = isActiveLn(ln) ? ln : -1; // at once, an arrow key right after the click already counts
+      else if (ln !== activeCue) activeCue = -1;
+      if ((settingOf(was) || settingOf(activeCue)) && was !== activeCue) decorate();
     });
     refresh(); // the text from this browser is hidden and coloured at once too
     measureBand();

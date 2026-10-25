@@ -174,19 +174,25 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   down(); doc('Down on Page size: US Letter', TP('Night', '', 'US Letter') + ' @7:20');
   down(); doc('again: back to A4', TP('Night', '', 'A4') + ' @7:13');
   tab(); down();
-  doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//SKRIPTEINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
+  doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
   down(); doc('Français', '---\n\n//PAGE DE TITRE\nTitre: Night\nAuteur: \n\n//PARAMÈTRES DU SCÉNARIO\nFormat: A4\nLangue: Français\n\n--- @8:16');
   down(); doc('Italiano', '---\n\n//FRONTESPIZIO\nTitolo: Night\nAutore: \n\n//IMPOSTAZIONI\nFormato: A4\nLingua: Italiano\n\n--- @8:16');
-  up(); up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//SKRIPTEINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
+  up(); up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
   up(); doc('and to English', TP('Night', '') + ' @8:17');
   cm.setCursor({line:6, ch:0}); cm.setCursor({line:7, ch:3}); up();
   { const ok = cm.getValue() === TP('Night', ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with the arrow keys the setting stays as it is'); }
-  cm.setCursor({line:8, ch:10}); cm.replaceRange('', {line:8, ch:10}, {line:8, ch:17}, '+delete'); type('de');
-  doc('typing a code renames too', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//SKRIPTEINSTELLUNGEN\nSeitenformat: A4\nSprache: de\n\n--- @8:11');
-  down(); doc('Down from a code goes on to the next language', '---\n\n//PAGE DE TITRE\nTitre: Night\nAuteur: \n\n//PARAMÈTRES DU SCÉNARIO\nFormat: A4\nLangue: Français\n\n--- @8:16');
+  cm.setCursor({line:8, ch:12}); type('x');
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  doc('the values cannot be typed or deleted', TP('Night', '') + ' @8:12');
+  cm.replaceRange('', {line:7, ch:0}, {line:8, ch:5}, '+delete');
+  { const ok = cm.getValue() === TP('Night', ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a selection into a setting line cannot delete it'); }
+  cm.setCursor({line:8, ch:3});
+  { const ok = !/sm-set-on/.test(cm.getLineHandle(8).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached without click or Tab the chip is not active'); }
+  tab();
+  { const ok = /sm-set-on/.test(cm.getLineHandle(8).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with Tab the chip is active (blue)'); }
   k9(); // hide again, then load an older script
   cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:0}); k9();
-  doc('an older title page gets the settings when shown', '---\n\nTitle: A\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\nAction. @2:8');
+  doc('an older title page gets the heading and settings when shown', '---\n\n//TITLE PAGE\nTitle: A\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\nAction. @3:8');
   k9();
 }
 {
@@ -211,7 +217,7 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const gone = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
   { const ok = gone; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden title page hides all its lines, cursor or not'); }
-  doc('showing adds the empty lines after and before ---', '---\n\nTitle: A\n\nAuthor: B\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nAction. @12:0');
+  doc('showing adds the empty lines after and before ---', '---\n\n//TITLE PAGE\nTitle: A\n\nAuthor: B\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nAction. @13:0');
 }
 
 {

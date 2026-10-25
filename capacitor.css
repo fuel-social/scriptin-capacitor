@@ -41,3 +41,8 @@
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */
 #sm-editor .sm-gone{height:0 !important;overflow:hidden}
+/* Title page: a small gap below each // heading; the value of Page size and Language is a chip (colorFrame), which turns
+   colorBlue while Up/Down change it (the line was clicked or reached with Tab or Enter) */
+#sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
+#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));padding:0 8px;margin-left:-8px}
+#sm-editor .sm-set-on .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-bg)}
