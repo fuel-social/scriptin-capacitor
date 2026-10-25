@@ -32,6 +32,11 @@
 #sm-editor .CodeMirror-scroll{min-height:calc(100vh - 160px)}
 /* Bubble clips its HTML elements; the page numbers sit outside, left of the frame line */
 .bubble-element:has(> #sm-editor){overflow:visible !important}
+/* The Bubble page is at least 1200px tall (more than the window): the element, the editor and its frame lines stretch
+   to the page bottom, so the lines end 80px above it however far the page scrolls; a longer script still grows them */
+.bubble-element:has(> #sm-editor){flex-grow:1 !important;display:flex !important;flex-direction:column}
+#sm-editor{flex-grow:1;display:flex;flex-direction:column}
+#sm-editor .CodeMirror{flex-grow:1}
 /* The empty line above a slugline counts twice, as in Final Draft */
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */
