@@ -286,6 +286,18 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   tab(); doc('Tab right after opening starts the script with .i', '---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n.i  @12:3');
 }
 
+// The newer local copy laid over the server version while the title page is hidden: no second title page
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const srv = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n.i X - DAY\n\nfasdfa';
+  const loc = srv.replace('US Letter', 'A4') + '\n\nMore.';
+  cm.setValue(srv);
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.replaceRange(loc, {line:0, ch:0}, {line:cm.lastLine(), ch:cm.getLine(cm.lastLine()).length}, '+restore');
+  { const ok = cm.getValue() === loc; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'restoring the local copy replaces everything, the hidden title page too' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const ok = /sm-gone/.test(cm.getLineHandle(0).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and the title page is hidden again'); }
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

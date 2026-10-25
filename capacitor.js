@@ -1461,6 +1461,13 @@
     // deleting, undo, redo, Reformat and loading a script always work
     // Page size and Language lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
+    // A whole new text laid over the old one (the newer local copy over the server version) must replace everything:
+    // hidden text is read only, and CodeMirror would keep it and put the new text in front of it (a second title page)
+    cm.on('beforeChange', function(_cm, ch){
+      if (ch.origin !== '+restore') return;
+      for (var m = 0; m < marks.length; m++) marks[m].clear();
+      marks = []; hid = []; topGone = -1;
+    });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === ORIGIN || ch.origin === '+pre' || ch.origin === '+reformat' || ch.origin === '+restore') return;
       var a = ch.from.line, b = ch.to.line;
