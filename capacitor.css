@@ -2,14 +2,17 @@
   font-family: 'GTPressuraMonoRegular';
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1705585947012x778432208426352100/GT-Pressura-Mono-Regular.woff');
 }
-#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px}
+#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px;--sm-tail:2px}
 #sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
 #sm-editor .CodeMirror-lines{padding:10px 0}
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
-#sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:var(--sm-band) !important;margin-top:var(--sm-gap)}
+#sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap)}
 #sm-editor .sm-on-bar .CodeMirror-cursor{border-left-color:var(--sm-blue-alt) !important}
+/* Night: the cursor on sluglines takes colorBlue of the day theme, on transitions colorBlue of the night theme */
+#sm-editor[data-mode=night] .sm-on-slug .CodeMirror-cursor{border-left-color:var(--sm-blue-day) !important}
+#sm-editor[data-mode=night] .sm-on-trans .CodeMirror-cursor{border-left-color:var(--sm-blue-night) !important}
 #sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-fg)}
-#sm-editor .sm-l-slug{box-shadow:0 var(--sm-under) 0 0 var(--sm-fg);background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
+#sm-editor .sm-l-slug{box-shadow:0 var(--sm-tail) 0 0 var(--sm-fg);background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
 #sm-editor pre.sm-t-shot > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive),calc(16px - var(--sm-under) / 2 + var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
 #sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .CodeMirror-selected{background:transparent !important}

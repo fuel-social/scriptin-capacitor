@@ -728,13 +728,18 @@
       host.style.setProperty('--sm-band', Math.min(r.height, lh) + 'px');
       host.style.setProperty('--sm-gap', Math.max(0, r.top - lr.top) + 'px');
       host.style.setProperty('--sm-inset', Math.max(0, lr.top - r.top) + 'px');
+      var ib = r.bottom - lr.bottom, it = Math.max(0, lr.top - r.top);
       // Descenders (g, j, p, q, y) reach below the line: bars go down that far too (never beyond the text box)
       try {
         var cx = document.createElement('canvas').getContext('2d'), fs = getComputedStyle(sp);
         cx.font = fs.fontSize + ' ' + fs.fontFamily;
         var mt = cx.measureText('gjpqy'), base = (mt.fontBoundingBoxAscent || 0) - Math.max(0, lr.top - r.top);
         var under = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), base + mt.actualBoundingBoxDescent - lh)) : 0;
-        host.style.setProperty('--sm-under', Math.ceil(under * 2) / 2 + 'px');
+        var u = Math.ceil(under * 2) / 2;
+        host.style.setProperty('--sm-under', u + 'px');
+        // How far every bar reaches below the line (cue, shot and transition bars are drawn on the text box, which can
+        // end a little above its inset): the cursor and the slugline bar end exactly there too
+        host.style.setProperty('--sm-tail', Math.max(0, u + ib - it) + 'px');
       } catch (e){}
       // Distance from the page's right text edge to the editor's right frame line
       host.style.setProperty('--sm-trans-tail', (cm.display.lineDiv.clientWidth - (W_ACTION * cm.defaultCharWidth() + PAD / 2)) + 'px');
@@ -770,7 +775,10 @@
     // Cursor in a shot block uses the other theme's colorBlue
     function chipCursor(){ var ln = cm.getCursor().line; cm.getWrapperElement().classList.toggle('sm-on-chip', activeCue === ln && !!settingOf(ln)); }
     function barCursor(){
-      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
+      var cl = cm.getCursor().line, wr = cm.getWrapperElement();
+      wr.classList.toggle('sm-on-bar', isShotLn(cl));
+      wr.classList.toggle('sm-on-slug', isSlugLn(cl));
+      wr.classList.toggle('sm-on-trans', isTransLn(cl));
       chipCursor();
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
@@ -1364,7 +1372,7 @@
         var gap = parseFloat(cs.getPropertyValue('--sm-gap')) || 0, band = parseFloat(cs.getPropertyValue('--sm-band')) || (c.bottom - c.top);
         var inShot = isShotLn(pos.line);
         var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;left:' + c.left + 'px;top:' + (c.top + gap) + 'px;height:' + band + 'px;width:3px;background:' + cs.getPropertyValue(inShot ? '--sm-blue-alt' : '--sm-blue').trim();
+        el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;left:' + c.left + 'px;top:' + (c.top + gap) + 'px;height:' + band + 'px;width:3px;background:' + ((cm.display.cursorDiv.firstChild && getComputedStyle(cm.display.cursorDiv.firstChild).borderLeftColor) || cs.getPropertyValue(inShot ? '--sm-blue-alt' : '--sm-blue').trim());
         document.body.appendChild(el);
         if (el.animate){
           var a = el.animate([{width:'3px'}, {width:FIND_PX + 'px'}, {width:'3px'}], {duration:FIND_MS, easing:'ease-in-out'});
@@ -1613,6 +1621,10 @@
       host.style.setProperty('--sm-blue', t.colorblue); host.style.setProperty('--sm-frame', t.colorframe);
       host.style.setProperty('--sm-inactive', t.colorinactive); if (t.colorred) host.style.setProperty('--sm-red', t.colorred);
       if (o && o.colorblue) host.style.setProperty('--sm-blue-alt', o.colorblue);
+      host.setAttribute('data-mode', THEMES[m] === 'dark' ? 'night' : 'day');
+      var dc = themeColors('light'), nc = themeColors('dark');
+      if (dc) host.style.setProperty('--sm-blue-day', dc.colorblue);
+      if (nc) host.style.setProperty('--sm-blue-night', nc.colorblue);
       var page = document.querySelector('.main-page');
       if (page) page.style.setProperty('background-color', t.colorbackground, 'important');
     }
