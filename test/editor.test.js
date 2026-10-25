@@ -523,6 +523,17 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   delete w.app;
 }
 
+// Empty cues get a name on Reformat: the one who spoke before the last speaker, across scenes; one character: that one
+start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?\n\n,,\nGut, danke.\n\n.e STREET - DAY\n\n,,\nUnd jetzt?'); reformatAll();
+eq2('Reformat fills empty cues alternately, across a scene change', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',MARIA, ,THOMAS, ,MARIA, ,THOMAS, ,MARIA,');
+start(',ANNA,\nHallo.\n\n,,\nNoch da?'); reformatAll();
+eq2('only one character so far: that one', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',ANNA, ,ANNA,');
+start(',,\nHallo?\n\n,ANNA (V.O.),\nJa.\n\n,BEN,\nOkay.\n\n,(O.S.),\nHier.'); reformatAll();
+eq2('no character before: stays empty; an extension stays', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',, ,ANNA (V.O.), ,BEN, ,ANNA (O.S.),');
+start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?'); cm.setCursor({line:7, ch:3}); reformatAll();
+check('the cursor stays in the same word', '"Wie gehts?" cursor 7:3');
+cm.execCommand('undo'); eq2('one Cmd+Z takes it back', cm.getLine(6), ',,');
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

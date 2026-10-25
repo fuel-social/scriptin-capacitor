@@ -193,6 +193,29 @@
     if (after) res.push(after);
     return res.length ? res : [l];
   }
+  // Empty cues (,, or ,(V.O.),) get a name on Reformat: the character who spoke before the one who spoke last, never the
+  // one who spoke last, across scene boundaries; with only one character so far that one, with none the cue stays empty.
+  // Returns the text and where names went in (offsets in the old text), so the cursor can stay in place
+  function fillCues(text){
+    var lines = text.split('\n'), te = titleEnd(function(k){ return lines[k]; }, lines.length), said = [], ins = [], off = 0;
+    for (var i = 0; i < lines.length; i++){
+      var l = lines[i], para = i > te && (i === 0 || lines[i - 1].trim() === '' || i - 1 === te), m;
+      if (para && (m = l.match(/^,([^,]*),/))){
+        var raw = m[1], o = raw.indexOf('('), name = (o < 0 ? raw : raw.slice(0, o)).trim().toUpperCase();
+        if (name) said.push(name);
+        else if (said.length){
+          var last = said[said.length - 1], pick = last;
+          for (var k = said.length - 2; k >= 0; k--){ if (said[k] !== last){ pick = said[k]; break; } }
+          var add = pick + (o >= 0 ? ' ' : '');
+          ins.push({at:off + 1 + (o >= 0 ? raw.length - raw.replace(/^\s+/, '').length : 0), text:add});
+          lines[i] = ',' + (o >= 0 ? add + raw.replace(/^\s+/, '') : add) + l.slice(1 + raw.length);
+          said.push(pick);
+        }
+      }
+      off += l.length + 1;
+    }
+    return {text:lines.join('\n'), ins:ins};
+  }
   function reformatText(text){
     var paras = [], cur = [], src = text.split('\n'), te = titleEnd(function(k){ return src[k]; }, src.length);
     src.map(normLine).forEach(function(l, k){
@@ -441,7 +464,9 @@
   // 0.5 inch from the top, with a period. Title page only when Title and Author are both filled in: the title in
   // capitals on line 25, the credit (Written by ...) on line 30, the author on line 32, all centred. Notes, section
   // marks and scene numbers are never printed.
-  var CMD_EXPORT = /^\s*\/pdf\s*$/i;
+  // Export commands alone on a line: /pdf (the printed reading script) and /txt (the script as written, with its markup,
+  // UTF-8, nothing added or wrapped)
+  var CMD_EXPORT = /^\s*\/(pdf|txt)\s*$/i;
   var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
   var pdfKit = null;
   function fetchB64(url){
@@ -461,7 +486,13 @@
     pdfKit.catch(function(){ pdfKit = null; });
     return pdfKit;
   }
-  function fileName(title){ return (title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || 'script') + '.pdf'; }
+  function fileName(title, ext){ return (title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || 'script') + '.' + (ext || 'pdf'); }
+  function exportTxt(text){
+    var lay = layout(text, false), a = document.createElement('a');
+    var url = URL.createObjectURL(new Blob([text.replace(/\s+$/, '') + '\n'], {type:'text/plain;charset=utf-8'}));
+    a.href = url; a.download = fileName(lay.title, 'txt'); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
   function buildPdf(kit, lay){
     var doc = new kit.jsPDF({unit:'pt', format:lay.size === 'US Letter' ? 'letter' : 'a4', compress:true});
     doc.addFileToVFS('CourierPrime-Regular.ttf', kit.font);
@@ -1036,11 +1067,11 @@
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd() && !cm.somethingSelected()){ preStep(ln, true); return; }
-      // /pdf alone on a line (its own paragraph) and Enter: the line is emptied again and the PDF downloads; export
+      // /pdf or /txt alone on a line (its own paragraph) and Enter: the line is emptied again and the file downloads; export
       // commands start with a slash, as a dot or a comma at the start of a line always means formatting
       if (!cm.somethingSelected() && ln > preEnd() && isCmdLn(ln)){
         put('', {line:ln, ch:0}, {line:ln, ch:s.length});
-        exportPdf(cm.getValue());
+        if (/txt/i.test(s)) exportTxt(cm.getValue()); else exportPdf(cm.getValue());
         return;
       }
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
@@ -1332,9 +1363,10 @@
     }
     // Reformat the whole script in one undoable step, keeping the cursor on the same character
     function reformat(){
-      var old = cm.getValue(), nt = reformatText(old);
+      var old = cm.getValue(), filled = fillCues(old), nt = reformatText(filled.text);
       var pos = cm.getCursor(), idx = cm.indexFromPos(pos);
       var n = old.slice(0, idx).replace(/\s/g, '').length, onBlank = isBlank(line(pos.line));
+      filled.ins.forEach(function(x){ if (x.at <= idx) n += x.text.replace(/\s/g, '').length; });
       var lastText = -1;
       for (var q = cm.lineCount() - 1; q >= 0; q--){ if (!isBlank(line(q))){ lastText = q; break; } }
       // Empty lines below the last text that hold the cursor stay (at most one empty line plus the cursor line)
