@@ -135,10 +135,12 @@
     return res.length ? res : [l];
   }
   function reformatText(text){
-    var paras = [], cur = [];
-    text.split('\n').map(normLine).forEach(function(l){
+    var paras = [], cur = [], src = text.split('\n'), te = titleEnd(function(k){ return src[k]; }, src.length);
+    src.map(normLine).forEach(function(l, k){
       if (l === ''){ if (cur.length){ paras.push(cur); cur = []; } }
       else cur.push(l);
+      // the closing --- of the title page ends a paragraph, so the script below it is set off by an empty line
+      if (k === te && cur.length){ paras.push(cur); cur = []; }
     });
     if (cur.length) paras.push(cur);
     // Slugline separators all become the dash used most often in the script's sluglines (a tie goes to the one used first),
@@ -346,7 +348,7 @@
         token: function(stream, state){
           // Title page: the value of Page size and Language is a chip, changed only with Up/Down
           if (stream.sol() && state.pre === 0) state.pre = FENCE.test(stream.string) ? -1 : 2;
-          else if (stream.sol() && state.pre === 1 && FENCE.test(stream.string)) state.pre = 2;
+          else if (stream.sol() && state.pre === 1 && FENCE.test(stream.string)){ state.pre = 2; stream.skipToEnd(); state.prevBlank = true; return null; }
           if (state.pre === -1){ state.pre = 1; stream.skipToEnd(); return null; }
           if (state.pre === 1){
             var c = cmdOf(stream.string), at = c ? c.label.length + 1 : 0;
@@ -579,8 +581,9 @@
     function put(text, from, to){ cm.replaceRange(text, from, to, ORIGIN); }
     function caret(ln, ch){ cm.setCursor({line:ln, ch:ch}); }
     // A paragraph is a run of non-empty lines; its first line decides what the whole paragraph is
-    function paraStart(ln){ return ln === 0 || isBlank(line(ln - 1)); }
-    function paraHead(ln){ var i = ln; while (i > 0 && !isBlank(line(i - 1))) i--; return i; }
+    // The line right after the closing --- of the title page always begins one too, empty line or not
+    function paraStart(ln){ return ln === 0 || isBlank(line(ln - 1)) || ln - 1 === preEnd(); }
+    function paraHead(ln){ var te = preEnd(), i = ln; while (i > 0 && !isBlank(line(i - 1)) && i - 1 !== te) i--; return i; }
     function isSlugHead(ln){ return paraStart(ln) && slugDelta(line(ln)) >= 0; }
     function isSlugLn(ln){ return !isBlank(line(ln)) && isSlugHead(paraHead(ln)); }
     // Shot: paragraph starting with .s and a space; not part of the Tab ring
@@ -636,7 +639,7 @@
       while (i < n){
         if (isBlank(line(i))){ i++; continue; }
         var s = i;
-        while (i < n && !isBlank(line(i))) i++;
+        while (i < n && !isBlank(line(i)) && !(i > s && i - 1 === te)) i++;
         var h = line(s), type = 'action', name = '', c;
         if (s <= te) type = 'pre';
         else if (isMark(h)) type = 'mark';
@@ -1499,6 +1502,16 @@
       var clean = t.replace(CTRL, '');
       if (clean === '' && CodeMirror.cmpPos(ch.from, ch.to) === 0){ ch.cancel(); return; }
       ch.update(ch.from, ch.to, clean.split('\n'));
+    });
+    // Deleting everything below a hidden title page keeps an empty script line in the same change (one Cmd+Z takes it
+    // all back); otherwise the script would end at the hidden --- and the cursor would have no visible place
+    cm.on('beforeChange', function(_cm, ch){
+      var o = ch.origin || '';
+      if (!ch.update || o === 'setValue' || o === 'undo' || o === 'redo' || o === '+restore' || ch.text.join('') !== '') return;
+      var te = preEnd();
+      if (te < 0 || topGone < te) return;
+      var P = CodeMirror.cmpPos, end = {line:cm.lastLine(), ch:line(cm.lastLine()).length};
+      if (P(ch.to, end) === 0 && P(ch.from, {line:te + 1, ch:0}) <= 0) ch.update(ch.from, ch.to, ['', '', '']);
     });
     // A whole new text laid over the old one (the newer local copy over the server version) must replace everything:
     // hidden text is read only, and CodeMirror would keep it and put the new text in front of it (a second title page)

@@ -392,6 +392,24 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   k9();
 }
 
+// The script directly below the closing --- (no empty line): still its own paragraph in every respect
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const bs = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n.i HOUSE - DAY\n\nShe waits.';
+  cm.setValue(T); cm.clearHistory();
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  { const ok = /sm-l-slug/.test(cm.getLineHandle(11).wrapClass || '') && !/sm-gone/.test(cm.getLineHandle(11).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a slugline right under --- is a slugline and stays visible when the title page is hidden'); }
+  cm.execCommand('selectAll'); bs();
+  { const c = cm.getCursor().line, ok = !/She waits|HOUSE/.test(cm.getValue()) && !/sm-gone/.test(cm.getLineHandle(c).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete it, the cursor stays visible' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-20)) + ' line ' + c)); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
+  { const ok = cm.getValue() === T && cm.historySize().undo === 0; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings everything back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-30)) + JSON.stringify(cm.historySize()))); }
+  k9(); cm.setCursor({line:12, ch:0});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  { const ok = /\n---\n\n\.I HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat sets the script off from --- by an empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-40)))); }
+  k9();
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
