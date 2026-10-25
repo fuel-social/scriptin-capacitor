@@ -93,5 +93,14 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   eq('layout: English I/E. without a title page', Lay('.ie car - day', true).pages[0][0].s, 'I/E. CAR - DAY');
 }
 
+{
+  const Lay = globalThis.__pg.layout;
+  const t = '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe checks her wallet.\n\n,VALERIA,\nGoodbye.\n\n,JASON,\nBye.\n\n,VALERIA (V.O.),\nNo.\n\n.e STREET - DAY\n\n,VALERIA,\nHi.\n\n.s THE PHONE RINGS\n\nAction.';
+  const pg = Lay(t, true).pages[0].map(x => x.y + ' ' + x.s);
+  eq("layout: (CONT'D) for the same character again in the scene, not after another cue or a new scene; two lines before a shot",
+    JSON.stringify(pg.filter(x => /VALERIA|JASON|PHONE/.test(x))),
+    JSON.stringify(['2 VALERIA', "7 VALERIA (CONT'D)", '10 JASON', '13 VALERIA (V.O.)', '19 VALERIA', '23 THE PHONE RINGS']));
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;

@@ -251,7 +251,7 @@
   }
   function pageElements(text){
     var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length), L = langIn(get, te);
-    var els = [], i = te + 1, brk = false;
+    var els = [], i = te + 1, brk = false, speaker = null;
     while (i < lines.length){
       if (lines[i].trim() === ''){ i++; continue; }
       if (isMark(lines[i])){ if (BREAK.test(lines[i])) brk = true; i++; continue; }
@@ -261,11 +261,14 @@
       if (NOTE.test(h)) continue;
       el.brk = brk; brk = false;
       if ((d = slugDelta(h, L)) >= 0){
+        speaker = null;
         el.keep = true; el.space = SPACE_SLUG; el.kind = 'slug'; el.slug = L.slug[h.match(/^\.(IE|EI|I|E)/i)[1].toUpperCase()];
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
       } else if (SHOT.test(h) || TRANS.test(h)){
         // A shot keeps with the element after it, but has one empty line before it like action
         el.keep = SHOT.test(h); el.kind = el.keep ? 'act' : 'trans'; el.shot = el.keep;
+        // A shot has two empty lines before it, like a slugline (Final Draft PDF of 25.10.)
+        if (el.shot) el.space = SPACE_SLUG;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
           if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
@@ -273,6 +276,9 @@
         if (!el.runs.length) el.runs.push(piece('', s0, 0, W_ACTION));
       } else if ((m = h.match(/^,([^,]*),(.*)$/))){
         el.cue = true; el.split = true; el.kind = 'cue'; el.name = m[1];
+        // The same character speaking again in the same scene (no other cue in between) is printed with (CONT'D)
+        var who = m[1].replace(/\([^)]*\)?/g, '').trim().toUpperCase();
+        el.contd = !!who && who === speaker; speaker = who;
         var off = m[1].length + 2;
         if (m[2].trim()) dialogPieces(m[2], s0, off, el.runs);
         for (var k = 1; k < ps.length; k++) dialogPieces(ps[k], s0 + k, 0, el.runs);
@@ -342,7 +348,7 @@
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
-      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont)});
+      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont || el.contd)});
       runs.forEach(function(r){
         var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runText(r.s, r.w);
         if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(function(x){ return x.toUpperCase(); });
@@ -369,7 +375,7 @@
         if (!best) best = forceBreak(el, room);
         if (!best || !best.rest.length){ emit(el, el.runs, y + sp, false, cont); y += sp + h; break; }
         emit(el, best.first, y + sp, el.cue, cont);
-        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest, kind:el.kind, name:el.name, slug:el.slug, shot:el.shot};
+        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest, kind:el.kind, name:el.name, slug:el.slug, shot:el.shot, contd:el.contd};
         cont = true;
         newPage(el.pos);
       }
