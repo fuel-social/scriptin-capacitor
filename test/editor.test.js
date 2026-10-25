@@ -445,6 +445,25 @@ check('/pdf + Enter empties the line', '"" cursor 4:0');
 eq2('/pdf + Enter leaves the script as it was', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
 start('She waits.\n/pdf'); enter();
 check('/pdf inside a paragraph stays text', '"" cursor 3:0');
+// Transitions in the script's language: .t gives the first one, Up/Down cycle the list, a change of language translates them
+{
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const DE = '---\n\n//TITELSEITE\nTitel: A\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n---\n\nAction.\n\n';
+  start(DE); type('.t');
+  check('.t in a German script: SCHNITT AUF:', '".t SCHNITT AUF:" cursor 14:15');
+  down(); check('Down: AUFBLENDE:', '".t AUFBLENDE:" cursor 14:13');
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const toLang = () => { const ln = cm.getValue().split('\n').findIndex(l => /^(Seitenformat|Format|Formato|Page size):/.test(l)); cm.setCursor({line:ln, ch:3}); tab(); };
+  const last = () => cm.getLine(cm.lastLine());
+  k9(); toLang(); down();
+  eq2('Language to Français translates the transition', last(), ".t FONDU D'OUVERTURE :");
+  down(); eq2('Italiano', last(), '.t DISSOLVENZA IN ENTRATA:');
+  cm.changeGeneration(true); down(); eq2('English', last(), '.t FADE IN:');
+  cm.execCommand('undo'); eq2('one Cmd+Z takes the language and the transition back', last() + ' / ' + cm.getValue().split('\n').find(l => /^(Lingua|Language|Sprache):/.test(l)), '.t DISSOLVENZA IN ENTRATA: / Lingua: Italiano');
+  k9(); cm.setValue(DE + '.t MY OWN TRANSITION:'); k9(); toLang(); down();
+  eq2('a transition of your own stays as typed', last(), '.t MY OWN TRANSITION:');
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

@@ -29,10 +29,14 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by'},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von'},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de'},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di'}
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by',
+     trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von',
+     trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de',
+     trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di',
+     trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
   var SIZES = ['A4', 'US Letter'];
   function preTemplate(L){
@@ -86,7 +90,13 @@
   // one opens the section, the next one with the same title closes it. Both take no space in the pagination
   var BREAK = /^={3,}\s*$/, SECTION = /^===\s+\S/;
   function isMark(s){ return BREAK.test(s) || SECTION.test(s); }
-  var TRANS_LIST = ['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:'];
+  // Transitions: each language's list (LANGS[].trans) in the same order, so the same place means the same transition
+  function normTrans(t){ return t.trim().replace(/\s+/g, ' ').toUpperCase(); }
+  function transIndex(t){
+    var u = normTrans(t);
+    for (var l = 0; l < LANGS.length; l++){ var i = LANGS[l].trans.map(normTrans).indexOf(u); if (i >= 0) return i; }
+    return -1;
+  }
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
   var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
   // Separator between slugline segments: a hyphen (or en/em dash) with a space on at least one side, so TWENTY-ONE stays one word
@@ -1052,7 +1062,7 @@
       if (cm.somethingSelected() || !paraStart(ln)) { lastAuto = -1; return false; }
       if (cur.ch === 2 && /^\.t$/i.test(s)){
         // .t becomes an active transition with the first entry of the list
-        put('.t ' + TRANS_LIST[0], {line:ln, ch:0}, {line:ln, ch:2});
+        put('.t ' + scriptLang().trans[0], {line:ln, ch:0}, {line:ln, ch:2});
         caret(ln, line(ln).length);
         activeCue = ln; lastAuto = -1;
         refresh(); // right align at once, so CUT TO: never shows on the left first
@@ -1120,12 +1130,11 @@
       var above = recent.slice().reverse();
       return {list:above.concat(below), aboveLen:above.length};
     }
-    // Up/Down on an active transition cycle through TRANS_LIST
+    // Up/Down on an active transition cycle through the transitions of the script's language
     function transArrow(ln, dir){
-      var s = line(ln), text = s.replace(/^\.t\s*/i, ''), idx = -1;
-      for (var i = 0; i < TRANS_LIST.length; i++){ if (TRANS_LIST[i] === text.trim().toUpperCase()){ idx = i; break; } }
-      idx = idx < 0 ? 0 : (idx + dir + TRANS_LIST.length) % TRANS_LIST.length;
-      put('.t ' + TRANS_LIST[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
+      var s = line(ln), list = scriptLang().trans, idx = transIndex(s.replace(/^\.t\s*/i, ''));
+      idx = idx < 0 ? 0 : (idx + dir + list.length) % list.length;
+      put('.t ' + list[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
       caret(ln, line(ln).length);
     }
     // A Page size or Language line of the title page: 'size' or 'lang', else null
@@ -1144,6 +1153,7 @@
       cm.operation(function(){
         put(' ' + vals[i], {line:ln, ch:c.label.length + 1}, {line:ln, ch:line(ln).length});
         preLabels();
+        if (c.key === 'lang') transLang();
         caret(ln, line(ln).length);
       });
     }
@@ -1500,6 +1510,16 @@
     }
     // The language on the title page names its headings and commands: switching Language: English to Deutsch turns
     // Title: into Titel: and //TITLE PAGE into //TITELSEITE; values stay as written
+    function scriptLang(){ return langIn(line, preEnd()); }
+    // After a change of language every transition from the lists is written in the new language
+    function transLang(){
+      var list = scriptLang().trans;
+      for (var k = preEnd() + 1; k < cm.lineCount(); k++){
+        if (!isTransHead(k)) continue;
+        var s = line(k), m = s.match(/^\.t\s*/i), i = transIndex(s.slice(m[0].length));
+        if (i >= 0 && normTrans(s.slice(m[0].length)) !== normTrans(list[i])) put(list[i], {line:k, ch:m[0].length}, {line:k, ch:s.length});
+      }
+    }
     function preLabels(){
       if (undoing) return;
       var te = preEnd();
