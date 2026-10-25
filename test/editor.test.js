@@ -439,12 +439,12 @@ cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
 
-// .pdf + Enter on a line of its own: the line is emptied, nothing else changes
-start('.i HOUSE - DAY\n\nShe waits.\n\n'); type('.pdf'); enter();
-check('.pdf + Enter empties the line', '"" cursor 4:0');
-eq2('.pdf + Enter leaves the script as it was', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
-start('She waits.\n.pdf'); enter();
-check('.pdf inside a paragraph stays text', '"" cursor 3:0');
+// /pdf + Enter on a line of its own: the line is emptied, nothing else changes
+start('.i HOUSE - DAY\n\nShe waits.\n\n'); type('/pdf'); enter();
+check('/pdf + Enter empties the line', '"" cursor 4:0');
+eq2('/pdf + Enter leaves the script as it was', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
+start('She waits.\n/pdf'); enter();
+check('/pdf inside a paragraph stays text', '"" cursor 3:0');
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

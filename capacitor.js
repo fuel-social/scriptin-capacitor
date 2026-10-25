@@ -377,7 +377,7 @@
     return {starts:starts, pages:pages, size:size, lang:langIn(get, te), title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
   }
   function paginate(text){ return layout(text, false).starts; }
-  // ---- PDF export (.pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
+  // ---- PDF export (/pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
   // title page. 1 inch top and bottom, 1.5 inch left, 1 inch right; sluglines, shots and action at 1.5 inch, dialogue
   // 2.5, parentheticals 2.9, cues 3.5 inch from the edge, transitions flush right; page number top right from page 2,
   // 0.5 inch from the top, with a period. Title page only when Title and Author are both filled in: the title in
@@ -967,8 +967,9 @@
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd() && !cm.somethingSelected()){ preStep(ln, true); return; }
-      // .pdf alone on a line (its own paragraph) and Enter: the line is emptied again and the PDF downloads
-      if (!cm.somethingSelected() && /^\s*\.pdf\s*$/i.test(s) && ln > preEnd() && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1)))){
+      // /pdf alone on a line (its own paragraph) and Enter: the line is emptied again and the PDF downloads; export
+      // commands start with a slash, as a dot or a comma at the start of a line always means formatting
+      if (!cm.somethingSelected() && /^\s*\/pdf\s*$/i.test(s) && ln > preEnd() && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1)))){
         put('', {line:ln, ch:0}, {line:ln, ch:s.length});
         exportPdf(cm.getValue());
         return;
