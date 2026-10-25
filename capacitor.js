@@ -1403,13 +1403,13 @@
         for (var i = 0; i < cm.lineCount(); i++){
           if (i <= topGone){ want(i, 'wrap', 'sm-gone'); continue; }
           var s = line(i);
-          // Final Draft spacing: two empty lines before a slugline, one before everything else (shots included); the writer
+          // Final Draft spacing: two empty lines before a slugline or a shot, one before everything else; the writer
           // types one, so the empty line right above a slugline is shown at double height
           // An empty line holding the cursor is a paragraph being written, so the spacing does not jump once typing starts
           if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
             var nx = i + 1;
             while (nx < cm.lineCount() && empty(nx)) nx++;
-            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
+            if (nx < cm.lineCount() && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
           if (i <= te || isMarkLn(i)){
