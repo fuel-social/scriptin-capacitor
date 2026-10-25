@@ -354,6 +354,9 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   cm.execCommand('selectAll');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   { const ok = !/She waits/.test(cm.getValue()) && /Title: A/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete the script, the hidden title page stays' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const c = cm.getCursor().line, vis = !/sm-gone/.test(cm.getLineHandle(c).wrapClass || ''); const ok = vis && c > 10; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the cursor stays on a visible line below the title page (line ' + c + ')'); }
+  cm.replaceRange('Z', cm.getCursor(), null, '+input'); { const ok = /---\nZ$/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and typing starts the script there' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-15)))); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings it back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   // in a view: Cmd+A and Backspace delete what is visible only, and Cmd+Z brings it back

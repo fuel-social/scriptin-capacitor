@@ -722,7 +722,11 @@
           run = false; prevEnd = ps[k].e;
         } else run = true;
       }
-      if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, cm.lineCount() - 1, prevEnd < 0);
+      // Nothing visible at all (only a hidden title page left, or a view with nothing to show): the last line stays
+      // visible, so the cursor always has a place and typing can begin there
+      // (a script that ends right at the closing --- first gets an empty script line from belowPre)
+      var last = cm.lastLine(), keepLast = prevEnd < 0 && last > preEnd();
+      if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, keepLast ? last - 1 : last, prevEnd < 0);
     }
     function centerCursor(){
       var c = cm.cursorCoords(cm.getCursor(), 'window');
@@ -1410,7 +1414,7 @@
       var whole = false;
       // the title page is short and its bars follow every letter, so it is redrawn at once too
       var te = preEnd();
-      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].from.line <= te) whole = true; }
+      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].from.line <= te + 1) whole = true; }
       clearTimeout(timer);
       if (whole) refresh(); else timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
