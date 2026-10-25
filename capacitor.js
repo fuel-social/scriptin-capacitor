@@ -1633,6 +1633,35 @@
       if (nc) host.style.setProperty('--sm-blue-night', nc.colorblue);
       var page = document.querySelector('.main-page');
       if (page) page.style.setProperty('background-color', t.colorbackground, 'important');
+      // The footer (reusable ♻️ Footer) follows the script's mode too: text and lines in colorForeground, icons light or dark
+      document.documentElement.style.setProperty('--sm-page-fg', t.colorforeground);
+      footerIcons();
+    }
+    // Social icons in the footer: the one for this mode from OptS_social_platform, found by the link next to it
+    // (Bubble picks them by the Current User's theme, which a visitor who is not signed in does not have)
+    var footerSeen = null, footerTries = 0;
+    function footerIcons(){
+      var os;
+      try { os = window.app.option_sets.opts_social_platform.values; } catch (e){ return; }
+      var night = themeOn === 1;
+      [].forEach.call(document.querySelectorAll('.a1731945775135x560925517802601800 img'), function(img){
+        var cell = img.closest('.a1731945775135x560925517802601800').parentNode, a = cell && cell.querySelector('a[href]');
+        if (!a) return;
+        var href = a.getAttribute('href') || '', pick = null, link = null;
+        Object.keys(os).forEach(function(k){ var o = os[k]; if (o.db_value === 'public_link') link = o; else if (!pick && href.indexOf(o.db_value) >= 0) pick = o; });
+        pick = pick || link;
+        if (!pick) return;
+        var src = String((night ? pick.icon_dark_image : pick.icon_image) || '');
+        if (src.indexOf('//') === 0) src = 'https:' + src;
+        if (src && img.getAttribute('src') !== src) img.setAttribute('src', src);
+      });
+      // The footer's repeating groups fill in after the page has loaded: watch the footer once it is there
+      var f = document.querySelector('.a1731945775132x124084055742705760');
+      if (f && f !== footerSeen && window.MutationObserver){
+        footerSeen = f;
+        var busy = false;
+        new MutationObserver(function(){ if (busy) return; busy = true; setTimeout(function(){ footerIcons(); busy = false; }, 50); }).observe(f, {childList:true, subtree:true});
+      } else if (!f && footerTries++ < 40) setTimeout(footerIcons, 500);
     }
     // A hidden title page always has a script line below it: with nothing after the closing --- the cursor would stay
     // invisible inside the hidden title page, and Tab or typing would go there

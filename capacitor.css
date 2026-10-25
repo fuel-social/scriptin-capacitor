@@ -49,3 +49,8 @@
 /* Title page: a small gap below each // heading; values are plain colorBlue text, without bars */
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
 /* Bars reach down to the bottom of g, j, p, q, y (--sm-under, measured from the font), not only to the line's bottom */
+
+/* Footer (reusable ♻️ Footer) on this page: text and top lines in the script mode's colorForeground */
+.colorForeground{color:var(--sm-page-fg,#1C2F42) !important}
+.colorForeground a{color:inherit !important}
+.a1731945775167x870722393325770900,.a1731945775132x124084055742705760{border-top-color:var(--sm-page-fg,#1C2F42) !important}
