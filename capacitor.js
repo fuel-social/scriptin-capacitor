@@ -1415,6 +1415,7 @@
     }
     var timer = null;
     cm.on('changes', function(_cm, list){
+      if (collapseAfter){ collapseAfter = false; cm.setCursor(CodeMirror.changeEnd(list[list.length - 1])); }
       undoing = list.some(function(c){ return c.origin === 'undo' || c.origin === 'redo'; });
       preGaps(); preLabels();
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
@@ -1503,18 +1504,20 @@
       if (clean === '' && CodeMirror.cmpPos(ch.from, ch.to) === 0){ ch.cancel(); return; }
       ch.update(ch.from, ch.to, clean.split('\n'));
     });
-    // Deleting everything below a hidden title page keeps an empty script line in the same change (one Cmd+Z takes it
-    // all back); otherwise the script would end at the hidden --- and the cursor would have no visible place
+    // A change that starts inside the hidden title page and reaches into the script (Cmd+A, then typing or Backspace)
+    // is moved to start right after the hidden lines, with the script set off by an empty line: CodeMirror would put the
+    // new text in front of the read only title page and break it. Afterwards the cursor stands after the new text, so the
+    // old selection over the hidden title page is gone. The result is one change, so one Cmd+Z takes it all back
+    var collapseAfter = false;
     cm.on('beforeChange', function(_cm, ch){
       var o = ch.origin || '';
-      if (!ch.update || o === 'setValue' || o === 'undo' || o === 'redo' || o === '+restore' || ch.text.join('') !== '') return;
+      if (!ch.update || o === 'setValue' || o === 'undo' || o === 'redo' || o === '+restore' || o === '+reformat') return;
       var te = preEnd();
       if (te < 0 || topGone < te) return;
-      var P = CodeMirror.cmpPos, end = {line:cm.lastLine(), ch:line(cm.lastLine()).length};
-      // The change starts right after the hidden lines, so nothing lands before the title page (CodeMirror would put the
-      // new lines in front of a read only range); the result is always: title page, an empty line, the cursor line
-      if (P(ch.to, end) === 0 && P(ch.from, {line:topGone + 1, ch:0}) <= 0)
-      { ch.update({line:topGone, ch:line(topGone).length}, ch.to, topGone > te ? ['', ''] : ['', '', '']); ch.smKeep = true; }
+      var P = CodeMirror.cmpPos, first = {line:topGone + 1, ch:0};
+      if (topGone + 1 > cm.lastLine() || P(ch.from, first) >= 0 || P(ch.to, first) < 0) return;
+      ch.update({line:topGone, ch:line(topGone).length}, ch.to, (topGone > te ? [''] : ['', '']).concat(ch.text));
+      ch.smKeep = true; collapseAfter = true;
     });
     // A whole new text laid over the old one (the newer local copy over the server version) must replace everything:
     // hidden text is read only, and CodeMirror would keep it and put the new text in front of it (a second title page)

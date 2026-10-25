@@ -411,6 +411,23 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   k9();
 }
 
+// Cmd+A with a hidden title page, then typing: the letters start the script below the title page, which stays intact
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nShe waits.';
+  cm.setValue(T); cm.clearHistory();
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.execCommand('selectAll');
+  cm.replaceSelection('H', 'end', '+input');
+  { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\nH' && !cm.somethingSelected(); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and typing: the title page stays, the script begins with the letter' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  cm.replaceRange('i', cm.getCursor(), null, '+input');
+  { const ok = /\n\nHi$/.test(cm.getValue()) && cm.getLine(0) === '---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the next letter follows it' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  cm.execCommand('selectAll');
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  cm.replaceRange('N', cm.getCursor(), null, '+input');
+  { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\nN'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A, Backspace, then typing: the letter starts the script' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
