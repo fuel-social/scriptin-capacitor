@@ -382,7 +382,7 @@
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
     // the line spans the whole editor and the text's own padding carries the block on to the right frame line,
     // so the block is one piece with the same height as cue blocks (as shot blocks run to the left frame line)
-    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px - var(--sm-inset)) 0 0 calc(0px - var(--sm-inset)) var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
+    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -566,6 +566,14 @@
       host.style.setProperty('--sm-band', Math.min(r.height, lh) + 'px');
       host.style.setProperty('--sm-gap', Math.max(0, r.top - lr.top) + 'px');
       host.style.setProperty('--sm-inset', Math.max(0, lr.top - r.top) + 'px');
+      // Descenders (g, j, p, q, y) reach below the line: bars go down that far too (never beyond the text box)
+      try {
+        var cx = document.createElement('canvas').getContext('2d'), fs = getComputedStyle(sp);
+        cx.font = fs.fontSize + ' ' + fs.fontFamily;
+        var mt = cx.measureText('gjpqy'), base = (mt.fontBoundingBoxAscent || 0) - Math.max(0, lr.top - r.top);
+        var under = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), base + mt.actualBoundingBoxDescent - lh)) : 0;
+        host.style.setProperty('--sm-under', Math.ceil(under * 2) / 2 + 'px');
+      } catch (e){}
       // Distance from the page's right text edge to the editor's right frame line
       host.style.setProperty('--sm-trans-tail', (cm.display.lineDiv.clientWidth - (W_ACTION * cm.defaultCharWidth() + PAD / 2)) + 'px');
     }
@@ -596,8 +604,10 @@
     }
     function hasPre(){ return !!preRange(); }
     // Cursor in a shot block uses the other theme's colorBlue
+    function chipCursor(){ var ln = cm.getCursor().line; cm.getWrapperElement().classList.toggle('sm-on-chip', activeCue === ln && !!settingOf(ln)); }
     function barCursor(){
       cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
+      chipCursor();
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
     function cueParts(ln){
@@ -1275,6 +1285,7 @@
             var fc = i < te ? cmdOf(s) : null;
             if (fc && (fc.key === 'title' || fc.key === 'author') && isBlank(fc.value)) cm.addLineClass(i, 'text', 'sm-fe' + Math.min(fc.label.length + 1 + (fc.value.charAt(0) === ' ' ? 1 : 0), 24));
             if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
+            chipCursor();
           }
           else if (isSlugLn(i)){
             cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
