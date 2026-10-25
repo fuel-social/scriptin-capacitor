@@ -695,12 +695,12 @@
     function hideRange(a, b, fromStart){
       if (b < a) return;
       if (fromStart){
-        marks.push(cm.markText({line:0, ch:0}, {line:b, ch:line(b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
+        marks.push(cm.markText({line:0, ch:0}, {line:b, ch:line(b).length}, {inclusiveLeft:false, inclusiveRight:false}));
         for (var t = 0; t <= b; t++) hid[t] = 1;
         topGone = b;
         return;
       }
-      marks.push(cm.markText({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
+      marks.push(cm.markText({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, inclusiveLeft:false, inclusiveRight:false}));
       for (var i = a; i <= b; i++) hid[i] = 1;
     }
     function applyView(){
@@ -1471,6 +1471,31 @@
     // deleting, undo, redo, Reformat and loading a script always work
     // Page size and Language lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
+    // Hidden text is read only. Not with CodeMirror's readOnly marks: creating one clears the whole undo history, and
+    // hidden ranges are made again on every redraw, so Cmd+Z had nothing left to take back. A change that reaches into a
+    // hidden range is refused here instead (its edges stay open, as before); undo, redo, Reformat and loading still work
+    cm.on('beforeChange', function(_cm, ch){
+      var o = ch.origin;
+      if (o === 'setValue' || o === 'undo' || o === 'redo' || o === '+reformat' || o === '+restore') return;
+      var P = CodeMirror.cmpPos;
+      for (var m = 0; m < marks.length; m++){
+        var r = marks[m].find();
+        if (!r) continue;
+        var into = P(ch.from, ch.to) === 0 ? (P(ch.from, r.from) > 0 && P(ch.from, r.to) < 0) : (P(ch.from, r.to) < 0 && P(ch.to, r.from) > 0);
+        if (into){ ch.cancel(); return; }
+      }
+    });
+    // Invisible control characters (Ctrl+Option+Z on a Mac types one, CodeMirror shows them as red dots) never get in
+    var CTRL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\uFEFF]/g;
+    cm.on('beforeChange', function(_cm, ch){
+      if (!ch.update || !/^(\+input|paste|\*compose|drag)/.test(ch.origin || '')) return;
+      var t = ch.text.join('\n');
+      if (!CTRL.test(t)) return;
+      CTRL.lastIndex = 0;
+      var clean = t.replace(CTRL, '');
+      if (clean === '' && CodeMirror.cmpPos(ch.from, ch.to) === 0){ ch.cancel(); return; }
+      ch.update(ch.from, ch.to, clean.split('\n'));
+    });
     // A whole new text laid over the old one (the newer local copy over the server version) must replace everything:
     // hidden text is read only, and CodeMirror would keep it and put the new text in front of it (a second title page)
     cm.on('beforeChange', function(_cm, ch){

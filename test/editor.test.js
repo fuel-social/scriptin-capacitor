@@ -322,6 +322,28 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   k9();
 }
 
+// Undo history survives hidden text: Reformat with a hidden title page, and typing in a view, can both be taken back
+{
+  const undo = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i house  -  day\n\nshe   waits.';
+  cm.setValue(T); cm.clearHistory();
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.setCursor({line:15, ch:5}); type('x');
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  { const ok = /\.I HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat with a hidden title page'); }
+  undo();
+  { const ok = cm.getValue() === T + 'x'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+Z takes Reformat back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  undo();
+  { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and then the typed x' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  // hidden text still cannot be changed
+  cm.replaceRange('Z', {line:3, ch:2}, null, '+input');
+  { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the hidden title page stays read only'); }
+  // control characters are dropped, ordinary text stays
+  cm.setCursor({line:15, ch:12}); type('a\u001ab');
+  { const ok = /she {3}waits\.ab$/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a control character typed in is dropped' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-20)))); }
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
