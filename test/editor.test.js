@@ -495,6 +495,11 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   down(); eq2('English', slugs(), '.i KÜCHE - NIGHT | .e GARTEN - THE NEXT DAY - REGEN | .i FLUR - TAGEBUCH');
 }
 
+// A finished /pdf alone in its paragraph is shown as a command (colorRed)
+cm.setValue('Action.\n\n/pdf'); eq2('/pdf alone: shown as a command', /sm-t-cmd/.test(cm.getLineHandle(2).textClass || ''), true);
+cm.setValue('Action.\n\n/pd'); eq2('/pd not yet', /sm-t-cmd/.test(cm.getLineHandle(2).textClass || ''), false);
+cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-t-cmd/.test(cm.getLineHandle(1).textClass || ''), false);
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

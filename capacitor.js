@@ -134,6 +134,14 @@
       return out;
     } catch (e){ return ''; }
   }
+  // colorRed of the current theme (the one whose colorBlue is in use), when htmlCapacitor does not pass it
+  function themeRed(){
+    try {
+      var v = window.app.option_sets._theme_ui.values, cur = (T.blue || '').toUpperCase(), out = '';
+      Object.keys(v).forEach(function(k){ if (!out && v[k].colorred && (v[k].colorblue || '').toUpperCase() === cur) out = v[k].colorred; });
+      return out;
+    } catch (e){ return ''; }
+  }
   // colorBlue of the night theme (the one with the darker colorBackground): the bars behind title page values
   function nightBlue(){
     try {
@@ -416,6 +424,7 @@
   // 0.5 inch from the top, with a period. Title page only when Title and Author are both filled in: the title in
   // capitals on line 25, the credit (Written by ...) on line 30, the author on line 32, all centred. Notes, section
   // marks and scene numbers are never printed.
+  var CMD_EXPORT = /^\s*\/pdf\s*$/i;
   var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
   var pdfKit = null;
   function fetchB64(url){
@@ -669,6 +678,7 @@
     if (T.blue) host.style.setProperty('--sm-blue', T.blue);
     if (T.frame) host.style.setProperty('--sm-frame', T.frame);
     if (T.inactive) host.style.setProperty('--sm-inactive', T.inactive);
+    var red = T.red || themeRed(); if (red) host.style.setProperty('--sm-red', red);
     var alt = altBlue(); if (alt) host.style.setProperty('--sm-blue-alt', alt);
     var night = nightBlue(); if (night) host.style.setProperty('--sm-blue-night', night);
     widthStyles();
@@ -728,6 +738,7 @@
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
+    function isCmdLn(ln){ return CMD_EXPORT.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))); }
     function preEnd(){ return titleEnd(line, cm.lineCount()); }
     function isPreLn(ln){ return ln <= preEnd(); }
     // A command of the title page: a line between the two --- that starts with a word and a colon
@@ -1002,7 +1013,7 @@
       if (isPreLn(ln) && ln < preEnd() && !cm.somethingSelected()){ preStep(ln, true); return; }
       // /pdf alone on a line (its own paragraph) and Enter: the line is emptied again and the PDF downloads; export
       // commands start with a slash, as a dot or a comma at the start of a line always means formatting
-      if (!cm.somethingSelected() && /^\s*\/pdf\s*$/i.test(s) && ln > preEnd() && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1)))){
+      if (!cm.somethingSelected() && ln > preEnd() && isCmdLn(ln)){
         put('', {line:ln, ch:0}, {line:ln, ch:s.length});
         exportPdf(cm.getValue());
         return;
@@ -1439,6 +1450,8 @@
             if (nx < cm.lineCount() && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
+          // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
+          if (i > te && isCmdLn(i)){ want(i, 'text', 'sm-t-act sm-t-cmd'); continue; }
           if (i <= te || isMarkLn(i)){
             want(i, 'text', 'sm-t-act sm-t-note');
             if (i < te && headOf(s)) want(i, 'wrap', 'sm-head');
