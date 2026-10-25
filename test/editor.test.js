@@ -279,6 +279,15 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   tab(); doc('Tab there starts with .i', '---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n.i  @12:3');
 }
 
+// Opening a script with the cursor on line 0 of a hidden title page: Tab works on the script, not inside the title page
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n');
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.setCursor({line:0, ch:0}); cm.setValue(cm.getValue());
+  tab(); doc('Tab right after opening starts the script with .i', '---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n.i  @12:3');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

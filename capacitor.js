@@ -1372,9 +1372,10 @@
     // invisible inside the hidden title page, and Tab or typing would go there
     function belowPre(){
       var te = preEnd();
-      if (te < 0 || topGone < te || te !== cm.lastLine()) return;
-      cm.replaceRange('\n\n', {line:te, ch:line(te).length}, null, '+pre');
-      cm.setCursor({line:cm.lastLine(), ch:0});
+      if (te < 0 || topGone < te) return;
+      if (te === cm.lastLine()){ cm.replaceRange('\n\n', {line:te, ch:line(te).length}, null, '+pre'); cm.setCursor({line:cm.lastLine(), ch:0}); return; }
+      // a script opens with the cursor on line 0, inside the hidden title page: it goes to the first script line
+      if (cm.getCursor().line <= te && !cm.somethingSelected()) cm.setCursor({line:Math.min(topGone + 1, cm.lastLine()), ch:0});
     }
     var timer = null;
     cm.on('changes', function(_cm, list){
