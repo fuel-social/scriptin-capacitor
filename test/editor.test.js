@@ -338,10 +338,32 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'and then the typed x' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   // hidden text still cannot be changed
   cm.replaceRange('Z', {line:3, ch:2}, null, '+input');
+  { const ok = cm.historySize().undo === 0 && cm.historySize().redo === 2; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the redo steps are still there' + (ok ? '' : ' ' + JSON.stringify(cm.historySize()))); }
   { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the hidden title page stays read only'); }
   // control characters are dropped, ordinary text stays
   cm.setCursor({line:15, ch:12}); type('a\u001ab');
   { const ok = /she {3}waits\.ab$/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a control character typed in is dropped' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-20)))); }
+}
+
+// Cmd+A and Backspace with a hidden title page: the script is deleted, the title page stays, one Cmd+Z brings it back
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nShe waits.';
+  cm.setValue(T); cm.clearHistory();
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.execCommand('selectAll');
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  { const ok = !/She waits/.test(cm.getValue()) && /Title: A/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A and Backspace delete the script, the hidden title page stays' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
+  { const ok = cm.getValue() === T; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings it back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  // in a view: Cmd+A and Backspace delete what is visible only, and Cmd+Z brings it back
+  k9(); cm.setValue('.i HOUSE - DAY\n\nShe waits.\n\n,ANNA,\nHi.'); cm.clearHistory(); cm.setCursor({line:5, ch:3});
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:51, key:'3', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.execCommand('selectAll'); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  { const ok = /She waits/.test(cm.getValue()) && !/Hi\./.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'in the dialogue view only the visible dialogue is deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
+  { const ok = cm.getValue() === '.i HOUSE - DAY\n\nShe waits.\n\n,ANNA,\nHi.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+Z brings it back in the view' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:27, key:'Escape', preventDefault(){}, stopPropagation(){} });
 }
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works

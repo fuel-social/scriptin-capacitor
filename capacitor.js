@@ -692,15 +692,23 @@
     // Hidden text at the very top (a hidden preamble, or paragraphs a view hides before the first visible one) takes no
     // height at all: its lines get a zero height class instead of being collapsed into one empty line
     var topGone = -1;
+    // Hidden text is read only (CodeMirror splits a change around it: Cmd+A and Backspace removes the visible text, the
+    // hidden text stays). CodeMirror clears the whole undo history whenever a read only range is made, and hidden ranges
+    // are made again on every redraw: the history is set aside for that moment, so Cmd+Z keeps working
+    function roMark(from, to, opts){
+      var d = cm.getDoc(), h = d.history;
+      d.history = {done:[], undone:[]};
+      try { return cm.markText(from, to, opts); } finally { d.history = h; }
+    }
     function hideRange(a, b, fromStart){
       if (b < a) return;
       if (fromStart){
-        marks.push(cm.markText({line:0, ch:0}, {line:b, ch:line(b).length}, {inclusiveLeft:false, inclusiveRight:false}));
+        marks.push(roMark({line:0, ch:0}, {line:b, ch:line(b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
         for (var t = 0; t <= b; t++) hid[t] = 1;
         topGone = b;
         return;
       }
-      marks.push(cm.markText({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, inclusiveLeft:false, inclusiveRight:false}));
+      marks.push(roMark({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
       for (var i = a; i <= b; i++) hid[i] = 1;
     }
     function applyView(){
@@ -1471,20 +1479,6 @@
     // deleting, undo, redo, Reformat and loading a script always work
     // Page size and Language lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
-    // Hidden text is read only. Not with CodeMirror's readOnly marks: creating one clears the whole undo history, and
-    // hidden ranges are made again on every redraw, so Cmd+Z had nothing left to take back. A change that reaches into a
-    // hidden range is refused here instead (its edges stay open, as before); undo, redo, Reformat and loading still work
-    cm.on('beforeChange', function(_cm, ch){
-      var o = ch.origin;
-      if (o === 'setValue' || o === 'undo' || o === 'redo' || o === '+reformat' || o === '+restore') return;
-      var P = CodeMirror.cmpPos;
-      for (var m = 0; m < marks.length; m++){
-        var r = marks[m].find();
-        if (!r) continue;
-        var into = P(ch.from, ch.to) === 0 ? (P(ch.from, r.from) > 0 && P(ch.from, r.to) < 0) : (P(ch.from, r.to) < 0 && P(ch.to, r.from) > 0);
-        if (into){ ch.cancel(); return; }
-      }
-    });
     // Invisible control characters (Ctrl+Option+Z on a Mac types one, CodeMirror shows them as red dots) never get in
     var CTRL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\uFEFF]/g;
     cm.on('beforeChange', function(_cm, ch){
