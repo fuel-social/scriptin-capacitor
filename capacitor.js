@@ -304,6 +304,8 @@
         el.keep = SHOT.test(h); el.kind = el.keep ? 'act' : 'trans'; el.shot = el.keep;
         // A shot has two empty lines before it, like a slugline (Final Draft PDF of 25.10.)
         if (el.shot) el.space = SPACE_SLUG;
+        // (CONT'D) only within the same scene and not across a shot
+        if (el.shot) speaker = null;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
           if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));

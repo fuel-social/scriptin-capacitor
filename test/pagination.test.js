@@ -121,5 +121,11 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
     "(MORE) ANNA (CONT'D) / (MEHR) ANNA (WEITER) / (À SUIVRE) ANNA (SUITE) / (CONTINUA) ANNA (CONT.)");
 }
 
+{
+  const Lay = globalThis.__pg.layout;
+  const t = '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\n.s HER HAND\n\n,VALERIA,\nGoodbye.\n\nShe leaves.\n\n,VALERIA,\nBye.';
+  eq("layout: no (CONT'D) across a shot, again after action", Lay(t, true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | '), "VALERIA | VALERIA | VALERIA (CONT'D)");
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;
