@@ -244,9 +244,9 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
 // An older title page like the one in the screenshot: mixed languages, D typed as the language, the first German heading
 {
   cm.setValue('---\n\n//TITLE PAGE\nTitel: \nAutor:in: \n\n//SKRIPTEINSTELLUNGEN\nSeitenformat: US Letter\nSprache: D\n\n---');
-  { const want = '---\n\n//TITELSEITE\nTitel: \nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: US Letter\nSprache: Deutsch\n\n---'; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'D is read as Deutsch, everything in German, the old heading renamed'); }
+  { const want = '---\n\n//TITELSEITE\nTitel: \nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: US Letter\nSprache: Deutsch\n\n---\n\n'; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'D is read as Deutsch, everything in German, the old heading renamed'); }
   cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: letter\nLanguage: Klingon\n\n---');
-  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'unknown values become English and US Letter in their proper form'); }
+  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'unknown values become English and US Letter in their proper form'); }
   if (/sm-gone/.test(cm.getLineHandle(2).wrapClass || '')) cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   { const ok = /sm-head/.test(cm.getLineHandle(2).wrapClass || '') && /sm-head/.test(cm.getLineHandle(6).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'both headings have the gap below them'); }
   { const ok = /sm-fe7/.test(cm.getLineHandle(3).textClass || '') && /sm-fe8/.test(cm.getLineHandle(4).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'empty Title and Author show a two letter bar where the value starts'); }
@@ -254,19 +254,29 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   cm.setCursor({line:3, ch:7}); type('Night');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   { const ok = !/sm-fe/.test(cm.getLineHandle(3).textClass || '') && cm.getLineTokens(3).some(t => t.type === 'smfield' && t.string === 'Nigh'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a typed title carries its own bar, as long as the text'); }
-  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n--- @3:11');
+  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n @3:11');
   cm.setCursor({line:3, ch:7}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.setCursor({line:3, ch:2}); type('x');
   cm.setCursor({line:2, ch:5}); type('x');
   cm.setCursor({line:4, ch:0}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.replaceRange('', {line:3, ch:0}, {line:4, ch:3}, '+delete');
-  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
 // Tab on an empty script below a title page starts the ring at .i, like an empty page
 {
   cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n'); cm.setCursor({line:12, ch:0});
   tab(); doc('Tab below a title page on an empty script: .i', '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i  @12:3');
+}
+
+// A script that ends with the closing --- of a hidden title page gets a script line below it; Tab works there
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---');
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  { const ok = /sm-gone/.test(cm.getLineHandle(0).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'title page hidden'); }
+  doc('nothing below a hidden title page: an empty script line is added, cursor on it', '---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n @12:0');
+  tab(); doc('Tab there starts with .i', '---\n\n//TITLE PAGE\nTitle: A\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---\n\n.i  @12:3');
 }
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works

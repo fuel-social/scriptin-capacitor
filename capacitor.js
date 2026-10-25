@@ -1367,7 +1367,15 @@
         else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
       }
     }
-    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
+    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); }
+    // A hidden title page always has a script line below it: with nothing after the closing --- the cursor would stay
+    // invisible inside the hidden title page, and Tab or typing would go there
+    function belowPre(){
+      var te = preEnd();
+      if (te < 0 || topGone < te || te !== cm.lastLine()) return;
+      cm.replaceRange('\n\n', {line:te, ch:line(te).length}, null, '+pre');
+      cm.setCursor({line:cm.lastLine(), ch:0});
+    }
     var timer = null;
     cm.on('changes', function(_cm, list){
       preGaps(); preLabels();
