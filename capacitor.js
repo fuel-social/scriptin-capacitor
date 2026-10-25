@@ -1239,7 +1239,12 @@
     cm.on('changes', function(_cm, list){
       preGaps();
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
-      clearTimeout(timer); timer = setTimeout(refresh, 30);
+      // A whole new text (a script arriving from the database, or the newer local copy laid over it) is hidden and
+      // coloured before the browser paints, so a hidden title page never flashes up as plain text
+      var whole = false;
+      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore') whole = true; }
+      clearTimeout(timer);
+      if (whole) refresh(); else timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
       sync.changed();
     });
@@ -1304,7 +1309,7 @@
     cm.on('cursorActivity', function(){
       if (!clicked && cm.getCursor().line !== activeCue) activeCue = -1;
     });
-    decorate();
+    refresh(); // the text from this browser is hidden and coloured at once too
     measureBand();
     paginatePages();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); placePages(); });

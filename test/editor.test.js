@@ -198,6 +198,12 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 }
 
 {
+  // a loaded script is hidden and coloured at once, before the browser paints: no flash of the title page
+  cm.setValue('---\n\nTitle: A\n\n---\n\nAction.');
+  { const ok = [0,1,2,3,4,5].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded script hides its title page at once'); }
+}
+
+{
   cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:7});
   doc('a loaded title page gets its empty lines at once', '---\n\nTitle: A\n\n---\n\nAction. @6:7');
 }
