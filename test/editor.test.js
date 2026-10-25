@@ -263,6 +263,12 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
+// Tab on an empty script below a title page starts the ring at .i, like an empty page
+{
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n'); cm.setCursor({line:12, ch:0});
+  tab(); doc('Tab below a title page on an empty script: .i', '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i  @12:3');
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});

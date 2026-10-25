@@ -41,9 +41,9 @@
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */
 #sm-editor .sm-gone{height:0 !important;overflow:hidden}
-/* Title page: a small gap below each // heading. Every value sits on a bar like a shot (colorInactive) that is as long
-   as its text, written in the night colorBlue (the cursor colour on shots); a Page size or Language chip turns colorBlue
-   while Up/Down change it (the line was clicked or reached with Tab or Enter) */
+/* Title page: a small gap below each // heading. Every value sits on a bar like a character cue (colorFrame) that is as
+   long as its text, written in colorBlue like the rest of the title page; a Page size or Language chip turns colorBlue
+   with colorBackground letters while Up/Down change it (the line was clicked or reached with Tab or Enter) */
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
-#sm-editor .cm-smfield,#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0 8px;margin-left:-8px;color:var(--sm-blue-night)}
+#sm-editor .cm-smfield,#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0 8px;margin-left:-8px;color:var(--sm-blue)}
 #sm-editor .sm-set-on .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-bg)}

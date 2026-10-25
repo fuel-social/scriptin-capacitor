@@ -375,7 +375,7 @@
   function widthStyles(){
     var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
     // Title page: an empty Title or Author value shows a bar two letters wide where the value starts
-    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-fe' + f + '{background:linear-gradient(var(--sm-inactive),var(--sm-inactive)) calc(16px + ' + f + 'ch - 8px) 0/2ch 100% no-repeat}\n';
+    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-fe' + f + '{background:linear-gradient(var(--sm-frame),var(--sm-frame)) calc(16px + ' + f + 'ch - 8px) 0/2ch 100% no-repeat}\n';
     for (var d = 0; d <= 8; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
@@ -597,9 +597,7 @@
     function hasPre(){ return !!preRange(); }
     // Cursor in a shot block uses the other theme's colorBlue
     function barCursor(){
-      var cur = cm.getCursor(), te = preEnd(), fc = cur.line > 0 && cur.line < te ? cmdOf(line(cur.line)) : null;
-      var onField = !!fc && cur.ch > fc.label.length;
-      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cur.line) || onField);
+      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
     function cueParts(ln){
@@ -771,7 +769,11 @@
       if (/^\.i\s*$/i.test(s)) return 0;
       if (/^\.e\s*$/i.test(s)) return 1;
       if (s === ',,') return 3;
-      if (isBlank(s)) return cm.getValue().trim() === '' ? -1 : 2;
+      // An empty script (a title page above does not count) starts the ring at .i, existing text at ,,
+      if (isBlank(s)){
+        var te = preEnd(), rest = te < 0 ? cm.getValue() : cm.getRange({line:te + 1, ch:0}, {line:cm.lastLine(), ch:line(cm.lastLine()).length});
+        return rest.trim() === '' ? -1 : 2;
+      }
       return null;
     }
     // Tab and Enter on the title page go to the end of the next command; after the last one Enter starts a new command
