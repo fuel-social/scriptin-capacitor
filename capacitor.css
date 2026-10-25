@@ -2,7 +2,7 @@
   font-family: 'GTPressuraMonoRegular';
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1705585947012x778432208426352100/GT-Pressura-Mono-Regular.woff');
 }
-#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px}
+#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px}
 #sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
 #sm-editor .CodeMirror-lines{padding:10px 0}
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
@@ -41,8 +41,9 @@
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */
 #sm-editor .sm-gone{height:0 !important;overflow:hidden}
-/* Title page: a small gap below each // heading; the value of Page size and Language is a chip (colorFrame), which turns
-   colorBlue while Up/Down change it (the line was clicked or reached with Tab or Enter) */
+/* Title page: a small gap below each // heading; the value of Page size and Language is a chip in the night colorBlue,
+   which turns colorBlue while Up/Down change it (the line was clicked or reached with Tab or Enter); Title and Author
+   values sit on a bar of the same colour up to the end of an action line */
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
-#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));padding:0 8px;margin-left:-8px}
+#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue-night) var(--sm-inset),var(--sm-blue-night) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));padding:0 8px;margin-left:-8px}
 #sm-editor .sm-set-on .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset)),transparent calc(100% - var(--sm-inset)));color:var(--sm-bg)}

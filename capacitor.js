@@ -39,7 +39,8 @@
   function langOf(v){
     var b = bare(v || '');
     for (var i = 0; i < LANGS.length; i++){ if (b === bare(LANGS[i].name) || b === LANGS[i].code) return LANGS[i]; }
-    return null;
+    var hit = b ? LANGS.filter(function(L){ return bare(L.name).indexOf(b) === 0; }) : [];
+    return hit.length === 1 ? hit[0] : null;
   }
   function sizeOf(v){ return /letter/i.test(v || '') ? 'US Letter' : 'A4'; }
   // Command on a title page line in any language: {key, label (as written, colon excluded), value}; the longest label
@@ -61,6 +62,7 @@
     for (var i = 0; i < LANGS.length; i++){
       for (var k in LANGS[i].head){ if (bare(LANGS[i].head[k]) === bare(m[1])) return k; }
     }
+    if (bare(m[1]) === 'skripteinstellungen') return 'settings'; // the first German name
     return null;
   }
   // Value of a setting ('size' or 'lang') on the title page; te is the line of the closing ---
@@ -97,6 +99,19 @@
       var v = window.app.option_sets._theme_ui.values, cur = (T.blue || '#009ECE').toUpperCase(), out = '';
       Object.keys(v).forEach(function(k){ var b = v[k].colorblue || ''; if (!out && b && b.toUpperCase() !== cur) out = b; });
       return out;
+    } catch (e){ return ''; }
+  }
+  // colorBlue of the night theme (the one with the darker colorBackground): the bars behind title page values
+  function nightBlue(){
+    try {
+      var v = window.app.option_sets._theme_ui.values, best = null, lum = 2;
+      Object.keys(v).forEach(function(k){
+        var b = (v[k].colorbackground || '').replace('#', ''), n = parseInt(b, 16);
+        if (b.length !== 6 || isNaN(n)) return;
+        var l = ((n >> 16) * 299 + ((n >> 8) & 255) * 587 + (n & 255) * 114) / 255000;
+        if (l < lum && v[k].colorblue){ lum = l; best = v[k].colorblue; }
+      });
+      return best || '';
     } catch (e){ return ''; }
   }
   function slugDelta(s){
@@ -358,6 +373,8 @@
   }
   function widthStyles(){
     var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
+    // Title page fields: a bar in the night colorBlue from the value to the end of an action line (55 characters)
+    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-f' + f + '{background:linear-gradient(to right,transparent calc(16px + ' + f + 'ch - 8px),var(--sm-blue-night) calc(16px + ' + f + 'ch - 8px)) center/100% calc(100% - 2 * var(--sm-inset)) no-repeat}\n';
     for (var d = 0; d <= 8; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
@@ -517,6 +534,7 @@
     if (T.frame) host.style.setProperty('--sm-frame', T.frame);
     if (T.inactive) host.style.setProperty('--sm-inactive', T.inactive);
     var alt = altBlue(); if (alt) host.style.setProperty('--sm-blue-alt', alt);
+    var night = nightBlue(); if (night) host.style.setProperty('--sm-blue-night', night);
     widthStyles();
     defineMode();
     var saved = '';
@@ -1248,6 +1266,8 @@
           if (i <= te || isMarkLn(i)){
             cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
             if (i < te && headOf(s)) cm.addLineClass(i, 'wrap', 'sm-head');
+            var fc = i < te ? cmdOf(s) : null;
+            if (fc && (fc.key === 'title' || fc.key === 'author')) cm.addLineClass(i, 'text', 'sm-field sm-f' + Math.min(fc.label.length + 2, 24));
             if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
           }
           else if (isSlugLn(i)){
@@ -1327,10 +1347,16 @@
     function preLabels(){
       var te = preEnd();
       if (te < 0) return;
-      var L = langOf(preValue(line, te, 'lang'));
-      if (!L) return;
+      var lv = preValue(line, te, 'lang');
+      if (lv === null) return;
+      var L = langOf(lv) || LANGS[0];
       for (var k = 1; k < te; k++){
         var s = line(k), h = headOf(s), c = cmdOf(s);
+        // values only come from Up/Down; anything else (an older typed value) becomes the proper one
+        if (c && (c.key === 'lang' || c.key === 'size')){
+          var want = ' ' + (c.key === 'lang' ? L.name : sizeOf(c.value));
+          if (c.value !== want){ cm.replaceRange(want, {line:k, ch:c.label.length + 1}, {line:k, ch:s.length}, '+pre'); s = line(k); c = cmdOf(s); }
+        }
         if (h && s !== '//' + L.head[h]) cm.replaceRange('//' + L.head[h], {line:k, ch:0}, {line:k, ch:s.length}, '+pre');
         else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
       }
@@ -1380,7 +1406,7 @@
         for (var hk = 1; hk < r.e; hk++){ if (headOf(line(hk)) === 'title') hasHead = true; }
         if (!hasHead){
           refresh();
-          var HL = langOf(preValue(line, r.e, 'lang')) || LANGS[0];
+          var HL = langOf(preValue(line, r.e, 'lang') || '') || LANGS[0];
           cm.replaceRange('//' + HL.head.title + '\n', {line:2, ch:0}, null, '+pre');
           r = preRange();
         }
@@ -1415,7 +1441,17 @@
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === ORIGIN || ch.origin === '+pre' || ch.origin === '+reformat' || ch.origin === '+restore') return;
       var a = ch.from.line, b = ch.to.line;
-      if (settingOf(a) || settingOf(b)) ch.cancel();
+      if (settingOf(a) || settingOf(b)) { ch.cancel(); return; }
+      // The commands Title: and Author: (with the space after them) and the // headings are fixed, the values are free
+      var te = preEnd();
+      function locked(pos){
+        if (pos.line <= 0 || pos.line >= te) return false;
+        var s = line(pos.line);
+        if (headOf(s)) return true;
+        var c = cmdOf(s);
+        return !!c && (c.key === 'title' || c.key === 'author') && pos.ch < c.label.length + 1 + (s.charAt(c.label.length + 1) === ' ' ? 1 : 0);
+      }
+      if (te > 0 && (locked(ch.from) || (b !== a || ch.to.ch !== ch.from.ch) && locked(ch.to))) ch.cancel();
     });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
