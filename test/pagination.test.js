@@ -102,5 +102,15 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
     JSON.stringify(['2 VALERIA', "7 VALERIA (CONT'D)", '10 JASON', '13 VALERIA (V.O.)', '19 VALERIA', '23 THE PHONE RINGS']));
 }
 
+{
+  const Lay = globalThis.__pg.layout;
+  const head = (lang) => '---\n\n//X\nTitle: A\nAuthor: \n\nPage size: A4\nLanguage: ' + lang + '\n\n---\n\n';
+  const t = '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe waits.\n\n,VALERIA,\nGoodbye.';
+  const cues = (lang) => Lay(head(lang) + t, true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | ');
+  eq("layout: (CONT'D) in the script's language", ['English', 'Deutsch', 'Français', 'Italiano'].map(cues).join(' / '),
+    "VALERIA | VALERIA (CONT'D) / VALERIA | VALERIA (WEITER) / VALERIA | VALERIA (SUITE) / VALERIA | VALERIA (CONT.)");
+  eq('layout: a typed (WEITER) is not doubled', Lay(head('Deutsch') + '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe waits.\n\n,VALERIA (WEITER),\nGoodbye.', true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | '), 'VALERIA | VALERIA (WEITER)');
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;

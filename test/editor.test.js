@@ -464,6 +464,24 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   eq2('a transition of your own stays as typed', last(), '.t MY OWN TRANSITION:');
 }
 
+// Cue extensions in the script's language: Up/Down cycle each word once, a change of language translates them
+{
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const click = (ln, ch) => { Orig.signal(cm, 'mousedown', cm, {}); cm.setCursor({line:ln, ch:ch}); };
+  const DE = '---\n\n//TITELSEITE\nTitel: A\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n---\n\n,ANNA (V.O.),\nHallo.';
+  cm.setValue(DE);
+  const cue = () => cm.getValue().split('\n').find(l => l.startsWith(',ANNA'));
+  const cueLn = () => cm.getValue().split('\n').findIndex(l => l.startsWith(',ANNA'));
+  click(cueLn(), 8); down(); eq2('German: Down after V.O. gives WEITER (OFF stands for V.O., O.S. and O.C.)', cue(), ',ANNA (WEITER),');
+  down(); eq2('then OFF', cue(), ',ANNA (OFF),');
+  down(); eq2('and WEITER again', cue(), ',ANNA (WEITER),');
+  const ln = cm.getValue().split('\n').findIndex(l => /^Seitenformat:/.test(l)); cm.setCursor({line:ln, ch:3}); if (cm.getCursor().line !== ln){ k9(); cm.setCursor({line:ln, ch:3}); } tab(); down();
+  eq2('Language to Français: WEITER becomes SUITE', cue(), ',ANNA (SUITE),');
+  down(); eq2('Italiano: CONT.', cue(), ',ANNA (CONT.),');
+  down(); eq2("English: CONT'D", cue(), ",ANNA (CONT'D),");
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

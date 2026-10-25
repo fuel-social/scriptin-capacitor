@@ -10,7 +10,6 @@
   // Printed line lengths in characters (Cole & Haag, 10 cpi)
   var W_ACTION = 55, W_DIALOG = 35, W_PAREN = 19;
   var PAD = 32; // 16px left + 16px right inside each line
-  var EXT = ['V.O.', 'O.S.', 'O.C.', "CONT'D"];
   // Tab ring for empty elements: slug INT, slug EXT, action, dialogue, action
   var RING = ['.i ', '.e ', '', ',,', ''];
   var ORIGIN = '+smtab';
@@ -29,16 +28,25 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by',
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
      trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von',
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de',
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
      trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di',
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
   var SIZES = ['A4', 'US Letter'];
+  // Cue extensions: LANGS[].ext in the same order as English V.O., O.S., O.C., CONT'D (a language may use one word for
+  // several, OFF in German); Up/Down cycle each word once, the last entry is also the printed (CONT'D)
+  LANGS.forEach(function(L){ L.extList = L.ext.filter(function(x, i){ return L.ext.indexOf(x) === i; }); L.cont = '(' + L.ext[3] + ')'; });
+  function extIndex(t){
+    var u = t.trim().replace(/\s+/g, ' ').toUpperCase();
+    for (var l = 0; l < LANGS.length; l++){ var i = LANGS[l].ext.indexOf(u); if (i >= 0) return i; }
+    return -1;
+  }
+  var CONT_ANY = new RegExp('\\((' + LANGS.map(function(L){ return L.ext[3].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')\\)', 'i');
   function preTemplate(L){
     return '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': \n' + L.cmd.author + ': \n\n' + preSettings(L, 'A4') + '\n\n---';
   }
@@ -343,9 +351,9 @@
     var st = wrapStarts(s, w);
     return st.map(function(a, i){ return s.slice(a, i + 1 < st.length ? st[i + 1] : s.length).trim().replace(/\s+/g, ' '); });
   }
-  function cueText(name, cont){
+  function cueText(name, cont, L){
     var n = (name || '').trim().replace(/\s+/g, ' ').toUpperCase();
-    return cont && !/\(CONT'D\)/.test(n) ? (n ? n + ' ' : '') + "(CONT'D)" : n;
+    return cont && !CONT_ANY.test(n) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
   }
   // The printed script: where each page begins (editor positions) and, with print, every printed line of every page as
   // {y: line on the page from the top margin, kind: act, slug, trans, cue, dlg or par, s: text}; the page numbers
@@ -353,12 +361,12 @@
   function layout(text, print){
     var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length);
     var size = sizeOf(preValue(get, te, 'size')), PAGE_LINES = size === 'US Letter' ? LETTER_LINES : A4_LINES;
-    var els = pageElements(text), y = 0, starts = [], pages = [[]];
+    var els = pageElements(text), y = 0, starts = [], pages = [[]], L = langIn(get, te);
     function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); }
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
-      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont || el.contd)});
+      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont || el.contd, L)});
       runs.forEach(function(r){
         var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runText(r.s, r.w);
         if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(function(x){ return x.toUpperCase(); });
@@ -390,7 +398,7 @@
         newPage(el.pos);
       }
     }
-    return {starts:starts, pages:pages, size:size, lang:langIn(get, te), title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
+    return {starts:starts, pages:pages, size:size, lang:L, title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
   }
   function paginate(text){ return layout(text, false).starts; }
   // ---- PDF export (/pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
@@ -1165,10 +1173,10 @@
       var c = cueParts(ln);
       if (!c || activeCue !== ln || cm.somethingSelected()) return CodeMirror.Pass;
       if (c.ext && cur.ch >= c.ext.s && cur.ch <= c.ext.e){
-        var idx = EXT.indexOf(c.ext.text.trim().toUpperCase());
-        idx = idx < 0 ? 0 : (idx + dir + EXT.length) % EXT.length;
-        put(EXT[idx], {line:ln, ch:c.ext.s}, {line:ln, ch:c.ext.e});
-        caret(ln, c.ext.s + EXT[idx].length);
+        var Lx = scriptLang(), list = Lx.extList, at = extIndex(c.ext.text), idx = at < 0 ? -1 : list.indexOf(Lx.ext[at]);
+        idx = idx < 0 ? 0 : (idx + dir + list.length) % list.length;
+        put(list[idx], {line:ln, ch:c.ext.s}, {line:ln, ch:c.ext.e});
+        caret(ln, c.ext.s + list[idx].length);
         return;
       }
       // Anywhere else on the cue line (also before the first or after the last comma) the name changes
@@ -1511,10 +1519,12 @@
     // The language on the title page names its headings and commands: switching Language: English to Deutsch turns
     // Title: into Titel: and //TITLE PAGE into //TITELSEITE; values stay as written
     function scriptLang(){ return langIn(line, preEnd()); }
-    // After a change of language every transition from the lists is written in the new language
+    // After a change of language every transition and cue extension from the lists is written in the new language
     function transLang(){
-      var list = scriptLang().trans;
+      var Ln = scriptLang(), list = Ln.trans;
       for (var k = preEnd() + 1; k < cm.lineCount(); k++){
+        var c = cueParts(k), x;
+        if (c && c.ext && (x = extIndex(c.ext.text)) >= 0 && c.ext.text.trim().toUpperCase() !== Ln.ext[x]) put(Ln.ext[x], {line:k, ch:c.ext.s}, {line:k, ch:c.ext.e});
         if (!isTransHead(k)) continue;
         var s = line(k), m = s.match(/^\.t\s*/i), i = transIndex(s.slice(m[0].length));
         if (i >= 0 && normTrans(s.slice(m[0].length)) !== normTrans(list[i])) put(list[i], {line:k, ch:m[0].length}, {line:k, ch:s.length});
