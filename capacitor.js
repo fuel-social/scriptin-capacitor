@@ -374,8 +374,6 @@
   }
   function widthStyles(){
     var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
-    // Title page: an empty Title or Author value shows a bar two letters wide where the value starts
-    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-fe' + f + '{background:linear-gradient(var(--sm-frame),var(--sm-frame)) calc(16px + ' + f + 'ch - 8px) 0/2ch 100% no-repeat}\n';
     for (var d = 0; d <= 8; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
@@ -1281,9 +1279,6 @@
           if (i <= te || isMarkLn(i)){
             cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
             if (i < te && headOf(s)) cm.addLineClass(i, 'wrap', 'sm-head');
-            // An empty Title or Author shows a bar two letters wide where the value will start; typed values carry their own
-            var fc = i < te ? cmdOf(s) : null;
-            if (fc && (fc.key === 'title' || fc.key === 'author') && isBlank(fc.value)) cm.addLineClass(i, 'text', 'sm-fe' + Math.min(fc.label.length + 1 + (fc.value.charAt(0) === ' ' ? 1 : 0), 24));
             if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
             chipCursor();
           }

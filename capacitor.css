@@ -41,15 +41,6 @@
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */
 #sm-editor .sm-gone{height:0 !important;overflow:hidden}
-/* Title page: a small gap below each // heading. Every value sits on a bar like a character cue (colorFrame) that is as
-   long as its text, written in colorBlue like the rest of the title page; a Page size or Language chip turns colorBlue
-   with colorBackground letters while Up/Down change it (the line was clicked or reached with Tab or Enter) */
+/* Title page: a small gap below each // heading; values are plain colorBlue text, without bars */
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
-#sm-editor .cm-smfield,#sm-editor .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;padding:0 8px;margin-left:-8px;color:var(--sm-blue)}
-#sm-editor .sm-set-on .cm-smsetval{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg)}
 /* Bars reach down to the bottom of g, j, p, q, y (--sm-under, measured from the font), not only to the line's bottom */
-/* A value split into pieces (part of it selected) keeps the bar's 8px only at its outer ends, so no gap appears inside */
-#sm-editor .cm-smfield:has(+ .cm-smfield),#sm-editor .cm-smsetval:has(+ .cm-smsetval){padding-right:0}
-#sm-editor .cm-smfield + .cm-smfield,#sm-editor .cm-smsetval + .cm-smsetval{padding-left:0;margin-left:0}
-/* In an active (blue) Page size or Language chip the cursor is the night colorBlue */
-#sm-editor .sm-on-chip .CodeMirror-cursor{border-left-color:var(--sm-blue-night) !important}
