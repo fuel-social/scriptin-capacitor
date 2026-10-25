@@ -2,7 +2,7 @@
 const fs = require('fs');
 let src = fs.readFileSync(require('path').join(__dirname, '..', 'capacitor.js'), 'utf8');
 src = src.replace('var PAGE_LINES = 58,', 'var PAGE_LINES = (global.__LINES || 58),');
-src = src.replace('  function defineMode(){', '  globalThis.__pg = {paginate:paginate, els:pageElements, lines:elLines};\n  function defineMode(){');
+src = src.replace('  function defineMode(){', '  globalThis.__pg = {layout:layout, paginate:paginate, els:pageElements, lines:elLines};\n  function defineMode(){');
 global.window = { SM_THEME:{}, location:{hash:''}, addEventListener(){} };
 global.document = { readyState:'complete', getElementById(){ return null; }, addEventListener(){}, createElement(){ return {}; }, head:{ appendChild(){} } };
 global.CodeMirror = { defineMode(){} };
@@ -72,6 +72,25 @@ eq('=== at the very top adds no empty page', starts('===\n\nOne.'), []);
   eq('Deutsch labels read too: Seitenformat: US Letter', P(pre('x').replace('Page size: x', 'Seitenformat: US Letter') + act(40)).map(p => p.line - off), [54]);
 }
 eq('Final Draft A4: three pages', P58(text).length, 2);
+}
+
+// Printed layout (PDF): the same page breaks, (MORE) and (CONT'D), sluglines in the script's language
+{
+  const Lay = globalThis.__pg.layout;
+  const big = act(24) + '\n\n,ANNA (V.O.),\n' + Array.from({length:12}, (_, i) => 'Sentence ' + i + ' is said here.').join('\n');
+  const lay = Lay(big, true);
+  eq('layout: page starts equal paginate', JSON.stringify(lay.starts), JSON.stringify(globalThis.__pg.paginate(big)));
+  eq('layout: one page per start plus one', lay.pages.length, lay.starts.length + 1);
+  const p1 = lay.pages[0], p2 = lay.pages[1];
+  eq('layout: (MORE) at the bottom under the dialogue', p1[p1.length - 1].kind + ' ' + p1[p1.length - 1].s, 'cue (MORE)');
+  eq('layout: (MORE) is on the last counted line or above', p1[p1.length - 1].y < 58, true);
+  eq("layout: cue with (CONT'D) on top of the next page", p2[0].y + ' ' + p2[0].kind + ' ' + p2[0].s, "0 cue ANNA (V.O.) (CONT'D)");
+  const de = '---\n\n//TITELSEITE\nTitel: X\nAutor:in: Y\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n---\n\n.ie auto - tag\n\nShe waits.\n\n// note\n\n.t cut to:\n\n,anna,\n(quiet)\nHi.';
+  const d = Lay(de, true).pages[0].map(x => x.y + ' ' + x.kind + ' ' + x.s);
+  eq('layout: German slugline word, note not printed, transition in capitals, title and author read',
+    JSON.stringify(d) + ' ' + Lay(de, true).title + '/' + Lay(de, true).author,
+    JSON.stringify(['0 act INNEN/AUSSEN. AUTO - TAG', '2 act She waits.', '4 trans CUT TO:', '6 cue ANNA', '7 par (quiet)', '8 dlg Hi.']) + ' X/Y');
+  eq('layout: English I/E. without a title page', Lay('.ie car - day', true).pages[0][0].s, 'I/E. CAR - DAY');
 }
 
 console.log(fails ? fails + ' failed' : 'all passed');

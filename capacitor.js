@@ -1,10 +1,15 @@
 // scriptin Machine editor (Capacitor). Colors come from window.SM_THEME, set in the Bubble element htmlCapacitor.
 (function(){
   var T = window.SM_THEME || {};
+  // Folder this file was loaded from (the same commit on jsDelivr): the PDF export loads jsPDF and Courier Prime from there
+  var SELF = (function(){
+    var c = document.currentScript, src = c && c.src;
+    if (!src && document.querySelectorAll){ var all = document.querySelectorAll('script[src*="scriptin-capacitor"]'); src = all.length ? all[all.length - 1].src : ''; }
+    return (src || '').replace(/[^\/]*$/, '');
+  })();
   // Printed line lengths in characters (Cole & Haag, 10 cpi)
   var W_ACTION = 55, W_DIALOG = 35, W_PAREN = 19;
   var PAD = 32; // 16px left + 16px right inside each line
-  var PREFIX = {I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'EXT./INT.'};
   var EXT = ['V.O.', 'O.S.', 'O.C.', "CONT'D"];
   // Tab ring for empty elements: slug INT, slug EXT, action, dialogue, action
   var RING = ['.i ', '.e ', '', ',,', ''];
@@ -24,10 +29,10 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}}
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by'},
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von'},
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de'},
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di'}
   ];
   var SIZES = ['A4', 'US Letter'];
   function preTemplate(L){
@@ -115,11 +120,15 @@
       return best || '';
     } catch (e){ return ''; }
   }
-  function slugDelta(s){
+  // How many characters longer the printed slugline word (INT., INNEN., I/E. ... in the script's language) is than
+  // what is typed (.i .e .ie .ei); the slugline's first line is that much shorter, so the editor wraps it as printed
+  function slugDelta(s, L){
     var m = s.match(/^\.(IE|EI|I|E)(\s|$)/i);
     if (!m) return -1;
-    return PREFIX[m[1].toUpperCase()].length - m[1].length - 1;
+    return (L || LANGS[0]).slug[m[1].toUpperCase()].length - m[1].length - 1;
   }
+  // Language set on the title page of these lines, English when there is none
+  function langIn(get, te){ return langOf(preValue(get, te, 'lang') || '') || LANGS[0]; }
   // ---- Reformat (Cmd+Option+Enter, Ctrl+Shift+Enter on Windows): capitals, single spaces, one empty line between elements ----
   function normLine(s){ return s.replace(/[ \t ]+/g, ' ').trim(); }
   function splitParens(l){
@@ -241,28 +250,29 @@
     if (s.slice(last).trim()) out.push(piece(s.slice(last), ln, ch + last, W_DIALOG));
   }
   function pageElements(text){
-    var lines = text.split('\n'), els = [], i = titleEnd(function(k){ return lines[k]; }, lines.length) + 1, brk = false;
+    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length), L = langIn(get, te);
+    var els = [], i = te + 1, brk = false;
     while (i < lines.length){
       if (lines[i].trim() === ''){ i++; continue; }
       if (isMark(lines[i])){ if (BREAK.test(lines[i])) brk = true; i++; continue; }
       var s0 = i, ps = [];
       while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) ps.push(lines[i++]);
-      var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[]}, d, m;
+      var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[], kind:'act'}, d, m;
       if (NOTE.test(h)) continue;
       el.brk = brk; brk = false;
-      if ((d = slugDelta(h)) >= 0){
-        el.keep = true; el.space = SPACE_SLUG;
+      if ((d = slugDelta(h, L)) >= 0){
+        el.keep = true; el.space = SPACE_SLUG; el.kind = 'slug'; el.slug = L.slug[h.match(/^\.(IE|EI|I|E)/i)[1].toUpperCase()];
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
       } else if (SHOT.test(h) || TRANS.test(h)){
         // A shot keeps with the element after it, but has one empty line before it like action
-        el.keep = SHOT.test(h);
+        el.keep = SHOT.test(h); el.kind = el.keep ? 'act' : 'trans'; el.shot = el.keep;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
           if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
         });
         if (!el.runs.length) el.runs.push(piece('', s0, 0, W_ACTION));
       } else if ((m = h.match(/^,([^,]*),(.*)$/))){
-        el.cue = true; el.split = true;
+        el.cue = true; el.split = true; el.kind = 'cue'; el.name = m[1];
         var off = m[1].length + 2;
         if (m[2].trim()) dialogPieces(m[2], s0, off, el.runs);
         for (var k = 1; k < ps.length; k++) dialogPieces(ps[k], s0 + k, 0, el.runs);
@@ -312,31 +322,123 @@
     }
     return null;
   }
-  function paginate(text){
-    var lines = text.split('\n'), te = titleEnd(function(k){ return lines[k]; }, lines.length);
-    var PAGE_LINES = sizeOf(preValue(function(k){ return lines[k]; }, te, 'size')) === 'US Letter' ? LETTER_LINES : A4_LINES;
-    var els = pageElements(text), y = 0, starts = [];
+  // Printed lines of a run: wrapped as in the editor, words one space apart
+  function runText(s, w){
+    var st = wrapStarts(s, w);
+    return st.map(function(a, i){ return s.slice(a, i + 1 < st.length ? st[i + 1] : s.length).trim().replace(/\s+/g, ' '); });
+  }
+  function cueText(name, cont){
+    var n = (name || '').trim().replace(/\s+/g, ' ').toUpperCase();
+    return cont && !/\(CONT'D\)/.test(n) ? (n ? n + ' ' : '') + "(CONT'D)" : n;
+  }
+  // The printed script: where each page begins (editor positions) and, with print, every printed line of every page as
+  // {y: line on the page from the top margin, kind: act, slug, trans, cue, dlg or par, s: text}; the page numbers
+  // beside the editor and the PDF both come from here, so they always agree
+  function layout(text, print){
+    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length);
+    var size = sizeOf(preValue(get, te, 'size')), PAGE_LINES = size === 'US Letter' ? LETTER_LINES : A4_LINES;
+    var els = pageElements(text), y = 0, starts = [], pages = [[]];
+    function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); }
+    function emit(el, runs, at, more, cont){
+      if (!print) return;
+      var pg = pages[pages.length - 1];
+      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont)});
+      runs.forEach(function(r){
+        var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runText(r.s, r.w);
+        if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(function(x){ return x.toUpperCase(); });
+        // the typed .i .e .ie .ei becomes the slugline word of the script's language
+        if (kind === 'slug' && !cont && r.line === el.pos.line && r.ch === 0) out[0] = out[0].replace(/^\.(IE|EI|I|E)(?=\s|$)/i, el.slug);
+        out.forEach(function(x){ pg.push({y:at++, kind:kind === 'slug' ? 'act' : kind, s:x}); });
+      });
+      if (more) pg.push({y:at, kind:'cue', s:'(MORE)'});
+    }
     for (var i = 0; i < els.length; i++){
-      var el = els[i], guard = 0;
-      if (el.brk && y > 0){ starts.push(el.pos); y = 0; }
+      var el = els[i], guard = 0, cont = false;
+      if (el.brk && y > 0) newPage(el.pos);
       while (guard++ < 1000){
         var sp = y === 0 ? 0 : el.space, h = elLines(el);
         if (el.keep){
           var nx = els[i + 1], need = sp + h + (nx && !nx.keep ? nx.space + minHead(nx) : 0);
-          if (y > 0 && y + need > PAGE_LINES){ starts.push(el.pos); y = 0; continue; }
-          y += sp + h; break;
+          if (y > 0 && y + need > PAGE_LINES){ newPage(el.pos); continue; }
+          emit(el, el.runs, y + sp, false, cont); y += sp + h; break;
         }
-        if (y + sp + h <= PAGE_LINES || (y === 0 && !el.split)){ y += sp + h; break; }
+        if (y + sp + h <= PAGE_LINES || (y === 0 && !el.split)){ emit(el, el.runs, y + sp, false, cont); y += sp + h; break; }
         var room = PAGE_LINES - y - sp, best = null;
         if (el.split) breakOptions(el).forEach(function(o){ if (firstLines(el, o) <= room) best = o; });
-        if (!best && y > 0){ starts.push(el.pos); y = 0; continue; }
+        if (!best && y > 0){ newPage(el.pos); continue; }
         if (!best) best = forceBreak(el, room);
-        if (!best || !best.rest.length){ y += sp + h; break; }
-        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest};
-        starts.push(el.pos); y = 0;
+        if (!best || !best.rest.length){ emit(el, el.runs, y + sp, false, cont); y += sp + h; break; }
+        emit(el, best.first, y + sp, el.cue, cont);
+        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest, kind:el.kind, name:el.name, slug:el.slug, shot:el.shot};
+        cont = true;
+        newPage(el.pos);
       }
     }
-    return starts;
+    return {starts:starts, pages:pages, size:size, lang:langIn(get, te), title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
+  }
+  function paginate(text){ return layout(text, false).starts; }
+  // ---- PDF export (.pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
+  // title page. 1 inch top and bottom, 1.5 inch left, 1 inch right; sluglines, shots and action at 1.5 inch, dialogue
+  // 2.5, parentheticals 2.9, cues 3.5 inch from the edge, transitions flush right; page number top right from page 2,
+  // 0.5 inch from the top, with a period. Title page only when Title and Author are both filled in: the title in
+  // capitals on line 25, the credit (Written by ...) on line 30, the author on line 32, all centred. Notes, section
+  // marks and scene numbers are never printed.
+  var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
+  var pdfKit = null;
+  function fetchB64(url){
+    return fetch(url).then(function(r){ if (!r.ok) throw new Error(url + ' ' + r.status); return r.arrayBuffer(); }).then(function(buf){
+      var b = new Uint8Array(buf), s = '';
+      for (var i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+      return btoa(s);
+    });
+  }
+  function loadPdfKit(){
+    if (pdfKit) return pdfKit;
+    pdfKit = new Promise(function(res, rej){
+      if (window.jspdf) return res();
+      var s = document.createElement('script'); s.src = SELF + 'vendor/jspdf.umd.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
+    }).then(function(){ return fetchB64(SELF + 'fonts/CourierPrime-Regular.ttf'); })
+      .then(function(font){ return {jsPDF:window.jspdf.jsPDF, font:font}; });
+    pdfKit.catch(function(){ pdfKit = null; });
+    return pdfKit;
+  }
+  function fileName(title){ return (title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim() || 'script') + '.pdf'; }
+  function buildPdf(kit, lay){
+    var doc = new kit.jsPDF({unit:'pt', format:lay.size === 'US Letter' ? 'letter' : 'a4', compress:true});
+    doc.addFileToVFS('CourierPrime-Regular.ttf', kit.font);
+    doc.addFont('CourierPrime-Regular.ttf', 'CourierPrime', 'normal');
+    doc.setFont('CourierPrime', 'normal'); doc.setFontSize(12);
+    doc.setProperties({title:lay.title || 'script', author:lay.author || ''});
+    var W = doc.internal.pageSize.getWidth(), right = W - PT, used = false;
+    function page(){ if (used) doc.addPage(); used = true; }
+    function at(s, x, y){ if (s) doc.text(s, x, y, {baseline:'top'}); }
+    function flushRight(s, y){ at(s, right - doc.getTextWidth(s), y); }
+    function centred(s, y){ at(s, (W - doc.getTextWidth(s)) / 2, y); }
+    var titled = !!(lay.title && lay.author);
+    if (titled){
+      page();
+      var tl = runText(lay.title.toUpperCase(), W_ACTION), credit = Math.max(29, 24 + tl.length + 3);
+      tl.forEach(function(s, i){ centred(s, (24 + i) * LH); });
+      centred(lay.lang.credit, credit * LH);
+      runText(lay.author, W_ACTION).forEach(function(s, i){ centred(s, (credit + 2 + i) * LH); });
+    }
+    var pages = lay.pages;
+    if (titled && pages.length === 1 && !pages[0].length) pages = [];
+    pages.forEach(function(items, n){
+      page();
+      if (n > 0) flushRight((n + 1) + '.', PT / 2);
+      items.forEach(function(it){
+        var y = PT + it.y * LH;
+        if (it.kind === 'trans') flushRight(it.s, y); else at(it.s, INDENT[it.kind] * PT, y);
+      });
+    });
+    if (!used) page();
+    return doc;
+  }
+  function exportPdf(text){
+    var lay = layout(text, true);
+    return loadPdfKit().then(function(kit){ buildPdf(kit, lay).save(fileName(lay.title)); })
+      .catch(function(e){ if (window.console) console.error('scriptin PDF export failed', e); });
   }
   function defineMode(){
     CodeMirror.defineMode('scriptin', function(){
@@ -376,7 +478,7 @@
   }
   function widthStyles(){
     var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
-    for (var d = 0; d <= 8; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
+    for (var d = 0; d <= 12; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
@@ -865,6 +967,12 @@
     function enter(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd() && !cm.somethingSelected()){ preStep(ln, true); return; }
+      // .pdf alone on a line (its own paragraph) and Enter: the line is emptied again and the PDF downloads
+      if (!cm.somethingSelected() && /^\s*\.pdf\s*$/i.test(s) && ln > preEnd() && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1)))){
+        put('', {line:ln, ch:0}, {line:ln, ch:s.length});
+        exportPdf(cm.getValue());
+        return;
+      }
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
@@ -1275,7 +1383,7 @@
     }
     cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
     function decorate(){
-      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd();
+      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd(), lang = langIn(line, te);
       function empty(j){ return j !== curLn && isBlank(line(j)); }
       spacedFor = curLn;
       // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
@@ -1304,7 +1412,7 @@
           }
           else if (isSlugLn(i)){
             want(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
-            want(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
+            want(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
           }
           else if (isNoteLn(i)) want(i, 'text', 'sm-t-act sm-t-note');
           else if (isShotLn(i)) want(i, 'text', 'sm-t-act sm-t-shot');

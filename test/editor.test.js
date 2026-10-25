@@ -37,6 +37,7 @@ function state(){
   return JSON.stringify(cm.getLine(c.line)) + ' cursor ' + c.line + ':' + c.ch + (sel ? ' selected ' + JSON.stringify(sel) : '');
 }
 let fails = 0;
+function eq2(label, got, want){ const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + JSON.stringify(got) + '   wanted ' + JSON.stringify(want))); }
 function check(label, want){ const got = state(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + got + (ok ? '' : '   wanted ' + want)); }
 function start(text){ cm.setValue(text); cm.setCursor({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length}); }
 
@@ -437,6 +438,13 @@ cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
 { const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 3 works'); }
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
+
+// .pdf + Enter on a line of its own: the line is emptied, nothing else changes
+start('.i HOUSE - DAY\n\nShe waits.\n\n'); type('.pdf'); enter();
+check('.pdf + Enter empties the line', '"" cursor 4:0');
+eq2('.pdf + Enter leaves the script as it was', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
+start('She waits.\n.pdf'); enter();
+check('.pdf inside a paragraph stays text', '"" cursor 3:0');
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }
