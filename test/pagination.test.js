@@ -112,5 +112,14 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   eq('layout: a typed (WEITER) is not doubled', Lay(head('Deutsch') + '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe waits.\n\n,VALERIA (WEITER),\nGoodbye.', true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | '), 'VALERIA | VALERIA (WEITER)');
 }
 
+{
+  const Lay = globalThis.__pg.layout;
+  const head = (lang) => '---\n\n//X\nTitle: A\nAuthor: \n\nPage size: A4\nLanguage: ' + lang + '\n\n---\n\n';
+  const big = act(24) + '\n\n,ANNA,\n' + Array.from({length:12}, (_, i) => 'Sentence ' + i + ' is said here.').join('\n');
+  const more = (lang) => { const p = Lay(head(lang) + big, true).pages; const a = p[0][p[0].length - 1], b = p[1][0]; return a.s + ' ' + b.s; };
+  eq('layout: (MORE) and (CONT\'D) in the script\'s language', ['English', 'Deutsch', 'Français', 'Italiano'].map(more).join(' / '),
+    "(MORE) ANNA (CONT'D) / (MEHR) ANNA (WEITER) / (À SUIVRE) ANNA (SUITE) / (CONTINUA) ANNA (CONT.)");
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;

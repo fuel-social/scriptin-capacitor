@@ -482,6 +482,19 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   down(); eq2("English: CONT'D", cue(), ",ANNA (CONT'D),");
 }
 
+// Times of day in the script's language: a change of language translates the time in every slugline
+{
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.setValue('---\n\n//TITELSEITE\nTitel: A\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n---\n\n.i KÜCHE - NACHT\n\nAction.\n\n.e GARTEN - AM NÄCHSTEN TAG - REGEN\n\nAction.\n\n.i FLUR - TAGEBUCH');
+  const ln = cm.getValue().split('\n').findIndex(l => /^Seitenformat:/.test(l));
+  cm.setCursor({line:ln, ch:3}); if (cm.getCursor().line !== ln){ k9(); cm.setCursor({line:ln, ch:3}); } tab(); down();
+  const slugs = () => cm.getValue().split('\n').filter(l => /^\.[ie] /.test(l)).join(' | ');
+  eq2('Français: NUIT, LE LENDEMAIN, a word that only starts like a time stays', slugs(), '.i KÜCHE - NUIT | .e GARTEN - LE LENDEMAIN - REGEN | .i FLUR - TAGEBUCH');
+  down(); eq2('Italiano', slugs(), '.i KÜCHE - NOTTE | .e GARTEN - IL GIORNO DOPO - REGEN | .i FLUR - TAGEBUCH');
+  down(); eq2('English', slugs(), '.i KÜCHE - NIGHT | .e GARTEN - THE NEXT DAY - REGEN | .i FLUR - TAGEBUCH');
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

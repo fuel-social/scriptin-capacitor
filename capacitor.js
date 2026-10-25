@@ -28,13 +28,17 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
+     time:['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'], ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
      trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', ext:['OFF', 'OFF', 'OFF', 'WEITER'],
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
+     time:['TAG', 'NACHT', 'MORGEN', 'NACHMITTAG', 'ABEND', 'MORGENDÄMMERUNG', 'ABENDDÄMMERUNG', 'MAGIC HOUR', 'CONTINUOUS', 'SPÄTER', 'MOMENTE SPÄTER', 'GLEICH', 'GLEICHE ZEIT', 'AM NÄCHSTEN TAG'], ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
+     time:['JOUR', 'NUIT', 'MATIN', 'APRÈS-MIDI', 'SOIR', 'AUBE', 'CRÉPUSCULE', "L'HEURE BLEUE", 'CONTINU', 'PLUS TARD', 'QUELQUES INSTANTS PLUS TARD', 'MÊME', 'EN MÊME TEMPS', 'LE LENDEMAIN'], ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
      trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
+     time:['GIORNO', 'NOTTE', 'MATTINA', 'POMERIGGIO', 'SERA', 'ALBA', 'TRAMONTO', 'ORA MAGICA', 'CONTINUO', 'PIÙ TARDI', 'POCO DOPO', 'STESSO', 'STESSO MOMENTO', 'IL GIORNO DOPO'], ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
   var SIZES = ['A4', 'US Letter'];
@@ -106,7 +110,12 @@
     return -1;
   }
   // Time of day in a slugline; slugline completion ends with it and offers only times already used in this script
-  var TIME_LIST = ['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'];
+  // (LANGS[].time, the same order in every language); every language's words are recognised in every script
+  function timeIndex(w){
+    var u = w.trim().replace(/\s+/g, ' ').toUpperCase();
+    for (var l = 0; l < LANGS.length; l++){ var i = LANGS[l].time.indexOf(u); if (i >= 0) return i; }
+    return -1;
+  }
   // Separator between slugline segments: a hyphen (or en/em dash) with a space on at least one side, so TWENTY-ONE stays one word
   var SLUG_SEP = /\s+[-–—]+\s*|[-–—]+\s+/g;
   // The script is kept in this browser's localStorage (no sync between browsers or devices)
@@ -374,7 +383,7 @@
         if (kind === 'slug' && !cont && r.line === el.pos.line && r.ch === 0) out[0] = out[0].replace(/^\.(IE|EI|I|E)(?=\s|$)/i, el.slug);
         out.forEach(function(x){ pg.push({y:at++, kind:kind === 'slug' ? 'act' : kind, s:x}); });
       });
-      if (more) pg.push({y:at, kind:'cue', s:'(MORE)'});
+      if (more) pg.push({y:at, kind:'cue', s:L.more});
     }
     for (var i = 0; i < els.length; i++){
       var el = els[i], guard = 0, cont = false;
@@ -1227,9 +1236,9 @@
     // The time word a segment starts with (longest match: SAME TIME before SAME), or ''
     function timeOf(seg){
       var t = seg.trim(), u = t.toUpperCase(), best = '';
-      TIME_LIST.forEach(function(w){
-        if (u.indexOf(w) === 0 && !/[A-Z0-9']/.test(u.charAt(w.length)) && w.length > best.length) best = w;
-      });
+      LANGS.forEach(function(L){ L.time.forEach(function(w){
+        if (u.indexOf(w) === 0 && !/[A-Z0-9'À-ÖØ-Þ]/.test(u.charAt(w.length)) && w.length > best.length) best = w;
+      }); });
       return best ? t.slice(0, best.length) : '';
     }
     // Segments of another slugline, cut after its time of day; parts.time is the index of the time segment or -1
@@ -1519,10 +1528,22 @@
     // The language on the title page names its headings and commands: switching Language: English to Deutsch turns
     // Title: into Titel: and //TITLE PAGE into //TITELSEITE; values stay as written
     function scriptLang(){ return langIn(line, preEnd()); }
-    // After a change of language every transition and cue extension from the lists is written in the new language
+    // After a change of language every transition, cue extension and time of day from the lists is written in the
+    // new language
     function transLang(){
       var Ln = scriptLang(), list = Ln.trans;
       for (var k = preEnd() + 1; k < cm.lineCount(); k++){
+        if (isSlugHead(k)){
+          var sl = line(k), b0 = slugBody(sl), body = sl.slice(b0), re = new RegExp(SLUG_SEP.source, 'g'), mm, starts = [];
+          while ((mm = re.exec(body))) starts.push(re.lastIndex);
+          for (var q = 0; q < starts.length; q++){
+            var seg = body.slice(starts[q]), lead = seg.length - seg.replace(/^\s+/, '').length, tw = timeOf(seg), ti;
+            if (!tw) continue;
+            ti = timeIndex(tw);
+            if (ti >= 0 && tw.toUpperCase() !== Ln.time[ti]) put(Ln.time[ti], {line:k, ch:b0 + starts[q] + lead}, {line:k, ch:b0 + starts[q] + lead + tw.length});
+            break;
+          }
+        }
         var c = cueParts(k), x;
         if (c && c.ext && (x = extIndex(c.ext.text)) >= 0 && c.ext.text.trim().toUpperCase() !== Ln.ext[x]) put(Ln.ext[x], {line:k, ch:c.ext.s}, {line:k, ch:c.ext.e});
         if (!isTransHead(k)) continue;
