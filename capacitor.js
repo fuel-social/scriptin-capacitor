@@ -28,16 +28,16 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language', mode:'Mode'}, modes:['Day', 'Night'], slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
      time:['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'], ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
      trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', mode:'Modus'}, modes:['Tag', 'Nacht'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
      time:['TAG', 'NACHT', 'MORGEN', 'NACHMITTAG', 'ABEND', 'MORGENDÄMMERUNG', 'ABENDDÄMMERUNG', 'MAGIC HOUR', 'CONTINUOUS', 'SPÄTER', 'MOMENTE SPÄTER', 'GLEICH', 'GLEICHE ZEIT', 'AM NÄCHSTEN TAG'], ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue', mode:'Mode'}, modes:['Jour', 'Nuit'], slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
      time:['JOUR', 'NUIT', 'MATIN', 'APRÈS-MIDI', 'SOIR', 'AUBE', 'CRÉPUSCULE', "L'HEURE BLEUE", 'CONTINU', 'PLUS TARD', 'QUELQUES INSTANTS PLUS TARD', 'MÊME', 'EN MÊME TEMPS', 'LE LENDEMAIN'], ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
      trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', mode:'Modalità'}, modes:['Giorno', 'Notte'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
      time:['GIORNO', 'NOTTE', 'MATTINA', 'POMERIGGIO', 'SERA', 'ALBA', 'TRAMONTO', 'ORA MAGICA', 'CONTINUO', 'PIÙ TARDI', 'POCO DOPO', 'STESSO', 'STESSO MOMENTO', 'IL GIORNO DOPO'], ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
@@ -54,7 +54,14 @@
   function preTemplate(L){
     return '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': \n' + L.cmd.author + ': \n\n' + preSettings(L, 'A4') + '\n\n---';
   }
-  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name; }
+  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.mode + ': ' + L.modes[0]; }
+  // Mode of this script: 0 day, 1 night (colours of OptS_theme_ui light and dark); the value in any language, Day by default
+  var THEMES = ['light', 'dark'];
+  function modeOf(v){
+    var b = bare(v || '');
+    for (var l = 0; l < LANGS.length; l++){ for (var i = 0; i < 2; i++){ if (b === bare(LANGS[l].modes[i])) return i; } }
+    return b === 'dark' ? 1 : 0;
+  }
   function bare(v){ return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   // Language from a typed value: its own name or its two letter code, accents and case do not matter; null if unknown
   function langOf(v){
@@ -133,6 +140,14 @@
       Object.keys(v).forEach(function(k){ var b = v[k].colorblue || ''; if (!out && b && b.toUpperCase() !== cur) out = b; });
       return out;
     } catch (e){ return ''; }
+  }
+  // Colours of one theme of OptS_theme_ui ('light' or 'dark'), or null
+  function themeColors(name){
+    try {
+      var v = window.app.option_sets._theme_ui.values, out = null;
+      Object.keys(v).forEach(function(k){ if (!out && v[k].db_value === name) out = v[k]; });
+      return out && out.colorbackground ? out : null;
+    } catch (e){ return null; }
   }
   // colorRed of the current theme (the one whose colorBlue is in use), when htmlCapacitor does not pass it
   function themeRed(){
@@ -501,7 +516,7 @@
             if (!c){ stream.skipToEnd(); return null; }
             while (at < stream.string.length && stream.string.charAt(at) === ' ') at++;
             if (stream.pos < at){ stream.pos = at; return null; }
-            stream.skipToEnd(); return c.key === 'size' || c.key === 'lang' ? 'smsetval' : 'smfield';
+            stream.skipToEnd(); return c.key === 'size' || c.key === 'lang' || c.key === 'mode' ? 'smsetval' : 'smfield';
           }
           if (stream.sol()){
             var para = state.prevBlank;
@@ -1167,17 +1182,17 @@
       put('.t ' + list[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
       caret(ln, line(ln).length);
     }
-    // A Page size or Language line of the title page: 'size' or 'lang', else null
+    // A Page size, Language or Mode line of the title page: 'size', 'lang' or 'mode', else null
     function settingOf(ln){
       var te = preEnd();
       if (ln <= 0 || ln >= te) return null;
       var c = cmdOf(line(ln));
-      return c && (c.key === 'size' || c.key === 'lang') ? c.key : null;
+      return c && (c.key === 'size' || c.key === 'lang' || c.key === 'mode') ? c.key : null;
     }
     // Up/Down on an active setting step through its values, in a circle
     function settingArrow(ln, dir){
-      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : LANGS.map(function(L){ return L.name; });
-      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
+      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : c.key === 'mode' ? scriptLang().modes : LANGS.map(function(L){ return L.name; });
+      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : c.key === 'mode' ? vals[modeOf(c.value)] : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
       i = i < 0 ? 0 : (i + dir + vals.length) % vals.length;
       // the new value and the renamed headings and commands are one change, so one Cmd+Z takes both back
       cm.operation(function(){
@@ -1576,15 +1591,31 @@
       for (var k = 1; k < te; k++){
         var s = line(k), h = headOf(s), c = cmdOf(s);
         // values only come from Up/Down; anything else (an older typed value) becomes the proper one
-        if (c && (c.key === 'lang' || c.key === 'size')){
-          var want = ' ' + (c.key === 'lang' ? L.name : sizeOf(c.value));
+        if (c && (c.key === 'lang' || c.key === 'size' || c.key === 'mode')){
+          var want = ' ' + (c.key === 'lang' ? L.name : c.key === 'mode' ? L.modes[modeOf(c.value)] : sizeOf(c.value));
           if (c.value !== want){ cm.replaceRange(want, {line:k, ch:c.label.length + 1}, {line:k, ch:s.length}, '+pre'); s = line(k); c = cmdOf(s); }
         }
         if (h && s !== '//' + L.head[h]) cm.replaceRange('//' + L.head[h], {line:k, ch:0}, {line:k, ch:s.length}, '+pre');
         else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
       }
     }
-    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); undoing = false; }
+    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); applyTheme(); undoing = false; }
+    // Day or Night from the title page: the colours of OptS_theme_ui light or dark for the editor and the page behind it;
+    // colorBlue of the other theme is the cursor on shot bars
+    var themeOn = -1;
+    function applyTheme(){
+      var m = modeOf(preValue(line, preEnd(), 'mode'));
+      if (m === themeOn) return;
+      var t = themeColors(THEMES[m]), o = themeColors(THEMES[1 - m]);
+      if (!t) return;
+      themeOn = m;
+      host.style.setProperty('--sm-bg', t.colorbackground); host.style.setProperty('--sm-fg', t.colorforeground);
+      host.style.setProperty('--sm-blue', t.colorblue); host.style.setProperty('--sm-frame', t.colorframe);
+      host.style.setProperty('--sm-inactive', t.colorinactive); if (t.colorred) host.style.setProperty('--sm-red', t.colorred);
+      if (o && o.colorblue) host.style.setProperty('--sm-blue-alt', o.colorblue);
+      var page = document.querySelector('.main-page');
+      if (page) page.style.setProperty('background-color', t.colorbackground, 'important');
+    }
     // A hidden title page always has a script line below it: with nothing after the closing --- the cursor would stay
     // invisible inside the hidden title page, and Tab or typing would go there
     function belowPre(){
@@ -1635,6 +1666,14 @@
           var last = r.e - 1;
           while (last > 0 && isBlank(line(last))) last--;
           cm.replaceRange('\n\n' + preSettings(LANGS[0], 'A4'), {line:last, ch:line(last).length}, null, '+pre');
+          r = preRange();
+        }
+        // Settings from before the Mode line get it, Day, below Language (or Page size)
+        if (preValue(line, r.e, 'mode') === null && (preValue(line, r.e, 'lang') !== null || preValue(line, r.e, 'size') !== null)){
+          refresh();
+          var ML = langOf(preValue(line, r.e, 'lang') || '') || LANGS[0], after = -1;
+          for (var mk = 1; mk < r.e; mk++){ var mc = cmdOf(line(mk)); if (mc && (mc.key === 'lang' || (mc.key === 'size' && after < 0))) after = mk; }
+          cm.replaceRange('\n' + ML.cmd.mode + ': ' + ML.modes[0], {line:after, ch:line(after).length}, null, '+pre');
           r = preRange();
         }
         // A title page without its heading gets it, in its own language
