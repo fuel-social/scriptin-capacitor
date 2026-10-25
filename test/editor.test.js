@@ -188,6 +188,16 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 }
 
 {
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  // empty page: show the title page, type nothing, hide it again; the cursor goes to an empty script line at the left edge
+  start(''); k9(); k9();
+  doc('hiding an untouched title page on an empty page leaves an empty script line below it', '---\n\nTitle: \nAuthor: \n\n---\n\n @7:0');
+  type('F');
+  doc('typing then starts the script, the closing --- stays intact', '---\n\nTitle: \nAuthor: \n\n---\n\nF @7:1');
+  { const ok = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page stays hidden while typing below it'); }
+}
+
+{
   cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:7});
   doc('a loaded title page gets its empty lines at once', '---\n\nTitle: A\n\n---\n\nAction. @6:7');
 }

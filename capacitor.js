@@ -1268,6 +1268,9 @@
         cm.setCursor({line:first, ch:line(first).length});
         window.scrollTo(0, 0);
       } else if (r){
+        // Nothing below the closing ---: add an empty line and an empty script line, or the cursor would land on the
+        // hidden --- and typing there would break the fence
+        if (r.e === cm.lastLine()) cm.replaceRange('\n\n', {line:r.e, ch:line(r.e).length}, null, '+pre');
         var c = cm.getCursor().line;
         if (c >= r.s && c <= r.e + 1){
           var nx = r.e + 1;
