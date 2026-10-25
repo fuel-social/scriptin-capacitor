@@ -1092,6 +1092,19 @@
       caret(ln + 2, 0);
       cyc = null;
     }
+    // Shift+Enter at the end of any line of the script: a new paragraph with an empty cue ,, and the cursor on the line below
+    // it, so the next speech can be typed straight away; Reformat (Cmd+Option+Enter) fills in the names later. On the
+    // title page, in a note, in the middle of a line or with a selection it is a plain new line
+    function dialogueNext(){
+      var cur = cm.getCursor(), ln = cur.line, s = line(ln), te = preEnd();
+      if (cm.somethingSelected() || ln <= te || isNoteLn(ln) || cur.ch !== s.length){ cm.execCommand('newlineAndIndent'); return; }
+      var next = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1)), at = {line:ln, ch:s.length}, tail = next ? '\n\n' : '\n';
+      if (isBlank(s)){
+        if (ln === 0 || ln - 1 === te || isBlank(line(ln - 1))){ put(',,' + tail, {line:ln, ch:0}, at); caret(ln + 1, 0); }
+        else { put('\n,,' + tail, {line:ln, ch:0}, at); caret(ln + 2, 0); }
+      } else { put('\n\n,,' + tail, at); caret(ln + 3, 0); }
+      cyc = null;
+    }
     // Backspace on the empty line of a new paragraph (empty line above, text above that) takes back the whole break
     // Enter or Tab made: the cursor returns to the end of the paragraph above and the spacing is as before
     function backspace(){
@@ -1416,7 +1429,9 @@
       'Tab': function(){ tab(); },
       'Shift-Tab': function(){},
       'Enter': function(){ return enter(); },
-      'Shift-Enter': 'newlineAndIndent',
+      'Shift-Enter': function(){ dialogueNext(); },
+      // A plain new line (no new paragraph): Option+Enter (Alt+Enter on Windows); Enter in the middle of a line does it too
+      'Alt-Enter': 'newlineAndIndent',
       // Up/Down pick names or extensions on an active cue and move the cursor everywhere else
       'Down': function(){ return arrow(1); },
       'Alt-Up': function(){ paraMove(-1, false); }, 'Alt-Down': function(){ paraMove(1, false); },

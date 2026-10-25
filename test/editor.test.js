@@ -93,7 +93,12 @@ start(',ANNA,'); enter(); doc('Enter at the end of a cue: dialogue line', ',ANNA
 start(',ANNA,\n(quiet)'); enter(); doc('Enter after a parenthetical: new dialogue line', ',ANNA,\n(quiet)\n @2:0');
 start('She waits.\nThen goes.'); cm.setCursor({line:0, ch:10}); enter(); doc('Enter between two lines of a paragraph: separated on both sides', 'She waits.\n\n\n\nThen goes. @2:0');
 start('She waits.'); cm.setCursor({line:0, ch:3}); enter(); doc('Enter in the middle of a line: plain new line', 'She\nwaits. @1:0');
-start('She waits.'); shiftEnter(); doc('Shift+Enter: plain new line', 'She waits.\n @1:0');
+start('She waits.'); shiftEnter(); doc('Shift+Enter after action: new paragraph with an empty cue, cursor on the dialogue line', 'She waits.\n\n,,\n @3:0');
+type('Wie gehts?'); shiftEnter(); doc('Shift+Enter after the dialogue: the next empty cue', 'She waits.\n\n,,\nWie gehts?\n\n,,\n @6:0');
+start('.i HOUSE - DAY\n\nShe waits.'); cm.setCursor({line:0, ch:14}); shiftEnter(); doc('from a slugline, text below stays apart', '.i HOUSE - DAY\n\n,,\n\n\nShe waits. @3:0');
+start('She waits.\n\n'); shiftEnter(); doc('on an empty paragraph line: the cue goes right there', 'She waits.\n\n,,\n @3:0');
+start('She waits.'); cm.setCursor({line:0, ch:3}); shiftEnter(); doc('in the middle of a line: a plain new line', 'She\nwaits. @1:0');
+start('She waits.'); cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', altKey:true, preventDefault(){}, stopPropagation(){} }); doc('Option+Enter: plain new line', 'She waits.\n @1:0');
 start('// a note'); enter(); doc('Enter in a note: plain new line', '// a note\n @1:0');
 
 // Spacing does not jump: Enter after dialogue above a slugline gives one empty line before the new paragraph and two before the slugline
