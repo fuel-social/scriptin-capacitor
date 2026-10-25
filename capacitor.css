@@ -19,7 +19,7 @@
 #sm-editor .CodeMirror-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}
 #sm-editor pre.sm-t-note{color:var(--sm-blue)}
 #sm-editor pre.sm-t-cmd{color:var(--sm-blue)}
-#sm-editor .sm-cmdmark{color:var(--sm-blue)}
+#sm-editor .sm-scenenum.sm-cmdmark{color:var(--sm-blue)}
 #sm-editor .sm-n-note{position:relative}
 #sm-editor .sm-n-note::after{content:'//';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-bg);pointer-events:none}
 /* Margin numbers: scene numbers left of the left frame line (growing leftwards), page numbers right of the editor
