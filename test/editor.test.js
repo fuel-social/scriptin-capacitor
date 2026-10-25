@@ -144,7 +144,7 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 }
 
 // Title page: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands between two ---; again hides it
-const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor: ' + a + '\n\n//SCRIPT SETTINGS\nPage size: ' + (size || 'A4') + '\nLanguage: ' + (lang || 'English') + '\n\n---';
+const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor: ' + a + '\n\n//SETTINGS\nPage size: ' + (size || 'A4') + '\nLanguage: ' + (lang || 'English') + '\n\n---';
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   start('Action.'); k9();
@@ -175,7 +175,7 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   down(); doc('again: back to A4', TP('Night', '', 'A4') + ' @7:13');
   tab(); down();
   doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
-  down(); doc('Français', '---\n\n//PAGE DE TITRE\nTitre: Night\nAuteur: \n\n//PARAMÈTRES DU SCÉNARIO\nFormat: A4\nLangue: Français\n\n--- @8:16');
+  down(); doc('Français', '---\n\n//PAGE DE TITRE\nTitre: Night\nAuteur: \n\n//PARAMÈTRES\nFormat: A4\nLangue: Français\n\n--- @8:16');
   down(); doc('Italiano', '---\n\n//FRONTESPIZIO\nTitolo: Night\nAutore: \n\n//IMPOSTAZIONI\nFormato: A4\nLingua: Italiano\n\n--- @8:16');
   up(); up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n--- @8:16');
   up(); doc('and to English', TP('Night', '') + ' @8:17');
@@ -192,7 +192,7 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   { const ok = /sm-set-on/.test(cm.getLineHandle(8).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with Tab the chip is active (blue)'); }
   k9(); // hide again, then load an older script
   cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:0}); k9();
-  doc('an older title page gets the heading and settings when shown', '---\n\n//TITLE PAGE\nTitle: A\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\nAction. @3:8');
+  doc('an older title page gets the heading and settings when shown', '---\n\n//TITLE PAGE\nTitle: A\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\nAction. @3:8');
   k9();
 }
 {
@@ -217,7 +217,7 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const gone = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
   { const ok = gone; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden title page hides all its lines, cursor or not'); }
-  doc('showing adds the empty lines after and before ---', '---\n\n//TITLE PAGE\nTitle: A\n\nAuthor: B\n\n//SCRIPT SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nAction. @13:0');
+  doc('showing adds the empty lines after and before ---', '---\n\n//TITLE PAGE\nTitle: A\n\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY\n\nAction. @13:0');
 }
 
 {
@@ -245,21 +245,22 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
 {
   cm.setValue('---\n\n//TITLE PAGE\nTitel: \nAutor:in: \n\n//SKRIPTEINSTELLUNGEN\nSeitenformat: US Letter\nSprache: D\n\n---');
   { const want = '---\n\n//TITELSEITE\nTitel: \nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: US Letter\nSprache: Deutsch\n\n---'; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'D is read as Deutsch, everything in German, the old heading renamed'); }
-  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SCRIPT SETTINGS\nPage size: letter\nLanguage: Klingon\n\n---');
-  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SCRIPT SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'unknown values become English and US Letter in their proper form'); }
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: letter\nLanguage: Klingon\n\n---');
+  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'unknown values become English and US Letter in their proper form'); }
   if (/sm-gone/.test(cm.getLineHandle(2).wrapClass || '')) cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   { const ok = /sm-head/.test(cm.getLineHandle(2).wrapClass || '') && /sm-head/.test(cm.getLineHandle(6).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'both headings have the gap below them'); }
-  { const ok = /sm-field/.test(cm.getLineHandle(3).textClass || '') && /sm-field/.test(cm.getLineHandle(4).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title and Author values sit on bars'); }
+  { const ok = /sm-fe7/.test(cm.getLineHandle(3).textClass || '') && /sm-fe8/.test(cm.getLineHandle(4).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'empty Title and Author show a two letter bar where the value starts'); }
   // Locked: the commands Title: and Author: and the headings; the values stay free
   cm.setCursor({line:3, ch:7}); type('Night');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SCRIPT SETTINGS\nPage size: US Letter\nLanguage: English\n\n--- @3:11');
+  { const ok = !/sm-fe/.test(cm.getLineHandle(3).textClass || '') && cm.getLineTokens(3).some(t => t.type === 'smfield' && t.string === 'Nigh'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a typed title carries its own bar, as long as the text'); }
+  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n--- @3:11');
   cm.setCursor({line:3, ch:7}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.setCursor({line:3, ch:2}); type('x');
   cm.setCursor({line:2, ch:5}); type('x');
   cm.setCursor({line:4, ch:0}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.replaceRange('', {line:3, ch:0}, {line:4, ch:3}, '+delete');
-  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SCRIPT SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\n\n---'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works

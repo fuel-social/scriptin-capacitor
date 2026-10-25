@@ -24,9 +24,9 @@
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
   // Up/Down on an active Page size or Language line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SCRIPT SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}},
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}},
     {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES DU SCÉNARIO'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}},
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}},
     {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}}
   ];
   var SIZES = ['A4', 'US Letter'];
@@ -62,7 +62,8 @@
     for (var i = 0; i < LANGS.length; i++){
       for (var k in LANGS[i].head){ if (bare(LANGS[i].head[k]) === bare(m[1])) return k; }
     }
-    if (bare(m[1]) === 'skripteinstellungen') return 'settings'; // the first German name
+    // earlier names are still read (and renamed)
+    if (['skripteinstellungen', 'script settings', 'parametres du scenario'].indexOf(bare(m[1])) >= 0) return 'settings';
     return null;
   }
   // Value of a setting ('size' or 'lang') on the title page; te is the line of the closing ---
@@ -373,8 +374,8 @@
   }
   function widthStyles(){
     var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
-    // Title page fields: a bar in the night colorBlue from the value to the end of an action line (55 characters)
-    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-f' + f + '{background:linear-gradient(to right,transparent calc(16px + ' + f + 'ch - 8px),var(--sm-blue-night) calc(16px + ' + f + 'ch - 8px)) center/100% calc(100% - 2 * var(--sm-inset)) no-repeat}\n';
+    // Title page: an empty Title or Author value shows a bar two letters wide where the value starts
+    for (var f = 2; f <= 24; f++) css += '#sm-editor pre.sm-fe' + f + '{background:linear-gradient(var(--sm-inactive),var(--sm-inactive)) calc(16px + ' + f + 'ch - 8px) 0/2ch 100% no-repeat}\n';
     for (var d = 0; d <= 8; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
@@ -596,7 +597,9 @@
     function hasPre(){ return !!preRange(); }
     // Cursor in a shot block uses the other theme's colorBlue
     function barCursor(){
-      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cm.getCursor().line));
+      var cur = cm.getCursor(), te = preEnd(), fc = cur.line > 0 && cur.line < te ? cmdOf(line(cur.line)) : null;
+      var onField = !!fc && cur.ch > fc.label.length;
+      cm.getWrapperElement().classList.toggle('sm-on-bar', isShotLn(cur.line) || onField);
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas
     function cueParts(ln){
@@ -1266,8 +1269,9 @@
           if (i <= te || isMarkLn(i)){
             cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
             if (i < te && headOf(s)) cm.addLineClass(i, 'wrap', 'sm-head');
+            // An empty Title or Author shows a bar two letters wide where the value will start; typed values carry their own
             var fc = i < te ? cmdOf(s) : null;
-            if (fc && (fc.key === 'title' || fc.key === 'author')) cm.addLineClass(i, 'text', 'sm-field sm-f' + Math.min(fc.label.length + 2, 24));
+            if (fc && (fc.key === 'title' || fc.key === 'author') && isBlank(fc.value)) cm.addLineClass(i, 'text', 'sm-fe' + Math.min(fc.label.length + 1 + (fc.value.charAt(0) === ' ' ? 1 : 0), 24));
             if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
           }
           else if (isSlugLn(i)){
@@ -1369,7 +1373,9 @@
       // A whole new text (a script arriving from the database, or the newer local copy laid over it) is hidden and
       // coloured before the browser paints, so a hidden title page never flashes up as plain text
       var whole = false;
-      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore') whole = true; }
+      // the title page is short and its bars follow every letter, so it is redrawn at once too
+      var te = preEnd();
+      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].from.line <= te) whole = true; }
       clearTimeout(timer);
       if (whole) refresh(); else timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
