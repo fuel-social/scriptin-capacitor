@@ -19,7 +19,55 @@
   // two is title page, everything after the closing --- is script. One line per command: a line that starts with a word
   // and a colon (Title:, Author:) is a command, a line without one continues the command above (a second address line).
   // colorBlue, no space in the pagination, hidden until Cmd+Option+9 (Ctrl+Shift+9)
-  var FENCE = /^---\s*$/, CMD = /^[A-Za-zÀ-ÿ][\wÀ-ÿ ]*:/, PRE_TEMPLATE = '---\n\nTitle: \nAuthor: \n\n---';
+  var FENCE = /^---\s*$/, CMD = /^[A-Za-zÀ-ÿ][\wÀ-ÿ ]*:/;
+  // Script settings on the title page. Language names the headings and commands of the title page in that language, and
+  // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
+  // Up/Down on an active Page size or Language line steps through the values
+  var LANGS = [
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SCRIPT SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language'}, slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}},
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'SKRIPTEINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache'}, slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}},
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES DU SCÉNARIO'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue'}, slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}},
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua'}, slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}}
+  ];
+  var SIZES = ['A4', 'US Letter'];
+  function preTemplate(L){
+    return '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': \n' + L.cmd.author + ': \n\n' + preSettings(L, 'A4') + '\n\n---';
+  }
+  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name; }
+  function bare(v){ return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  // Language from a typed value: its own name or its two letter code, accents and case do not matter; null if unknown
+  function langOf(v){
+    var b = bare(v || '');
+    for (var i = 0; i < LANGS.length; i++){ if (b === bare(LANGS[i].name) || b === LANGS[i].code) return LANGS[i]; }
+    return null;
+  }
+  function sizeOf(v){ return /letter/i.test(v || '') ? 'US Letter' : 'A4'; }
+  // Command on a title page line in any language: {key, label (as written, colon excluded), value}; the longest label
+  // wins, so Autor:in: is read as Autor:in and not as Autor
+  var CMD_LABELS = [];
+  LANGS.forEach(function(L){ Object.keys(L.cmd).forEach(function(k){ CMD_LABELS.push({key:k, label:L.cmd[k]}); }); });
+  CMD_LABELS.sort(function(a, b){ return b.label.length - a.label.length; });
+  function cmdOf(s){
+    for (var i = 0; i < CMD_LABELS.length; i++){
+      var c = CMD_LABELS[i], n = c.label.length;
+      if (s.length > n && s.charAt(n) === ':' && s.slice(0, n).toLowerCase() === c.label.toLowerCase()) return {key:c.key, label:s.slice(0, n), value:s.slice(n + 1)};
+    }
+    return null;
+  }
+  // A heading of the title page in any language: 'title' or 'settings', or null
+  function headOf(s){
+    var m = s.match(/^\/\/\s*(.*?)\s*$/);
+    if (!m) return null;
+    for (var i = 0; i < LANGS.length; i++){
+      for (var k in LANGS[i].head){ if (bare(LANGS[i].head[k]) === bare(m[1])) return k; }
+    }
+    return null;
+  }
+  // Value of a setting ('size' or 'lang') on the title page; te is the line of the closing ---
+  function preValue(get, te, key){
+    for (var k = 1; k < te; k++){ var c = cmdOf(get(k)); if (c && c.key === key) return c.value.trim(); }
+    return null;
+  }
   // Line of the closing ---, or -1 when the script has no title page; get(i) returns line i
   function titleEnd(get, n){
     if (!n || !FENCE.test(get(0))) return -1;
@@ -144,6 +192,8 @@
   // line lengths stay as they are.
   var MAX_PAGES = 3;
   var PAGE_LINES = 58, SPACE_SLUG = 2, SPACE_OTHER = 1;
+  // US Letter (11 in) by the same rule: 1 inch top and bottom, 6 lines per inch = 54 lines; the line lengths stay
+  var LETTER_LINES = 54, A4_LINES = PAGE_LINES;
   var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
   // Start offsets of the printed lines of s, wrapped word by word at width characters
   function wrapStarts(s, width){
@@ -245,6 +295,8 @@
     return null;
   }
   function paginate(text){
+    var lines = text.split('\n'), te = titleEnd(function(k){ return lines[k]; }, lines.length);
+    var PAGE_LINES = sizeOf(preValue(function(k){ return lines[k]; }, te, 'size')) === 'US Letter' ? LETTER_LINES : A4_LINES;
     var els = pageElements(text), y = 0, starts = [];
     for (var i = 0; i < els.length; i++){
       var el = els[i], guard = 0;
@@ -692,7 +744,7 @@
     // line right below it, Tab stays. Shift+Enter adds a line to the command (a second address line)
     function preStep(ln, isEnter){
       var te = preEnd();
-      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); return; }
+      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); if (settingOf(nx)) activeCue = nx; return; }
       if (!isEnter || ln >= te) return;
       var last = te - 1;
       while (last > 0 && isBlank(line(last))) last--;
@@ -900,8 +952,25 @@
       put('.t ' + TRANS_LIST[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
       caret(ln, line(ln).length);
     }
+    // A Page size or Language line of the title page: 'size' or 'lang', else null
+    function settingOf(ln){
+      var te = preEnd();
+      if (ln <= 0 || ln >= te) return null;
+      var c = cmdOf(line(ln));
+      return c && (c.key === 'size' || c.key === 'lang') ? c.key : null;
+    }
+    // Up/Down on an active setting step through its values, in a circle
+    function settingArrow(ln, dir){
+      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : LANGS.map(function(L){ return L.name; });
+      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
+      i = i < 0 ? 0 : (i + dir + vals.length) % vals.length;
+      put(' ' + vals[i], {line:ln, ch:c.label.length + 1}, {line:ln, ch:line(ln).length});
+      caret(ln, line(ln).length);
+    }
+    function isActiveLn(ln){ return !!(cueParts(ln) || isTransHead(ln) || settingOf(ln)); }
     function arrow(dir){
       var cur = cm.getCursor(), ln = cur.line;
+      if (activeCue === ln && settingOf(ln) && !cm.somethingSelected()){ settingArrow(ln, dir); return; }
       if (activeCue === ln && isTransHead(ln) && !cm.somethingSelected()){ transArrow(ln, dir); return; }
       var c = cueParts(ln);
       if (!c || activeCue !== ln || cm.somethingSelected()) return CodeMirror.Pass;
@@ -1117,7 +1186,7 @@
     // Typed , and ( : take the character back out, apply the shortcut, or put it back; other characters may add the slug/shot space or complete a name
     cm.on('inputRead', function(_cm, ch){
       if (ch.text.length !== 1) return;
-      if (cueParts(cm.getCursor().line) || isTransHead(cm.getCursor().line)) activeCue = cm.getCursor().line;
+      if (isActiveLn(cm.getCursor().line)) activeCue = cm.getCursor().line;
       var t = ch.text[0];
       if (t !== ',' && t !== '('){
         if (t.length === 1 && !autoSpace()){ completeName(); completeSlug(); }
@@ -1234,10 +1303,23 @@
       if (!isBlank(line(te - 1))) cm.replaceRange('\n', {line:te, ch:0}, {line:te, ch:0}, '+pre');
       if (!isBlank(line(1))) cm.replaceRange('\n', {line:0, ch:line(0).length}, {line:0, ch:line(0).length}, '+pre');
     }
+    // The language on the title page names its headings and commands: switching Language: English to Deutsch turns
+    // Title: into Titel: and //TITLE PAGE into //TITELSEITE; values stay as written
+    function preLabels(){
+      var te = preEnd();
+      if (te < 0) return;
+      var L = langOf(preValue(line, te, 'lang'));
+      if (!L) return;
+      for (var k = 1; k < te; k++){
+        var s = line(k), h = headOf(s), c = cmdOf(s);
+        if (h && s !== '//' + L.head[h]) cm.replaceRange('//' + L.head[h], {line:k, ch:0}, {line:k, ch:s.length}, '+pre');
+        else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
+      }
+    }
     function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); paginatePages(); }
     var timer = null;
     cm.on('changes', function(_cm, list){
-      preGaps();
+      preGaps(); preLabels();
       for (var k = 0; k < list.length; k++){ if (list[k].origin !== ORIGIN){ cyc = null; break; } }
       // A whole new text (a script arriving from the database, or the newer local copy laid over it) is hidden and
       // coloured before the browser paints, so a hidden title page never flashes up as plain text
@@ -1264,12 +1346,19 @@
       if (preOn){
         if (!r){
           var rest = cm.getValue().replace(/^\s+/, '');
-          cm.replaceRange(PRE_TEMPLATE + (rest ? '\n\n' : ''), {line:0, ch:0}, {line:0, ch:0}, '+pre');
+          cm.replaceRange(preTemplate(LANGS[0]) + (rest ? '\n\n' : ''), {line:0, ch:0}, {line:0, ch:0}, '+pre');
+          r = preRange();
+        } else if (preValue(line, r.e, 'size') === null && preValue(line, r.e, 'lang') === null){
+          // A title page from before the settings gets them, in English and A4 (unhidden first, hidden text is read only)
+          refresh();
+          var last = r.e - 1;
+          while (last > 0 && isBlank(line(last))) last--;
+          cm.replaceRange('\n\n' + preSettings(LANGS[0], 'A4'), {line:last, ch:line(last).length}, null, '+pre');
           r = preRange();
         }
         refresh(); // unhide first, a cursor cannot be placed inside hidden lines
         var first = 1;
-        while (first < r.e && isBlank(line(first))) first++;
+        while (first < r.e - 1 && !isPreHead(first, r.e)) first++;
         cm.setCursor({line:first, ch:line(first).length});
         window.scrollTo(0, 0);
       } else if (r){
@@ -1304,7 +1393,7 @@
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
       clicked = true;
-      setTimeout(function(){ clicked = false; var ln = cm.getCursor().line; activeCue = (cueParts(ln) || isTransHead(ln)) ? ln : -1; }, 0);
+      setTimeout(function(){ clicked = false; var ln = cm.getCursor().line; activeCue = isActiveLn(ln) ? ln : -1; }, 0);
     });
     cm.on('cursorActivity', function(){
       if (!clicked && cm.getCursor().line !== activeCue) activeCue = -1;

@@ -64,7 +64,14 @@ eq('=== at the very top adds no empty page', starts('===\n\nOne.'), []);
   const streets = ex.filter(x => x[0] === '.e STREET - DAY'), johns = ex.filter(x => x[0] === ',JOHN,');
   eq('Final Draft A4: page 2 at the second EXT. STREET', P58(text)[0].line, streets[1][1]);
   eq('Final Draft A4: page 3 at the last JOHN', P58(text)[1].line, johns[7][1]);
-  eq('Final Draft A4: three pages', P58(text).length, 2);
+  // Page size on the title page: US Letter has 54 lines (A4 here has __LINES); the title page itself takes no space
+{
+  const pre = (size) => '---\n\n//TITLE PAGE\nTitle: X\n\n//SCRIPT SETTINGS\nPage size: ' + size + '\nLanguage: English\n\n---\n\n';
+  const off = pre('A4').split('\n').length - 1;
+  eq('US Letter: 54 lines, the 28th action starts page 2', P(pre('US Letter') + act(40)).map(p => p.line - off), [54]);
+  eq('Deutsch labels read too: Seitenformat: US Letter', P(pre('x').replace('Page size: x', 'Seitenformat: US Letter') + act(40)).map(p => p.line - off), [54]);
+}
+eq('Final Draft A4: three pages', P58(text).length, 2);
 }
 
 console.log(fails ? fails + ' failed' : 'all passed');
