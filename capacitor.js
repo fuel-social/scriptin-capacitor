@@ -1277,11 +1277,13 @@
       spacedFor = curLn;
       // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
       for (var k = 0; k < ps.length; k++){ if (ps[k].type === 'note' && ps[k].scene >= 0) noted[ps[k].scene] = 1; }
+      // Each line's classes are worked out first and written only where they differ: rewriting every line on every
+      // keystroke made CodeMirror draw the whole script again each time
+      var W = [], X = [];
+      function want(i, where, cls){ var a = where === 'wrap' ? W : X; a[i] = a[i] ? a[i] + ' ' + cls : cls; }
       cm.operation(function(){
         for (var i = 0; i < cm.lineCount(); i++){
-          cm.removeLineClass(i, 'wrap');
-          cm.removeLineClass(i, 'text');
-          if (i <= topGone){ cm.addLineClass(i, 'wrap', 'sm-gone'); continue; }
+          if (i <= topGone){ want(i, 'wrap', 'sm-gone'); continue; }
           var s = line(i);
           // Final Draft spacing: two empty lines before a slugline, one before everything else (shots included); the writer
           // types one, so the empty line right above a slugline is shown at double height
@@ -1289,25 +1291,29 @@
           if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
             var nx = i + 1;
             while (nx < cm.lineCount() && empty(nx)) nx++;
-            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && i - 1 > te) cm.addLineClass(i, 'wrap', 'sm-sp2');
+            if (nx < cm.lineCount() && nx !== curLn && isSlugHead(nx) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
           if (i <= te || isMarkLn(i)){
-            cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
-            if (i < te && headOf(s)) cm.addLineClass(i, 'wrap', 'sm-head');
-            if (i === activeCue && settingOf(i)) cm.addLineClass(i, 'wrap', 'sm-set-on');
-            chipCursor();
+            want(i, 'text', 'sm-t-act sm-t-note');
+            if (i < te && headOf(s)) want(i, 'wrap', 'sm-head');
+            if (i === activeCue && settingOf(i)) want(i, 'wrap', 'sm-set-on');
           }
           else if (isSlugLn(i)){
-            cm.addLineClass(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
-            cm.addLineClass(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
+            want(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
+            want(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s), 8) : 'sm-t-act');
           }
-          else if (isNoteLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-note');
-          else if (isShotLn(i)) cm.addLineClass(i, 'text', 'sm-t-act sm-t-shot');
-          else if (isTransLn(i)){ cm.addLineClass(i, 'text', 'sm-t-trans'); tk += i + ','; }
+          else if (isNoteLn(i)) want(i, 'text', 'sm-t-act sm-t-note');
+          else if (isShotLn(i)) want(i, 'text', 'sm-t-act sm-t-shot');
+          else if (isTransLn(i)){ want(i, 'text', 'sm-t-trans'); tk += i + ','; }
           else if (isCueLn(i)) {}
-          else if (blockCue(i) >= 0) cm.addLineClass(i, 'text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
-          else cm.addLineClass(i, 'text', 'sm-t-act');
+          else if (blockCue(i) >= 0) want(i, 'text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
+          else want(i, 'text', 'sm-t-act');
+        }
+        for (var j = 0; j < cm.lineCount(); j++){
+          var h = cm.getLineHandle(j), w = W[j] || '', x = X[j] || '';
+          if ((h.wrapClass || '') !== w){ cm.removeLineClass(j, 'wrap'); if (w) cm.addLineClass(j, 'wrap', w); }
+          if ((h.textClass || '') !== x){ cm.removeLineClass(j, 'text'); if (x) cm.addLineClass(j, 'text', x); }
         }
       });
       if (tk !== transKey){ transKey = tk; cm.refresh(); }
@@ -1394,7 +1400,7 @@
         else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
       }
     }
-    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); }
+    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); undoing = false; }
     // A hidden title page always has a script line below it: with nothing after the closing --- the cursor would stay
     // invisible inside the hidden title page, and Tab or typing would go there
     function belowPre(){
@@ -1514,7 +1520,14 @@
         var c = cmdOf(s);
         return !!c && (c.key === 'title' || c.key === 'author') && pos.ch < c.label.length + 1 + (s.charAt(c.label.length + 1) === ' ' ? 1 : 0);
       }
-      if (te > 0 && (locked(ch.from) || (b !== a || ch.to.ch !== ch.from.ch) && locked(ch.to))) ch.cancel();
+      if (te > 0 && (locked(ch.from) || (b !== a || ch.to.ch !== ch.from.ch) && locked(ch.to))) { ch.cancel(); return; }
+      // The opening and the closing --- stay as they are (Backspace at the start of the script would join it to the
+      // closing --- and the title page would be gone); a change that takes the whole title page with it still works
+      if (te > 0){
+        var whole = a === 0 && ch.from.ch === 0 && (b > te || (b === te && ch.to.ch === line(te).length));
+        var fence = function(l){ return l === 0 || l === te; };
+        if (!whole && (fence(a) || fence(b))) ch.cancel();
+      }
     });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
@@ -1539,7 +1552,7 @@
     measureBand();
     paginatePages();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); placePages(); });
-    window.addEventListener('resize', placePages);
+    window.addEventListener('resize', function(){ measureBand(); placePages(); });
   }
   // Load CodeMirror plus the mark-selection addon (selected text gets its own class, so the highlight can match the text height)
   var BASE = 'https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/';

@@ -369,6 +369,29 @@ const TP = (t, a, size, lang) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor:
   cm.triggerOnKeyDown({ type:'keydown', keyCode:27, key:'Escape', preventDefault(){}, stopPropagation(){} });
 }
 
+// The --- of a visible title page stay intact; Cmd+A and Backspace still delete everything; unchanged lines are not redrawn
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const bs = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\n\n---\n\n.i HOUSE - DAY';
+  cm.setValue(T); cm.clearHistory();
+  if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  cm.setCursor({line:12, ch:0}); bs(); bs();
+  { const ok = cm.getValue().split('\n').filter(l => /^---\s*$/.test(l)).length === 2; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Backspace at the start of the script never joins it to the closing ---' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-30)))); }
+  cm.replaceRange('F', {line:10, ch:3}, null, '+input');
+  cm.replaceRange('F', {line:0, ch:3}, null, '+input');
+  { const ok = cm.getLine(0) === '---' && /^---$/m.test(cm.getValue().split('\n').slice(1).join('\n')); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'nothing can be typed onto a ---'); }
+  // a no-op redraw changes no line
+  let n = 0; const orig = cm.removeLineClass; cm.removeLineClass = function(){ n++; return orig.apply(this, arguments); };
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:54, key:'6', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:54, key:'6', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.removeLineClass = orig;
+  { const ok = n === 0; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a redraw that changes nothing leaves every line alone (' + n + ' lines touched)'); }
+  cm.execCommand('selectAll'); bs();
+  { const ok = cm.getValue() === ''; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'with the title page shown, Cmd+A and Backspace delete everything' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(0, 30)))); }
+  k9();
+}
+
 // Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
 const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
