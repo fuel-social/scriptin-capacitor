@@ -1509,7 +1509,7 @@
     // Cmd+Option+8 (Ctrl+Shift+8); shown in every view for the sluglines that are visible.
     var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
     function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
-    var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes');
+    var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes'), cmdLayer = marginLayer('sm-scenes sm-cmds'), cmdStarts = [];
     function fill(layer, labels, cls){
       while (layer.children.length > labels.length) layer.removeChild(layer.lastChild);
       while (layer.children.length < labels.length){ var n = document.createElement('div'); n.className = cls; layer.appendChild(n); }
@@ -1521,7 +1521,7 @@
       var showPages = pagesOn && view === 1;
       pageLayer.style.display = showPages ? '' : 'none';
       sceneLayer.style.display = scenesOn ? '' : 'none';
-      if (!showPages && !scenesOn) return;
+      if (!showPages && !scenesOn && !cmdStarts.length) return;
       var wrap = cm.getWrapperElement(), origin = {line:0, ch:0};
       // From the editor's top edge to the top of its first line (the lines' padding)
       var lead = cm.charCoords(origin, 'window').top - wrap.getBoundingClientRect().top - cm.charCoords(origin, 'local').top;
@@ -1531,6 +1531,7 @@
       }
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
+      place(cmdLayer, cmdStarts);
     }
     function paginatePages(){
       pageStarts = paginate(cm.getValue());
@@ -1545,6 +1546,11 @@
         sceneStarts.push({line:i, ch:0}); labels.push(String(scene));
       }
       fill(sceneLayer, labels, 'sm-scenenum');
+      // A recognised export command gets ↵ in the left margin, where scene numbers stand: Enter runs it
+      var te = preEnd();
+      cmdStarts = [];
+      for (var c = te + 1; c < cm.lineCount(); c++) if (!hid[c] && isCmdLn(c)) cmdStarts.push({line:c, ch:0});
+      fill(cmdLayer, cmdStarts.map(function(){ return '\u21b5'; }), 'sm-scenenum sm-cmdmark');
       placePages();
     }
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }

@@ -498,7 +498,9 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
 
 // A finished /pdf alone in its paragraph is shown as a command (colorRed)
 cm.setValue('Action.\n\n/pdf'); eq2('/pdf alone: shown as a command', /sm-t-cmd/.test(cm.getLineHandle(2).textClass || ''), true);
+eq2('/pdf alone: ↵ in the left margin', [...w.document.querySelectorAll('.sm-cmdmark')].map(e => e.textContent).join(''), '\u21b5');
 cm.setValue('Action.\n\n/pd'); eq2('/pd not yet', /sm-t-cmd/.test(cm.getLineHandle(2).textClass || ''), false);
+eq2('/pd: no ↵', w.document.querySelectorAll('.sm-cmdmark').length, 0);
 cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-t-cmd/.test(cm.getLineHandle(1).textClass || ''), false);
 
 // Mode: Day or Night on the title page, Up/Down; the editor takes the colours of OptS_theme_ui light or dark at once
