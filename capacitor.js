@@ -1809,11 +1809,21 @@
       // hundreds of page numbers cost next to nothing), plus the text's offset in its line; one inside a line (a page
       // that begins in the middle of a paragraph) is measured. Positions are only written when they change
       var off = cm.charCoords(origin, 'local').top - cm.heightAtLine(0, 'local');
+      // a page beginning inside a line: how far below the line's top that character stands is measured once and kept
+      // with the line until its text changes, then added to the line's top from the height map
+      function inLine(p){
+        var h = cm.getLineHandle(p.line), m = h.smIn;
+        var w = cm.display.lineDiv.clientWidth + '|' + cm.defaultCharWidth() + '|' + (h.textClass || '');
+        if (!m || m.text !== h.text || m.ch !== p.ch || m.w !== w){
+          m = h.smIn = {text:h.text, ch:p.ch, w:w, dy:cm.charCoords(p, 'local').top - cm.heightAtLine(p.line, 'local')};
+        }
+        return cm.heightAtLine(p.line, 'local') + m.dy;
+      }
       function place(layer, starts){
         var t0 = wrap.offsetTop + 'px', tops = layer.smTops || (layer.smTops = []);
         if (layer.smTop !== t0){ layer.style.top = t0; layer.smTop = t0; }
         for (var k = 0; k < starts.length; k++){
-          var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : cm.charCoords(p, 'local').top) + lead;
+          var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : inLine(p)) + lead;
           if (tops[k] !== y){ layer.children[k].style.top = y + 'px'; tops[k] = y; }
         }
       }

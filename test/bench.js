@@ -17,7 +17,7 @@ w.__smMarkSelection = 1;
 const Orig = w.CodeMirror; let cm;
 w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); return cm; }, Orig);
 w.CodeMirror.prototype = Orig.prototype;
-w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
+if (process.env.BENCH_PLAIN) { w.CodeMirror(w.document.getElementById('sm-editor'), {lineWrapping:true, viewportMargin:Infinity}); } else w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 function script(n){
   const out = ['---\n\n//TITLE PAGE\nTitle: Bench\nAuthor: Test\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---'];
@@ -32,6 +32,7 @@ setTimeout(async function(){
   cm.setValue(text); await sleep(60);
   const load = Number(process.hrtime.bigint() - t) / 1e6;
   const pages = w.document.querySelectorAll('.sm-pagenum').length + 1;
+  // with BENCH_PLAIN a bare CodeMirror with the same text: what CodeMirror and jsdom cost alone
   // typing in the middle of the script, then at its end: our code's cpu time per keystroke, the deferred refresh included
   async function keys(line, n){
     cm.setCursor({line, ch:cm.getLine(line).length});
@@ -44,7 +45,7 @@ setTimeout(async function(){
     return {median:+times[n >> 1].toFixed(1), max:+times[n - 1].toFixed(1)};
   }
   const mid = Math.floor(cm.lineCount() / 2); let ml = mid; while (!/^She waits/.test(cm.getLine(ml))) ml++;
-  const r1 = await keys(ml, 15), r2 = await keys(cm.lineCount() - 1, 15);
+  const K = +(process.env.BENCH_KEYS || 15), r1 = await keys(ml, K), r2 = await keys(cm.lineCount() - 1, K);
   console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2}));
   process.exit(0);
 }, 150);
