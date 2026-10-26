@@ -1004,6 +1004,19 @@
       caret(ln + 2, caretFor(t));
       cyc = {line:ln + 2, pos:0, text:t};
     }
+    function afterPre(te){
+      var first = te + 1;
+      while (first <= cm.lastLine() && isBlank(line(first))) first++;
+      var t = RING[0], at = te + 2;
+      if (first > cm.lastLine()){
+        // nothing below the title page yet: the slugline goes on the line after the empty one
+        if (at > cm.lastLine()) put('\n' + (te + 1 > cm.lastLine() ? '\n' : '') + t, {line:cm.lastLine(), ch:line(cm.lastLine()).length});
+        else put(t, {line:at, ch:0}, {line:at, ch:line(at).length});
+      } else put(t + '\n\n', {line:first, ch:0});
+      at = first > cm.lastLine() ? te + 2 : first;
+      caret(at, caretFor(t));
+      cyc = {line:at, pos:0, text:t};
+    }
     function ringPos(ln, s){
       if (cyc && cyc.line === ln && cyc.text === s) return cyc.pos;
       if (/^\.i\s*$/i.test(s)) return 0;
@@ -1031,6 +1044,9 @@
     function tab(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd()){ preStep(ln, false); return; }
+      // Tab on the closing --- of the title page starts the script with a slugline .i, as on an empty page: on the empty
+      // line below it, or in front of the first element (an empty line between)
+      if (ln === preEnd()){ afterPre(ln); return; }
       if (tabSlug(ln)) return;
       if (isTransLn(ln)){ afterTrans(ln, s); return; }
       var cb = blockCue(ln);

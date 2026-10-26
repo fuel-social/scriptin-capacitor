@@ -570,6 +570,22 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   start('.i HOUSE - DAY\n\n'); type('.eh'); check('no title page: on', '".e HOUSE" cursor 2:4 selected "OUSE"');
 }
 
+// Tab on the closing --- of the title page starts the script with .i
+{
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---';
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const show = () => { if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); };
+  for (const [label, text, want] of [
+    ['nothing below: .i two lines below ---', T, T + '\n\n.i  @14:3'],
+    ['empty lines below: .i two lines below ---', T + '\n\n', T + '\n\n.i  @14:3'],
+    ['script below: .i in front of it', T + '\n\nAction.', T + '\n\n.i \n\nAction. @14:3']]){
+    cm.setValue(text); show(); cm.setCursor({line:12, ch:3}); tab(); doc(label, want);
+  }
+  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(12).wrapClass || '') || cm.getCursor().line < 12) k9(); cm.setCursor({line:12, ch:3}); tab(); tab();
+  doc('Tab again goes on in the ring: .e', T + '\n\n.e  @14:3');
+  k9();
+}
+
 // Empty cues get a name on Reformat: the one who spoke before the last speaker, across scenes; one character: that one
 start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?\n\n,,\nGut, danke.\n\n.e STREET - DAY\n\n,,\nUnd jetzt?'); reformatAll();
 eq2('Reformat fills empty cues alternately, across a scene change', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',MARIA, ,THOMAS, ,MARIA, ,THOMAS, ,MARIA,');
