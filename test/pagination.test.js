@@ -138,6 +138,9 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   const plain = 'x'.repeat(50) + ' abcd efgh';
   eq('markers take no width: the same wrap as without them', Lay('_' + plain.replace(' abcd', '_ abcd'), true).pages[0].length, Lay(plain, true).pages[0].length);
   eq('a 55 character line with markers stays one printed line', Lay('_' + 'y'.repeat(27) + '_ *' + 'z'.repeat(26) + '*', true).pages[0].length, 1);
+  { const base = act(26) + '\n\nShe walks ' + 'very slowly towards the door and stops '.repeat(2) + 'there.';
+    const marked = base.replace('very slowly', '_*very*_ _*slowly*_').replace('towards', '*towards*');
+    eq('page starts with markers are those of the same text without them', starts(marked).map(x => x.split(':')[0]), starts(base).map(x => x.split(':')[0])); }
   eq('emphasis in dialogue', segs(',ANNA,\nI _said_ no.'), ' / [I ]U[said][ no.]');
 }
 
