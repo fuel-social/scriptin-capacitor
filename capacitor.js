@@ -1742,7 +1742,9 @@
       var whole = false;
       // the title page is short and its bars follow every letter, so it is redrawn at once too
       var te = preEnd();
-      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].from.line <= te + 1) whole = true; }
+      // Edits the editor makes itself (a new paragraph from Enter or Tab, .i or .s getting their space, a ring step) change
+      // the spacing and the bars, so they are drawn at once too: otherwise the new line first shows unformatted for a moment
+      for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].origin === ORIGIN || list[w].from.line <= te + 1) whole = true; }
       clearTimeout(timer);
       if (whole) refresh(); else timer = setTimeout(refresh, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
