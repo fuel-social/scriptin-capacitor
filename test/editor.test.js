@@ -525,6 +525,9 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   cm.setCursor({line:ln, ch:3}); if (cm.getCursor().line !== ln){ k9(); cm.setCursor({line:ln, ch:3}); } tab(); down();
   eq2('Down on Modus: Nacht', cm.getLine(ln + 1), 'Modus: Nacht');
   eq2('Nacht: dark colours at once, the light blue for the shot cursor', bg(), '#323232 #009ECE');
+  // the logo follows through bubble_fn_mode (JavaScript to Bubble element j2bMode)
+  const sent = []; w.bubble_fn_mode = v => sent.push(v);
+  down(); down(); eq2('logo: Bubble gets light, then dark', sent.join(' '), 'light dark');
   down(); eq2('again: Tag', cm.getLine(ln + 1) + ' ' + bg(), 'Modus: Tag #F9F9F9 #81C7E3');
   down(); cm.setCursor({line:ln, ch:3}); tab(); cm.setCursor({line:ln - 1, ch:3}); tab(); down();
   eq2('Language to Français: Nacht becomes Nuit', cm.getValue().split('\n').find(l => /^Mode:/.test(l)), 'Mode: Nuit');

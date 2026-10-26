@@ -1696,6 +1696,17 @@
       // The footer (reusable ♻️ Footer) follows the script's mode too: text and lines in colorForeground, icons light or dark
       document.documentElement.style.setProperty('--sm-page-fg', t.colorforeground);
       footerIcons();
+      tellMode();
+    }
+    // The logo (logo_scriptinMachine on the page scriptin) follows the mode too: Bubble gets 'light' or 'dark' through the
+    // Toolbox "JavaScript to Bubble" element j2bMode, whose value picks the logo of OptS_theme_ui light or dark.
+    // Bubble may not have made bubble_fn_mode yet while the page loads, so it is tried again for a while
+    var modeTimer = null, modeTries = 0;
+    function tellMode(){
+      clearTimeout(modeTimer);
+      var fn = window.bubble_fn_mode;
+      if (typeof fn === 'function'){ modeTries = 0; fn(THEMES[themeOn]); }
+      else if (modeTries++ < 40) modeTimer = setTimeout(tellMode, 250);
     }
     // Social icons in the footer: the one for this mode from OptS_social_platform, found by the link next to it
     // (Bubble picks them by the Current User's theme, which a visitor who is not signed in does not have)
