@@ -1110,9 +1110,9 @@
     function tab(){
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd()){ preStep(ln, false); return; }
-      // Tab on the closing --- of the title page starts the script with a slugline .i, as on an empty page: on the empty
-      // line below it, or in front of the first element (an empty line between)
-      if (ln === preEnd()){ afterPre(ln); return; }
+      // Tab on the closing --- of the title page, or on the empty line right below it, starts the script with a slugline .i,
+      // as on an empty page: one empty line below the ---, or in front of the first element (an empty line between)
+      if (ln === preEnd() || (preEnd() >= 0 && ln === preEnd() + 1 && isBlank(s))){ afterPre(preEnd()); return; }
       if (tabSlug(ln)) return;
       if (isTransLn(ln)){ afterTrans(ln, s); return; }
       var cb = blockCue(ln);
