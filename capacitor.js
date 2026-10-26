@@ -26,18 +26,18 @@
   var FENCE = /^---\s*$/, CMD = /^[A-Za-zÀ-ÿ][\wÀ-ÿ ]*:/;
   // Script settings on the title page. Language names the headings and commands of the title page in that language, and
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
-  // Up/Down on an active Page size or Language line steps through the values
+  // Up/Down on an active Page size, Language, Autocomplete or Mode line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language', mode:'Mode'}, modes:['Day', 'Night'], slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language', auto:'Autocomplete', mode:'Mode'}, modes:['Day', 'Night'], autos:['On', 'Off'], slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
      time:['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'], ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
      trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', mode:'Modus'}, modes:['Tag', 'Nacht'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', auto:'Autovervollständigung', mode:'Modus'}, modes:['Tag', 'Nacht'], autos:['Ein', 'Aus'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
      time:['TAG', 'NACHT', 'MORGEN', 'NACHMITTAG', 'ABEND', 'MORGENDÄMMERUNG', 'ABENDDÄMMERUNG', 'MAGIC HOUR', 'CONTINUOUS', 'SPÄTER', 'MOMENTE SPÄTER', 'GLEICH', 'GLEICHE ZEIT', 'AM NÄCHSTEN TAG'], ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue', mode:'Mode'}, modes:['Jour', 'Nuit'], slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
+    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue', auto:'Autocomplétion', mode:'Mode'}, modes:['Jour', 'Nuit'], autos:['Activée', 'Désactivée'], slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
      time:['JOUR', 'NUIT', 'MATIN', 'APRÈS-MIDI', 'SOIR', 'AUBE', 'CRÉPUSCULE', "L'HEURE BLEUE", 'CONTINU', 'PLUS TARD', 'QUELQUES INSTANTS PLUS TARD', 'MÊME', 'EN MÊME TEMPS', 'LE LENDEMAIN'], ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
      trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', mode:'Modalità'}, modes:['Giorno', 'Notte'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', auto:'Autocompletamento', mode:'Modalità'}, modes:['Giorno', 'Notte'], autos:['Attivo', 'Disattivo'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
      time:['GIORNO', 'NOTTE', 'MATTINA', 'POMERIGGIO', 'SERA', 'ALBA', 'TRAMONTO', 'ORA MAGICA', 'CONTINUO', 'PIÙ TARDI', 'POCO DOPO', 'STESSO', 'STESSO MOMENTO', 'IL GIORNO DOPO'], ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
@@ -54,13 +54,20 @@
   function preTemplate(L){
     return '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': \n' + L.cmd.author + ': \n\n' + preSettings(L, 'A4') + '\n\n---';
   }
-  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.mode + ': ' + L.modes[0]; }
+  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[0] + '\n' + L.cmd.mode + ': ' + L.modes[0]; }
   // Mode of this script: 0 day, 1 night (colours of OptS_theme_ui light and dark); the value in any language, Day by default
   var THEMES = ['light', 'dark'];
   function modeOf(v){
     var b = bare(v || '');
     for (var l = 0; l < LANGS.length; l++){ for (var i = 0; i < 2; i++){ if (b === bare(LANGS[l].modes[i])) return i; } }
     return b === 'dark' ? 1 : 0;
+  }
+  // Autocomplete of this script: 0 on, 1 off (names, slugline locations and times of day; transitions are not affected);
+  // the value in any language, on by default
+  function autoOf(v){
+    var b = bare(v || '');
+    for (var l = 0; l < LANGS.length; l++){ if (b === bare(LANGS[l].autos[1])) return 1; }
+    return b === 'off' ? 1 : 0;
   }
   function bare(v){ return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   // Language from a typed value: its own name or its two letter code, accents and case do not matter; null if unknown
@@ -547,7 +554,7 @@
             if (!c){ stream.skipToEnd(); return null; }
             while (at < stream.string.length && stream.string.charAt(at) === ' ') at++;
             if (stream.pos < at){ stream.pos = at; return null; }
-            stream.skipToEnd(); return c.key === 'size' || c.key === 'lang' || c.key === 'mode' ? 'smsetval' : 'smfield';
+            stream.skipToEnd(); return c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'mode' ? 'smsetval' : 'smfield';
           }
           if (stream.sol()){
             var para = state.prevBlank;
@@ -1244,17 +1251,17 @@
       put('.t ' + list[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
       caret(ln, line(ln).length);
     }
-    // A Page size, Language or Mode line of the title page: 'size', 'lang' or 'mode', else null
+    // A Page size, Language, Autocomplete or Mode line of the title page: 'size', 'lang', 'auto' or 'mode', else null
     function settingOf(ln){
       var te = preEnd();
       if (ln <= 0 || ln >= te) return null;
       var c = cmdOf(line(ln));
-      return c && (c.key === 'size' || c.key === 'lang' || c.key === 'mode') ? c.key : null;
+      return c && (c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'mode') ? c.key : null;
     }
     // Up/Down on an active setting step through its values, in a circle
     function settingArrow(ln, dir){
-      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : c.key === 'mode' ? scriptLang().modes : LANGS.map(function(L){ return L.name; });
-      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : c.key === 'mode' ? vals[modeOf(c.value)] : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
+      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : c.key === 'mode' ? scriptLang().modes : c.key === 'auto' ? scriptLang().autos : LANGS.map(function(L){ return L.name; });
+      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : c.key === 'mode' ? vals[modeOf(c.value)] : c.key === 'auto' ? vals[autoOf(c.value)] : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
       i = i < 0 ? 0 : (i + dir + vals.length) % vals.length;
       // the new value and the renamed headings and commands are one change, so one Cmd+Z takes both back
       cm.operation(function(){
@@ -1296,6 +1303,8 @@
       }
       return CodeMirror.Pass;
     }
+    // Autocomplete on the title page: names and sluglines are completed only when it is on (or there is no title page)
+    function autoOn(){ return autoOf(preValue(line, preEnd(), 'auto')) === 0; }
     // Typing inside a cue completes the name as soon as the typed letters match exactly one known name
     function completeName(){
       if (cm.somethingSelected()) return;
@@ -1492,7 +1501,7 @@
       if (isActiveLn(cm.getCursor().line)) activeCue = cm.getCursor().line;
       var t = ch.text[0];
       if (t !== ',' && t !== '('){
-        if (t.length === 1 && !autoSpace()){ completeName(); completeSlug(); }
+        if (t.length === 1 && !autoSpace() && autoOn()){ completeName(); completeSlug(); }
         return;
       }
       lastAuto = -1;
@@ -1665,8 +1674,8 @@
       for (var k = 1; k < te; k++){
         var s = line(k), h = headOf(s), c = cmdOf(s);
         // values only come from Up/Down; anything else (an older typed value) becomes the proper one
-        if (c && (c.key === 'lang' || c.key === 'size' || c.key === 'mode')){
-          var want = ' ' + (c.key === 'lang' ? L.name : c.key === 'mode' ? L.modes[modeOf(c.value)] : sizeOf(c.value));
+        if (c && (c.key === 'lang' || c.key === 'size' || c.key === 'auto' || c.key === 'mode')){
+          var want = ' ' + (c.key === 'lang' ? L.name : c.key === 'mode' ? L.modes[modeOf(c.value)] : c.key === 'auto' ? L.autos[autoOf(c.value)] : sizeOf(c.value));
           if (c.value !== want){ cm.replaceRange(want, {line:k, ch:c.label.length + 1}, {line:k, ch:s.length}, '+pre'); s = line(k); c = cmdOf(s); }
         }
         if (h && s !== '//' + L.head[h]) cm.replaceRange('//' + L.head[h], {line:k, ch:0}, {line:k, ch:s.length}, '+pre');
@@ -1796,6 +1805,14 @@
           cm.replaceRange('\n' + ML.cmd.mode + ': ' + ML.modes[0], {line:after, ch:line(after).length}, null, '+pre');
           r = preRange();
         }
+        // Settings from before the Autocomplete line get it, on, right above Mode
+        if (preValue(line, r.e, 'auto') === null && preValue(line, r.e, 'mode') !== null){
+          refresh();
+          var AL = langOf(preValue(line, r.e, 'lang') || '') || LANGS[0];
+          for (var ak = 1; ak < r.e; ak++){ var ac = cmdOf(line(ak)); if (ac && ac.key === 'mode') break; }
+          cm.replaceRange(AL.cmd.auto + ': ' + AL.autos[0] + '\n', {line:ak, ch:0}, null, '+pre');
+          r = preRange();
+        }
         // A title page without its heading gets it, in its own language
         var hasHead = false;
         for (var hk = 1; hk < r.e; hk++){ if (headOf(line(hk)) === 'title') hasHead = true; }
@@ -1831,7 +1848,7 @@
     });
     // The text ends with page MAX_PAGES: typing, Tab and pasting that would start another page are refused;
     // deleting, undo, redo, Reformat and loading a script always work
-    // Page size and Language lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
+    // Page size, Language, Autocomplete and Mode lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
     // Invisible control characters (Ctrl+Option+Z on a Mac types one, CodeMirror shows them as red dots) never get in
     var CTRL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\uFEFF]/g;
