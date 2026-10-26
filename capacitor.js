@@ -1730,9 +1730,17 @@
       var wrap = cm.getWrapperElement(), origin = {line:0, ch:0};
       // From the editor's top edge to the top of its first line (the lines' padding)
       var lead = cm.charCoords(origin, 'window').top - wrap.getBoundingClientRect().top - cm.charCoords(origin, 'local').top;
+      // A number at the first character of a line takes the line's top from CodeMirror's height map (no measuring, so
+      // hundreds of page numbers cost next to nothing), plus the text's offset in its line; one inside a line (a page
+      // that begins in the middle of a paragraph) is measured. Positions are only written when they change
+      var off = cm.charCoords(origin, 'local').top - cm.heightAtLine(0, 'local');
       function place(layer, starts){
-        layer.style.top = wrap.offsetTop + 'px';
-        for (var k = 0; k < starts.length; k++) layer.children[k].style.top = (cm.charCoords(starts[k], 'local').top + lead) + 'px';
+        var t0 = wrap.offsetTop + 'px';
+        if (layer.style.top !== t0) layer.style.top = t0;
+        for (var k = 0; k < starts.length; k++){
+          var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : cm.charCoords(p, 'local').top) + lead, v = y + 'px', el = layer.children[k];
+          if (el.style.top !== v) el.style.top = v;
+        }
       }
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
