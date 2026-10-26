@@ -353,13 +353,22 @@
     if (s.slice(last).trim()) out.push(piece(s.slice(last), ln, ch + last, W_DIALOG));
   }
   function pageElements(text){
-    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length), L = langIn(get, te);
-    var els = [], i = te + 1, brk = false, speaker = null;
-    while (i < lines.length){
-      if (lines[i].trim() === ''){ i++; continue; }
-      if (isMark(lines[i])){ if (BREAK.test(lines[i])) brk = true; i++; continue; }
+    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length);
+    var it = elemReader(get, lines.length, te, langIn(get, te), te + 1), els = [], el;
+    while ((el = it())) els.push(el);
+    return els;
+  }
+  // The printed elements one after the other, read from line `from` on (the first line after the title page, or the
+  // first line of a paragraph); get(k) returns line k of n. Returns a function that gives the next element, or null
+  function elemReader(get, n, te, L, from){
+    var i = from, brk = false, speaker = null;
+    return function(){
+    while (i < n){
+      var li = get(i);
+      if (li.trim() === ''){ i++; continue; }
+      if (isMark(li)){ if (BREAK.test(li)) brk = true; i++; continue; }
       var s0 = i, ps = [];
-      while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) ps.push(lines[i++]);
+      while (i < n && get(i).trim() !== '' && !isMark(get(i))) ps.push(get(i++));
       var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[], kind:'act'}, d, m;
       if (NOTE.test(h)) continue;
       el.brk = brk; brk = false;
@@ -391,9 +400,10 @@
         el.split = true;
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, W_ACTION)); });
       }
-      els.push(el);
+      return el;
     }
-    return els;
+    return null;
+    };
   }
   function elLines(el){ return (el.cue ? 1 : 0) + runLines(el.runs); }
   // Allowed breaks of an action or dialogue element, from the smallest first part to the largest
@@ -465,9 +475,16 @@
   // beside the editor and the PDF both come from here, so they always agree
   function layout(text, print){
     var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length);
-    var size = sizeOf(preValue(get, te, 'size')), PAGE_LINES = size === 'US Letter' ? LETTER_LINES : A4_LINES;
-    var els = pageElements(text), y = 0, starts = [], pages = [[]], L = langIn(get, te);
-    function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); }
+    var size = sizeOf(preValue(get, te, 'size')), L = langIn(get, te);
+    var r = layoutFrom(get, lines.length, te, L, size === 'US Letter' ? LETTER_LINES : A4_LINES, te + 1, print, null);
+    return {starts:r.starts, pages:r.pages, size:size, lang:L, title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
+  }
+  // The layout loop from line `from` on, as if a page began there; stop(pos), when given, is asked at every new page
+  // and ends the run when it returns a number (the editor's incremental page count uses this to stop where the pages
+  // meet the ones it already knows); r.stop is that number, or -1 when the run went to the end
+  function layoutFrom(get, n, te, L, PAGE_LINES, from, print, stop){
+    var next = elemReader(get, n, te, L, from), y = 0, starts = [], pages = [[]], halt = -1;
+    function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); if (stop && halt < 0){ var h = stop(pos); if (typeof h === 'number') halt = h; } }
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
@@ -484,13 +501,14 @@
       });
       if (more) pg.push({y:at, kind:'cue', s:L.more});
     }
-    for (var i = 0; i < els.length; i++){
-      var el = els[i], guard = 0, cont = false;
+    var cur = next(), ahead = cur ? next() : null;
+    for (; cur && halt < 0; cur = ahead, ahead = ahead ? next() : null){
+      var el = cur, guard = 0, cont = false;
       if (el.brk && y > 0) newPage(el.pos);
-      while (guard++ < 1000){
+      while (guard++ < 1000 && halt < 0){
         var sp = y === 0 ? 0 : el.space, h = elLines(el);
         if (el.keep){
-          var nx = els[i + 1], need = sp + h + (nx && !nx.keep ? nx.space + minHead(nx) : 0);
+          var nx = ahead, need = sp + h + (nx && !nx.keep ? nx.space + minHead(nx) : 0);
           if (y > 0 && y + need > PAGE_LINES){ newPage(el.pos); continue; }
           emit(el, el.runs, y + sp, false, cont); y += sp + h; break;
         }
@@ -506,7 +524,7 @@
         newPage(el.pos);
       }
     }
-    return {starts:starts, pages:pages, size:size, lang:L, title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
+    return {starts:starts, pages:pages, stop:halt};
   }
   function paginate(text){ return layout(text, false).starts; }
   // ---- PDF export (/pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
@@ -866,7 +884,26 @@
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
     function isCmdLn(ln){ return CMD_EXPORT.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))); }
-    function preEnd(){ return titleEnd(line, cm.lineCount()); }
+    // The closing --- is looked up very often (every paragraph test asks for it), so the answer is kept with the line
+    // handles and texts it was read from; it is reused only while line 0 and the closing line are the same handles at the
+    // same places and no line of the title page has changed its text, otherwise it is read again
+    var teMemo = null;
+    function preEnd(){
+      var M = teMemo, n = cm.lineCount();
+      if (M && M.n === n){
+        if (M.te < 0){ if (!M.open && cm.getLineHandle(0) === M.h[0] && M.h[0].text === M.t[0]) return -1; }
+        else if (M.te < n && cm.getLineHandle(0) === M.h[0] && cm.getLineHandle(M.te) === M.h[M.te]){
+          var ok = true;
+          for (var k = 0; k <= M.te; k++) if (M.h[k].text !== M.t[k]){ ok = false; break; }
+          if (ok) return M.te;
+        }
+      }
+      var te = titleEnd(line, n), h = [], t = [], last = te < 0 ? 0 : te;
+      for (var j = 0; j <= last && j < n; j++){ var hj = cm.getLineHandle(j); h.push(hj); t.push(hj.text); }
+      // an opening --- without its closing one: any line further down could become the closing one, so nothing is kept
+      teMemo = {te:te, n:n, h:h, t:t, open:te < 0 && n > 0 && FENCE.test(line(0))};
+      return te;
+    }
     function isPreLn(ln){ return ln <= preEnd(); }
     // A command of the title page: a line between the two --- that starts with a word and a colon
     function isPreHead(ln, te){ return ln > 0 && ln < te && CMD.test(line(ln)); }
