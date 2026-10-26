@@ -127,5 +127,19 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   eq("layout: no (CONT'D) across a shot, again after action", Lay(t, true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | '), "VALERIA | VALERIA | VALERIA (CONT'D)");
 }
 
+// Emphasis: _underlined_, *italic*, both; markers take no width and are never printed
+{
+  const Lay = globalThis.__pg.layout;
+  const segs = t => Lay(t, true).pages[0].map(x => (x.segs || []).map(g => (g.u ? 'U' : '') + (g.i ? 'I' : '') + '[' + g.t + ']').join('')).join(' / ');
+  eq('underline and italic in action', segs('She is _very_ *tired* now.'), 'She is U[very] now.'.replace(' now.', '[ ]I[tired][ now.]').replace('She is ', '[She is ]'));
+  eq('both: _*word*_ and *_word_*', segs('A _*both*_ and *_also_* end.'), '[A ]UI[both][ and ]UI[also][ end.]');
+  eq('underline across words', segs('_two words_ here'), 'U[two words][ here]');
+  eq('unpaired, spaced or escaped markers stay text', segs('a_b and * x * and \\_no_ and **bold**'), '[a_b and * x * and \\no and **bold**]'.replace('\\no', '\\_no_'));
+  const plain = 'x'.repeat(50) + ' abcd efgh';
+  eq('markers take no width: the same wrap as without them', Lay('_' + plain.replace(' abcd', '_ abcd'), true).pages[0].length, Lay(plain, true).pages[0].length);
+  eq('a 55 character line with markers stays one printed line', Lay('_' + 'y'.repeat(27) + '_ *' + 'z'.repeat(26) + '*', true).pages[0].length, 1);
+  eq('emphasis in dialogue', segs(',ANNA,\nI _said_ no.'), ' / [I ]U[said][ no.]');
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exitCode = fails ? 1 : 0;

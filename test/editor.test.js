@@ -586,6 +586,15 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   k9();
 }
 
+// Emphasis tokens in the editor: faint markers without width, underlined and italic text between
+{
+  cm.setValue('She is _very_ *tired* and _*both*_ here.');
+  const toks = cm.getLineTokens(0).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' ');
+  eq2('editor tokens for _ and *', toks, 'smmk smmk-o[_] smu[very] smmk smmk-c[_] smmk smmk-o[*] smi[tired] smmk smmk-c[*] smmk smmk-o[_*] smu smi[both] smmk smmk-c[*_]');
+  cm.setValue(',ANNA,\nI _said_ no.');
+  eq2('emphasis in dialogue', cm.getLineTokens(1).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' '), 'smmk smmk-o[_] smu[said] smmk smmk-c[_]');
+}
+
 // Empty cues get a name on Reformat: the one who spoke before the last speaker, across scenes; one character: that one
 start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?\n\n,,\nGut, danke.\n\n.e STREET - DAY\n\n,,\nUnd jetzt?'); reformatAll();
 eq2('Reformat fills empty cues alternately, across a scene change', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',MARIA, ,THOMAS, ,MARIA, ,THOMAS, ,MARIA,');

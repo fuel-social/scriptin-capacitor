@@ -302,11 +302,33 @@
   // US Letter (11 in) by the same rule: 1 inch top and bottom, 6 lines per inch = 54 lines; the line lengths stay
   var LETTER_LINES = 54, A4_LINES = PAGE_LINES;
   var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
-  // Start offsets of the printed lines of s, wrapped word by word at width characters
+  // ---- Emphasis, as in Fountain: _underlined_, *italic*, both as _*underlined and italic*_ (or *_..._*) ----
+  // A marker opens before a non-space (not inside a word) and closes after one, on the same line; \_ and \* stay plain, ** is not italic.
+  // The markers stay in the text and are shown faintly in the editor, but take no width there and are never printed,
+  // so line lengths, wrapping and page breaks are those of the printed page
+  // inside a word (snake_case, 2*3) a marker is a plain character
+  var WORDCH = /[0-9A-Za-z\u00C0-\u024F]/;
+  function emphOf(s){
+    var n = s.length, mk = [], u = [], it = [];
+    function pairs(c, arr){
+      var open = -1;
+      for (var k = 0; k < n; k++){
+        if (s.charAt(k) !== c || mk[k] || (k > 0 && s.charAt(k - 1) === '\\')) continue;
+        if (c === '*' && (s.charAt(k + 1) === '*' || (k > 0 && s.charAt(k - 1) === '*' && !mk[k - 1]))) continue;
+        if (open < 0){ if (k + 1 < n && !/\s/.test(s.charAt(k + 1)) && s.charAt(k + 1) !== c && !WORDCH.test(s.charAt(k - 1))) open = k; }
+        else if (!/\s/.test(s.charAt(k - 1)) && !WORDCH.test(s.charAt(k + 1))){ mk[open] = 'o'; mk[k] = 'c'; for (var j = open + 1; j < k; j++) arr[j] = true; open = -1; }
+      }
+    }
+    if (s.indexOf('_') >= 0) pairs('_', u);
+    if (s.indexOf('*') >= 0) pairs('*', it);
+    return {mk:mk, u:u, i:it};
+  }
+  // Start offsets of the printed lines of s, wrapped word by word at width characters (emphasis markers take no width)
   function wrapStarts(s, width){
-    var out = [], len = -1, re = /\S+/g, m;
+    var out = [], len = -1, re = /\S+/g, m, mk = emphOf(s).mk;
     while ((m = re.exec(s))){
       var w = m[0].length, at = m.index;
+      for (var q = at; q < at + m[0].length; q++) if (mk[q]) w--;
       if (len >= 0 && len + 1 + w <= width){ len += 1 + w; continue; }
       while (w > width){ out.push(at); at += width; w -= width; }
       out.push(at); len = w;
@@ -411,10 +433,28 @@
     return null;
   }
   // Printed lines of a run: wrapped as in the editor, words one space apart
-  function runText(s, w){
-    var st = wrapStarts(s, w);
-    return st.map(function(a, i){ return s.slice(a, i + 1 < st.length ? st[i + 1] : s.length).trim().replace(/\s+/g, ' '); });
+  function runText(s, w){ return runRows(s, w).map(function(r){ return r.t; }); }
+  // The printed lines of a run with their emphasis: {t: text, segs: [{t, u, i}]}, markers left out, words one space apart
+  function runRows(s, w){
+    var st = wrapStarts(s, w), E = emphOf(s);
+    return st.map(function(a, r){
+      var b = r + 1 < st.length ? st[r + 1] : s.length, segs = [], t = '', sp = null;
+      for (var k = a; k < b; k++){
+        if (E.mk[k]) continue;
+        var c = s.charAt(k);
+        if (/\s/.test(c)){ if (t && !sp) sp = {u:!!E.u[k], i:!!E.i[k]}; continue; }
+        if (sp){ add(' ', sp.u, sp.i); sp = null; }
+        add(c, !!E.u[k], !!E.i[k]);
+      }
+      function add(c, u, i){
+        var g = segs[segs.length - 1];
+        if (g && g.u === u && g.i === i) g.t += c; else segs.push({t:c, u:u, i:i});
+        t += c;
+      }
+      return {t:t, segs:segs};
+    });
   }
+  function upSegs(r){ return {t:r.t.toUpperCase(), segs:r.segs.map(function(g){ return {t:g.t.toUpperCase(), u:g.u, i:g.i}; })}; }
   function cueText(name, cont, L){
     var n = (name || '').trim().replace(/\s+/g, ' ').toUpperCase();
     return cont && !CONT_ANY.test(n) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
@@ -432,11 +472,14 @@
       var pg = pages[pages.length - 1];
       if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont || el.contd, L)});
       runs.forEach(function(r){
-        var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runText(r.s, r.w);
-        if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(function(x){ return x.toUpperCase(); });
+        var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runRows(r.s, r.w);
+        if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(upSegs);
         // the typed .i .e .ie .ei becomes the slugline word of the script's language
-        if (kind === 'slug' && !cont && r.line === el.pos.line && r.ch === 0) out[0] = out[0].replace(/^\.(IE|EI|I|E)(?=\s|$)/i, el.slug);
-        out.forEach(function(x){ pg.push({y:at++, kind:kind === 'slug' ? 'act' : kind, s:x}); });
+        if (kind === 'slug' && !cont && r.line === el.pos.line && r.ch === 0 && out[0].segs.length){
+          var SW = /^\.(IE|EI|I|E)(?=\s|$)/i;
+          out[0].t = out[0].t.replace(SW, el.slug); out[0].segs[0].t = out[0].segs[0].t.replace(SW, el.slug);
+        }
+        out.forEach(function(x){ pg.push({y:at++, kind:kind === 'slug' ? 'act' : kind, s:x.t, segs:x.segs}); });
       });
       if (more) pg.push({y:at, kind:'cue', s:L.more});
     }
@@ -488,8 +531,8 @@
     pdfKit = new Promise(function(res, rej){
       if (window.jspdf) return res();
       var s = document.createElement('script'); s.src = SELF + 'vendor/jspdf.umd.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s);
-    }).then(function(){ return fetchB64(SELF + 'fonts/CourierPrime-Regular.ttf'); })
-      .then(function(font){ return {jsPDF:window.jspdf.jsPDF, font:font}; });
+    }).then(function(){ return Promise.all([fetchB64(SELF + 'fonts/CourierPrime-Regular.ttf'), fetchB64(SELF + 'fonts/CourierPrime-Italic.ttf')]); })
+      .then(function(f){ return {jsPDF:window.jspdf.jsPDF, font:f[0], italic:f[1]}; });
     pdfKit.catch(function(){ pdfKit = null; });
     return pdfKit;
   }
@@ -504,12 +547,26 @@
     var doc = new kit.jsPDF({unit:'pt', format:lay.size === 'US Letter' ? 'letter' : 'a4', compress:true});
     doc.addFileToVFS('CourierPrime-Regular.ttf', kit.font);
     doc.addFont('CourierPrime-Regular.ttf', 'CourierPrime', 'normal');
-    doc.setFont('CourierPrime', 'normal'); doc.setFontSize(12);
+    doc.addFileToVFS('CourierPrime-Italic.ttf', kit.italic);
+    doc.addFont('CourierPrime-Italic.ttf', 'CourierPrime', 'italic');
+    doc.setFont('CourierPrime', 'normal'); doc.setFontSize(12); doc.setLineWidth(0.6);
     doc.setProperties({title:lay.title || 'script', author:lay.author || ''});
     var W = doc.internal.pageSize.getWidth(), right = W - PT, used = false;
     function page(){ if (used) doc.addPage(); used = true; }
     function at(s, x, y){ if (s) doc.text(s, x, y, {baseline:'top'}); }
     function flushRight(s, y){ at(s, right - doc.getTextWidth(s), y); }
+    // A printed line with emphasis: italic in Courier Prime Italic, underlined with a line just below the letters
+    function segs(it, x, y){
+      if (!it.segs || !it.segs.some(function(g){ return g.u || g.i; })){ at(it.s, x, y); return; }
+      it.segs.forEach(function(g){
+        if (g.i) doc.setFont('CourierPrime', 'italic');
+        at(g.t, x, y);
+        var w = doc.getTextWidth(g.t);
+        if (g.i) doc.setFont('CourierPrime', 'normal');
+        if (g.u){ var t = g.t.replace(/\s+$/, ''), lead = g.t.length - g.t.replace(/^\s+/, '').length, cw = w / g.t.length; doc.line(x + lead * cw, y + 10.6, x + t.length * cw, y + 10.6); }
+        x += w;
+      });
+    }
     function centred(s, y){ at(s, (W - doc.getTextWidth(s)) / 2, y); }
     var titled = !!(lay.title && lay.author);
     if (titled){
@@ -526,7 +583,7 @@
       if (n > 0) flushRight((n + 1) + '.', PT / 2);
       items.forEach(function(it){
         var y = PT + it.y * LH;
-        if (it.kind === 'trans') flushRight(it.s, y); else at(it.s, INDENT[it.kind] * PT, y);
+        if (it.kind === 'trans') segs(it, right - doc.getTextWidth(it.s), y); else segs(it, INDENT[it.kind] * PT, y);
       });
     });
     if (!used) page();
@@ -536,6 +593,15 @@
     var lay = layout(text, true);
     return loadPdfKit().then(function(kit){ buildPdf(kit, lay).save(fileName(lay.title)); })
       .catch(function(e){ if (window.console) console.error('scriptin PDF export failed', e); });
+  }
+  // Editor tokens for emphasis: markers (smmk, opening or closing) and the text between (smu underlined, smi italic)
+  function emphTok(stream){
+    var s = stream.string;
+    if (s.indexOf('_') < 0 && s.indexOf('*') < 0){ stream.skipToEnd(); return null; }
+    var E = emphOf(s), p = stream.pos, key = function(k){ return E.mk[k] ? 'm' + E.mk[k] : (E.u[k] ? 'u' : '') + (E.i[k] ? 'i' : ''); }, k0 = key(p);
+    do stream.next(); while (!stream.eol() && key(stream.pos) === k0);
+    if (k0.charAt(0) === 'm') return 'smmk smmk-' + k0.charAt(1);
+    return k0 ? (k0.indexOf('u') >= 0 ? 'smu' : '') + (k0 === 'ui' ? ' ' : '') + (k0.indexOf('i') >= 0 ? 'smi' : '') : null;
   }
   function defineMode(){
     CodeMirror.defineMode('scriptin', function(){
@@ -562,13 +628,13 @@
             if (stream.match(/^\s*$/, false)){ stream.skipToEnd(); state.prevBlank = true; return null; }
             if (para && stream.peek() === ','){ stream.next(); state.cue = true; return 'smcue'; }
             if (para && stream.match(/^\.s(?=\s|$)/i)) return 'smshotcmd';
-            stream.skipToEnd(); return null;
+            return emphTok(stream);
           }
           if (state.cue){
             if (stream.peek() === ','){ stream.next(); state.cue = false; return 'smcue'; }
             stream.eatWhile(/[^,]/); return 'smcue';
           }
-          stream.skipToEnd(); return null;
+          return emphTok(stream);
         }
       };
     });
