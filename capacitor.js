@@ -553,12 +553,12 @@
             var para = state.prevBlank;
             state.prevBlank = false; state.cue = false;
             if (stream.match(/^\s*$/, false)){ stream.skipToEnd(); state.prevBlank = true; return null; }
-            if (para && stream.peek() === ','){ stream.next(); state.cue = true; return 'smcue'; }
+            if (para && stream.peek() === ','){ stream.next(); state.cue = true; return 'smcue smcuecomma'; }
             if (para && stream.match(/^\.s(?=\s|$)/i)) return 'smshotcmd';
             stream.skipToEnd(); return null;
           }
           if (state.cue){
-            if (stream.peek() === ','){ stream.next(); state.cue = false; return 'smcue'; }
+            if (stream.peek() === ','){ stream.next(); state.cue = false; return 'smcue smcuecomma'; }
             stream.eatWhile(/[^,]/); return 'smcue';
           }
           stream.skipToEnd(); return null;
@@ -807,8 +807,9 @@
     function chipCursor(){ var ln = cm.getCursor().line; cm.getWrapperElement().classList.toggle('sm-on-chip', activeCue === ln && !!settingOf(ln)); }
     function barCursor(){
       var cl = cm.getCursor().line, wr = cm.getWrapperElement();
-      wr.classList.toggle('sm-on-bar', isShotLn(cl));
-      wr.classList.toggle('sm-on-slug', isSlugLn(cl));
+      // Cues look like shots used to (cursor colorBlue of the other mode), shots like sluglines
+      wr.classList.toggle('sm-on-bar', isCueLn(cl));
+      wr.classList.toggle('sm-on-slug', isSlugLn(cl) || isShotLn(cl));
       wr.classList.toggle('sm-on-trans', isTransLn(cl));
       chipCursor();
     }
