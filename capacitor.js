@@ -1355,14 +1355,16 @@
       for (var q = 1; q < k; q++){ if (timeOf(pre[q])) return; }
       var seen = {}, cands = [];
       function add(x){ var u = x.toUpperCase(); if (x && !seen[u]){ seen[u] = 1; cands.push(x); } }
+      // Every location of every earlier slugline counts, INT. and EXT. alike and wherever it stood in its slugline (ROOM
+      // after SHAFT is offered at the start too); locations already on this line are left out; times only after a location
+      var mine = {}; pre.forEach(function(x){ mine[x] = 1; });
       for (var i = 0; i < cm.lineCount(); i++){
         if (i === ln || !isSlugHead(i)) continue;
         var parts = slugParts(i);
-        if (k > 0 && parts.time >= 0) add(parts[parts.time]);
-        if (parts.length <= k) continue;
-        var same = true;
-        for (var j = 0; j < k; j++){ if (parts[j].toUpperCase() !== pre[j]){ same = false; break; } }
-        if (same) add(parts[k]);
+        for (var j = 0; j < parts.length; j++){
+          if (j === parts.time){ if (k > 0) add(parts[j]); }
+          else if (!mine[parts[j].toUpperCase()]) add(parts[j]);
+        }
       }
       var hits = cands.filter(function(x){ return x.toUpperCase().indexOf(up) === 0; });
       if (hits.length !== 1) return;
