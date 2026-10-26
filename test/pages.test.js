@@ -19,7 +19,7 @@ w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); retur
 w.CodeMirror.prototype = Orig.prototype;
 w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-// Incremental page count against the full one: random edits on a long script, after every edit the two must agree.
+// Incremental page count and line classes against full ones: random edits on a long script, after every edit both must agree.
 // Run with: node test/pages.test.js (PAGES_SEED, PAGES_STEPS to vary)
 let seed = +(process.env.PAGES_SEED || 7);
 const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
@@ -59,6 +59,9 @@ setTimeout(async function(){
     else if (r < 0.95){ cm.replaceRange('x', {line:3, ch:cm.getLine(3).length}, null, '+input'); label = 'title page'; }
     else { cm.execCommand(rnd() < 0.7 ? 'undo' : 'redo'); label = 'undo/redo'; }
     same(label + ' #' + s);
+    if (rnd() < 0.25) cm.setCursor({line:14 + Math.floor(rnd() * (cm.lineCount() - 14)), ch:0});
+    { const c = cm.smClasses(); checks++;
+      for (let i = 0; i < c.full.length; i++) if (c.inc[i] !== c.full[i]){ fails++; if (fails < 6) console.log('FAIL classes after ' + label + ' #' + s + ' line ' + i + ': ' + JSON.stringify(cm.getLine(i)) + ' inc ' + c.inc[i] + ' full ' + c.full[i]); break; } }
     if (s % 50 === 0) await sleep(40);
   }
   console.log((fails ? fails + ' failed' : 'all passed') + ' (' + checks + ' checks, ' + pages0 + ' pages at the start, ' + cm.smPages().fulls + ' full counts)');

@@ -1017,33 +1017,53 @@
       d.history = {done:[], undone:[]};
       try { return cm.markText(from, to, opts); } finally { d.history = h; }
     }
-    function hideRange(a, b, fromStart){
-      if (b < a) return;
-      if (fromStart){
-        marks.push(roMark({line:0, ch:0}, {line:b, ch:line(b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
-        for (var t = 0; t <= b; t++) hid[t] = 1;
-        topGone = b;
-        return;
+    // The hidden runs are worked out first and only applied when they differ from the ones in place, so typing does
+    // not take the hidden text apart and put it back on every keystroke
+    function hideRange(a, b, fromStart, out){ if (b >= a) out.push({a:a, b:b, top:!!fromStart}); }
+    function viewRanges(){
+      var out = [];
+      if (view === 1 && !notesOff && (preOn || !hasPre())) return out;
+      var te = preEnd(), last = cm.lastLine();
+      // Only the title page is hidden (whole script, notes shown): everything from line 0 to the line before the first
+      // paragraph below it, without reading the paragraphs of the whole script
+      if (view === 1 && !notesOff && !preOn){
+        var f = te + 1;
+        while (f <= last && isBlank(line(f))) f++;
+        if (f <= last) hideRange(0, f - 1, true, out); else hideRange(0, last > te ? last - 1 : last, true, out);
+        return out;
       }
-      marks.push(roMark({line:a, ch:fromStart ? 0 : line(a).length}, {line:b, ch:line(b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
-      for (var i = a; i <= b; i++) hid[i] = 1;
-    }
-    function applyView(){
-      for (var m = 0; m < marks.length; m++) marks[m].clear();
-      marks = []; hid = []; topGone = -1;
-      if (view === 1 && !notesOff && (preOn || !hasPre())) return;
       var ps = paragraphs(), cl = cm.getCursor().line, prevEnd = -1, run = false;
       for (var k = 0; k < ps.length; k++){
         if (shows(ps[k], cl)){
-          if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, ps[k].s - 1, prevEnd < 0);
+          if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, ps[k].s - 1, prevEnd < 0, out);
           run = false; prevEnd = ps[k].e;
         } else run = true;
       }
       // Nothing visible at all (only a hidden title page left, or a view with nothing to show): the last line stays
       // visible, so the cursor always has a place and typing can begin there
       // (a script that ends right at the closing --- first gets an empty script line from belowPre)
-      var last = cm.lastLine(), keepLast = prevEnd < 0 && last > preEnd();
-      if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, keepLast ? last - 1 : last, prevEnd < 0);
+      var keepLast = prevEnd < 0 && last > te;
+      if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, keepLast ? last - 1 : last, prevEnd < 0, out);
+      return out;
+    }
+    var markRanges = [];
+    function applyView(){
+      var want = viewRanges(), same = want.length === marks.length && want.length === markRanges.length;
+      for (var q = 0; same && q < want.length; q++){
+        var f = marks[q].find(), w = want[q], r = markRanges[q];
+        same = !!f && r.top === w.top && f.from.line === (w.top ? 0 : w.a) && f.to.line === w.b && f.to.ch === line(w.b).length && (w.top ? f.from.ch === 0 : f.from.ch === line(w.a).length);
+      }
+      if (!same){
+        for (var m = 0; m < marks.length; m++) marks[m].clear();
+        marks = [];
+        want.forEach(function(w){
+          if (w.top) marks.push(roMark({line:0, ch:0}, {line:w.b, ch:line(w.b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
+          else marks.push(roMark({line:w.a, ch:line(w.a).length}, {line:w.b, ch:line(w.b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
+        });
+        markRanges = want;
+      }
+      hid = []; topGone = -1;
+      want.forEach(function(w){ for (var i = w.a; i <= w.b; i++) hid[i] = 1; if (w.top) topGone = w.b; });
     }
     function centerCursor(){
       var c = cm.cursorCoords(cm.getCursor(), 'window');
@@ -1137,9 +1157,9 @@
     // line right below it, Tab stays. Shift+Enter adds a line to the command (a second address line)
     function preStep(ln, isEnter){
       var te = preEnd();
-      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); if (settingOf(nx)){ activeCue = nx; decorate(); } return; }
+      for (var nx = ln + 1; nx < te; nx++) if (isPreHead(nx, te)){ caret(nx, line(nx).length); if (settingOf(nx)){ activeCue = nx; decorateLines([]); } return; }
       // Tab on the last command stays there; on a setting it makes the chip active
-      if (!isEnter && settingOf(ln)){ activeCue = ln; caret(ln, line(ln).length); decorate(); }
+      if (!isEnter && settingOf(ln)){ activeCue = ln; caret(ln, line(ln).length); decorateLines([]); }
       if (!isEnter || ln >= te) return;
       var last = te - 1;
       while (last > 0 && isBlank(line(last))) last--;
@@ -1549,7 +1569,7 @@
       var target;
       cm.operation(function(){
         for (var m = 0; m < marks.length; m++) marks[m].clear();
-        marks = []; hid = [];
+        marks = []; markRanges = []; hid = [];
         cm.replaceRange(nt, {line:0, ch:0}, cm.posFromIndex(old.length), '+reformat');
         if (tail) target = {line:cm.lineCount() - 1, ch:0};
         else if (onBlank) target = n === 0 ? {line:0, ch:0} : {line:cm.posFromIndex(i).line + 1, ch:0};
@@ -1656,55 +1676,106 @@
       var c = cm.getCursor().line;
       return (c > 0 && isBlank(line(c)) && isBlank(line(c - 1))) ? c : -1;
     }
-    cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
-    function decorate(){
-      var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd(), lang = langIn(line, te);
+    cm.on('cursorActivity', function(){
+      var sl = slotLine();
+      if (sl === spacedFor) return;
+      var rs = [];
+      if (spacedFor >= 0 && spacedFor < cm.lineCount()) rs.push(decoRange(spacedFor, spacedFor));
+      if (sl >= 0) rs.push(decoRange(sl, sl));
+      decorateLines(rs);
+    });
+    // Line classes (element kind, spacing, bars). decorate() works out every line; decorateLines(ranges) only the given
+    // line ranges, after a change: the paragraphs it touched, the empty lines around them and the slugline of the scene
+    // (its // mark depends on the notes in the scene). Classes are written only where they differ
+    function decorate(){ decorateLines(null); }
+    // Does the scene of the slugline at ln hold a note? (looks down to the next slugline)
+    function sceneNoted(ln){
+      for (var j = ln + 1, n = cm.lineCount(); j < n; j++){
+        var t = line(j);
+        if (!paraStart(j) || isBlank(t)) continue;
+        if (slugDelta(t) >= 0) return false;
+        if (NOTE.test(t) && !isMark(t)) return true;
+      }
+      return false;
+    }
+    // The lines whose classes can change when the lines a to b do: their whole paragraphs, the empty lines on either
+    // side, and the slugline heading the scene
+    function decoRange(a, b){
+      var n = cm.lineCount(), last = n - 1;
+      a = Math.max(0, Math.min(a, last)); b = Math.max(a, Math.min(b, last));
+      while (a > 0 && !isBlank(line(a - 1))) a--;
+      while (a > 0 && isBlank(line(a - 1))) a--;
+      while (b < last && !isBlank(line(b + 1))) b++;
+      while (b < last && isBlank(line(b + 1))) b++;
+      var sl = a;
+      while (sl > 0 && !(paraStart(sl) && slugDelta(line(sl)) >= 0)) sl--;
+      return {a:a, b:b, slug:sl};
+    }
+    function decorateLines(ranges){
+      var curLn = slotLine(), te = preEnd(), lang = langIn(line, te), n = cm.lineCount(), refreshAll = false;
       function empty(j){ return j !== curLn && isBlank(line(j)); }
       spacedFor = curLn;
-      // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
-      for (var k = 0; k < ps.length; k++){ if (ps[k].type === 'note' && ps[k].scene >= 0) noted[ps[k].scene] = 1; }
-      // Each line's classes are worked out first and written only where they differ: rewriting every line on every
-      // keystroke made CodeMirror draw the whole script again each time
-      var W = [], X = [];
-      function want(i, where, cls){ var a = where === 'wrap' ? W : X; a[i] = a[i] ? a[i] + ' ' + cls : cls; }
+      // the lines to work on, each once, in order
+      var todo;
+      if (!ranges) todo = null;
+      else {
+        var set = {};
+        ranges.forEach(function(r){
+          for (var i = Math.max(0, r.a); i <= Math.min(n - 1, r.b); i++) set[i] = 1;
+          if (r.slug !== undefined && r.slug >= 0 && r.slug < n) set[r.slug] = 1;
+        });
+        // the title page is short and its chips follow the active line
+        for (var t = 0; t <= Math.min(te, n - 1); t++) set[t] = 1;
+        todo = Object.keys(set).map(Number).sort(function(x, y){ return x - y; });
+      }
+      function classes(i){
+        var W = '', X = '';
+        function want(where, cls){ if (where === 'wrap') W = W ? W + ' ' + cls : cls; else X = X ? X + ' ' + cls : cls; }
+        if (i <= topGone) return {w:'sm-gone', x:''};
+        var s = line(i);
+        // Final Draft spacing: two empty lines before a slugline or a shot, one before everything else; the writer
+        // types one, so the empty line right above a slugline is shown at double height
+        // An empty line holding the cursor is a paragraph being written, so the spacing does not jump once typing starts
+        if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
+          var nx = i + 1;
+          while (nx < n && empty(nx)) nx++;
+          if (nx < n && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want('wrap', 'sm-sp2');
+        }
+        if (hid[i] || isBlank(s)) return {w:W, x:X};
+        // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
+        if (i > te && isCmdLn(i)){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
+        if (i <= te || isMarkLn(i)){
+          want('text', 'sm-t-act sm-t-note');
+          if (i < te && headOf(s)) want('wrap', 'sm-head');
+          if (i === activeCue && settingOf(i)) want('wrap', 'sm-set-on');
+        }
+        else if (isSlugLn(i)){
+          // A scene holding notes shows // at the right end of its slugline bar, in the slugline's own colour
+          var head = isSlugHead(i);
+          want('wrap', 'sm-l-slug' + (head && sceneNoted(i) ? ' sm-n-note' : ''));
+          want('text', head ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
+        }
+        else if (isNoteLn(i)) want('text', 'sm-t-act sm-t-note');
+        else if (isShotLn(i)) want('text', 'sm-t-act sm-t-shot');
+        else if (isTransLn(i)) want('text', 'sm-t-trans');
+        else if (isCueLn(i)) {}
+        else if (blockCue(i) >= 0) want('text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
+        else want('text', 'sm-t-act');
+        return {w:W, x:X};
+      }
       cm.operation(function(){
-        for (var i = 0; i < cm.lineCount(); i++){
-          if (i <= topGone){ want(i, 'wrap', 'sm-gone'); continue; }
-          var s = line(i);
-          // Final Draft spacing: two empty lines before a slugline or a shot, one before everything else; the writer
-          // types one, so the empty line right above a slugline is shown at double height
-          // An empty line holding the cursor is a paragraph being written, so the spacing does not jump once typing starts
-          if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
-            var nx = i + 1;
-            while (nx < cm.lineCount() && empty(nx)) nx++;
-            if (nx < cm.lineCount() && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
+        function one(j){
+          var h = cm.getLineHandle(j), c = classes(j), oldX = h.textClass || '';
+          if ((h.wrapClass || '') !== c.w){ cm.removeLineClass(j, 'wrap'); if (c.w) cm.addLineClass(j, 'wrap', c.w); }
+          if (oldX !== c.x){
+            // a transition is right aligned, which moves its characters: CodeMirror measures again when one comes or goes
+            if (/\bsm-t-trans\b/.test(oldX) !== /\bsm-t-trans\b/.test(c.x)) refreshAll = true;
+            cm.removeLineClass(j, 'text'); if (c.x) cm.addLineClass(j, 'text', c.x);
           }
-          if (hid[i] || isBlank(s)) continue;
-          // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
-          if (i > te && isCmdLn(i)){ want(i, 'text', 'sm-t-act sm-t-cmd'); continue; }
-          if (i <= te || isMarkLn(i)){
-            want(i, 'text', 'sm-t-act sm-t-note');
-            if (i < te && headOf(s)) want(i, 'wrap', 'sm-head');
-            if (i === activeCue && settingOf(i)) want(i, 'wrap', 'sm-set-on');
-          }
-          else if (isSlugLn(i)){
-            want(i, 'wrap', 'sm-l-slug' + (noted[i] ? ' sm-n-note' : ''));
-            want(i, 'text', isSlugHead(i) ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
-          }
-          else if (isNoteLn(i)) want(i, 'text', 'sm-t-act sm-t-note');
-          else if (isShotLn(i)) want(i, 'text', 'sm-t-act sm-t-shot');
-          else if (isTransLn(i)){ want(i, 'text', 'sm-t-trans'); tk += i + ','; }
-          else if (isCueLn(i)) {}
-          else if (blockCue(i) >= 0) want(i, 'text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
-          else want(i, 'text', 'sm-t-act');
         }
-        for (var j = 0; j < cm.lineCount(); j++){
-          var h = cm.getLineHandle(j), w = W[j] || '', x = X[j] || '';
-          if ((h.wrapClass || '') !== w){ cm.removeLineClass(j, 'wrap'); if (w) cm.addLineClass(j, 'wrap', w); }
-          if ((h.textClass || '') !== x){ cm.removeLineClass(j, 'text'); if (x) cm.addLineClass(j, 'text', x); }
-        }
+        if (todo) todo.forEach(one); else for (var j = 0; j < n; j++) one(j);
       });
-      if (tk !== transKey){ transKey = tk; cm.refresh(); }
+      if (refreshAll) cm.refresh();
       barCursor();
     }
     // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
@@ -1804,13 +1875,19 @@
     }
     cm.on('changes', function(_cm, list){
       var ah = PG.ahead; PG.ahead = null;
-      if (list.some(function(c){ return c.origin === 'setValue'; })){ PG.starts = null; PG.dirty = null; return; }
+      if (list.some(function(c){ return c.origin === 'setValue'; })){ PG.starts = null; PG.dirty = null; DEC.full = true; return; }
+      for (var q = 0; q < list.length; q++) DEC.dirty = pgDirty(DEC.dirty, list[q].from, list[q].to, list[q].text.length - 1);
       var P = CodeMirror.cmpPos, c0 = list[0];
       if (ah && !PG.dirty && list.length === 1 && P(c0.from, ah.from) === 0 && P(c0.to, ah.to) === 0 && c0.text.join('\n') === ah.text){ pgAdopt(ah.r); return; }
       for (var k = 0; k < list.length; k++) PG.dirty = pgDirty(PG.dirty, list[k].from, list[k].to, list[k].text.length - 1);
     });
     // for the tests: the incremental page starts next to a full count
     cm.smPages = function(){ return {inc:pagesNow(), full:paginate(cm.getValue()), fulls:PG.fulls}; };
+    // for the tests: the classes after the incremental update next to a full one
+    cm.smClasses = function(){
+      function snap(){ var o = []; for (var i = 0; i < cm.lineCount(); i++){ var h = cm.getLineHandle(i); o.push((h.wrapClass || '') + '|' + (h.textClass || '')); } return o; }
+      clearTimeout(timer); refreshChanged(); var inc = snap(); decorate(); return {inc:inc, full:snap()};
+    };
     function paginatePages(){
       pageStarts = pagesNow();
       fill(pageLayer, pageStarts.map(function(_, k){ return (k + 2) + '.'; }), 'sm-pagenum');
@@ -1891,7 +1968,29 @@
         else if (c && c.label !== L.cmd[c.key]) cm.replaceRange(L.cmd[c.key], {line:k, ch:0}, {line:k, ch:c.label.length}, '+pre');
       }
     }
-    function refresh(){ preGaps(); cm.operation(function(){ applyView(); decorate(); }); belowPre(); paginatePages(); applyTheme(); undoing = false; }
+    // refresh(): everything again (after a command: a view, notes, the title page, a setting). refreshChanged(): after
+    // typing, only the lines around the changes since the last time get their classes again; it falls back to the whole
+    // script when the hidden text, the title page or the language changed
+    var DEC = {dirty:null, full:true, te:-2, lang:''};
+    function refresh(){ DEC.full = true; refreshChanged(); }
+    function refreshChanged(){
+      preGaps();
+      cm.operation(function(){
+        var before = markRanges, te = preEnd(), lang = scriptLang().code;
+        applyView();
+        var full = DEC.full || markRanges !== before || te !== DEC.te || lang !== DEC.lang;
+        if (full) decorate();
+        else {
+          var rs = [];
+          if (DEC.dirty) rs.push(decoRange(DEC.dirty.a, DEC.dirty.b));
+          if (spacedFor >= 0) rs.push(decoRange(spacedFor, spacedFor));
+          var sl = slotLine(); if (sl >= 0) rs.push(decoRange(sl, sl));
+          decorateLines(rs);
+        }
+        DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang;
+      });
+      belowPre(); paginatePages(); applyTheme(); undoing = false;
+    }
     // Day or Night from the title page: the colours of OptS_theme_ui light or dark for the editor and the page behind it;
     // colorBlue of the other theme is the cursor on shot bars
     var themeOn = -1;
@@ -1976,7 +2075,7 @@
       // the spacing and the bars, so they are drawn at once too: otherwise the new line first shows unformatted for a moment
       for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].origin === ORIGIN || list[w].from.line <= te + 1) whole = true; }
       clearTimeout(timer);
-      if (whole) refresh(); else timer = setTimeout(refresh, 30);
+      if (whole) refreshChanged(); else timer = setTimeout(refreshChanged, 30);
       clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
       sync.changed();
     });
@@ -2090,7 +2189,7 @@
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin !== '+restore') return;
       for (var m = 0; m < marks.length; m++) marks[m].clear();
-      marks = []; hid = []; topGone = -1;
+      marks = []; markRanges = []; hid = []; topGone = -1;
     });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === ORIGIN || ch.origin === '+pre' || ch.origin === '+reformat' || ch.origin === '+restore') return;
@@ -2137,7 +2236,7 @@
       var was = activeCue, ln = cm.getCursor().line;
       if (clicked) activeCue = isActiveLn(ln) ? ln : -1; // at once, an arrow key right after the click already counts
       else if (ln !== activeCue) activeCue = -1;
-      if ((settingOf(was) || settingOf(activeCue)) && was !== activeCue) decorate();
+      if ((settingOf(was) || settingOf(activeCue)) && was !== activeCue) decorateLines([]);
     });
     refresh(); // the text from this browser is hidden and coloured at once too
     measureBand();
