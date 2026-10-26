@@ -8,12 +8,9 @@
   font-style: italic;
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1712757975561x238591915690293820/GT-Pressura-Mono-Regular-Italic.woff');
 }
-/* Emphasis: _underlined_ and *italic*; the markers show at full size in colorInactive on the line holding the cursor
-   (that line is made wider by their number), elsewhere they are invisible and take no width, so lines wrap as printed */
+/* Emphasis: _underlined_ and *italic*; the markers themselves look like any other character */
 #sm-editor .cm-smi{font-style:italic}
 #sm-editor .cm-smu{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
-#sm-editor .cm-smmk{font-size:0;color:transparent;font-style:normal;text-decoration:none}
-#sm-editor pre.sm-mkshow .cm-smmk{font-size:inherit;color:var(--sm-inactive)}
 
 #sm-editor{position:relative;width:720px;margin:0 auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px;--sm-tail:2px}
 #sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}

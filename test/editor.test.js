@@ -601,6 +601,19 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   eq2('emphasis in dialogue', cm.getLineTokens(1).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' '), 'smmk smmk-o[_] smu[said] smmk smmk-c[_]');
 }
 
+// Backspace or Delete on one marker of a pair removes both
+{
+  const bs = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
+  const del = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:46, key:'Delete', preventDefault(){}, stopPropagation(){} });
+  start('a _test_ b'); cm.setCursor({line:0, ch:8}); bs(); check('Backspace on the closing _ removes both', '"a test b" cursor 0:6');
+  start('a _test_ b'); cm.setCursor({line:0, ch:3}); bs(); check('Backspace on the opening _ removes both', '"a test b" cursor 0:2');
+  start('a *test* b'); cm.setCursor({line:0, ch:2}); del(); check('Delete on the opening * removes both', '"a test b" cursor 0:2');
+  start('a *test* b'); cm.setCursor({line:0, ch:7}); del(); check('Delete on the closing * removes both', '"a test b" cursor 0:6');
+  start('a _*x*_ b'); cm.setCursor({line:0, ch:7}); bs(); check('nested: only the _ pair', '"a *x* b" cursor 0:5');
+  start('a_b c'); cm.setCursor({line:0, ch:2}); bs(); check('a single _ is deleted alone', '"ab c" cursor 0:1');
+  cm.execCommand('undo'); start('a _test_ b'); cm.setCursor({line:0, ch:8}); bs(); cm.execCommand('undo'); check('one Cmd+Z brings both back', '"a _test_ b" cursor 0:8');
+}
+
 // Empty cues get a name on Reformat: the one who spoke before the last speaker, across scenes; one character: that one
 start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?\n\n,,\nGut, danke.\n\n.e STREET - DAY\n\n,,\nUnd jetzt?'); reformatAll();
 eq2('Reformat fills empty cues alternately, across a scene change', cm.getValue().split('\n').filter(l => l.startsWith(',')).join(' '), ',MARIA, ,THOMAS, ,MARIA, ,THOMAS, ,MARIA,');

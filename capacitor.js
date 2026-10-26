@@ -304,24 +304,24 @@
   var SENT_END = /(\.\.\.|--|[.!?]["'”’)\]]*)(?=\s+\S)/g, SENT_TAIL = /(\.\.\.|--|[.!?]["'”’)\]]*)\s*$/;
   // ---- Emphasis, as in Fountain: _underlined_, *italic*, both as _*underlined and italic*_ (or *_..._*) ----
   // A marker opens before a non-space (not inside a word) and closes after one, on the same line; \_ and \* stay plain, ** is not italic.
-  // The markers stay in the text and are shown faintly in the editor, but take no width there and are never printed,
-  // so line lengths, wrapping and page breaks are those of the printed page
+  // The markers stay in the text and look like any other character in the editor; a line holding them is made wider
+  // by their number. They are never printed and never count for wrapping or page breaks
   // inside a word (snake_case, 2*3) a marker is a plain character
   var WORDCH = /[0-9A-Za-z\u00C0-\u024F]/;
   function emphOf(s){
-    var n = s.length, mk = [], u = [], it = [];
+    var n = s.length, mk = [], u = [], it = [], pr = [];
     function pairs(c, arr){
       var open = -1;
       for (var k = 0; k < n; k++){
         if (s.charAt(k) !== c || mk[k] || (k > 0 && s.charAt(k - 1) === '\\')) continue;
         if (c === '*' && (s.charAt(k + 1) === '*' || (k > 0 && s.charAt(k - 1) === '*' && !mk[k - 1]))) continue;
         if (open < 0){ if (k + 1 < n && !/\s/.test(s.charAt(k + 1)) && s.charAt(k + 1) !== c && !WORDCH.test(s.charAt(k - 1))) open = k; }
-        else if (!/\s/.test(s.charAt(k - 1)) && !WORDCH.test(s.charAt(k + 1))){ mk[open] = 'o'; mk[k] = 'c'; for (var j = open + 1; j < k; j++) arr[j] = true; open = -1; }
+        else if (!/\s/.test(s.charAt(k - 1)) && !WORDCH.test(s.charAt(k + 1))){ mk[open] = 'o'; mk[k] = 'c'; pr[open] = k; pr[k] = open; for (var j = open + 1; j < k; j++) arr[j] = true; open = -1; }
       }
     }
     if (s.indexOf('_') >= 0) pairs('_', u);
     if (s.indexOf('*') >= 0) pairs('*', it);
-    return {mk:mk, u:u, i:it};
+    return {mk:mk, u:u, i:it, pr:pr};
   }
   // Start offsets of the printed lines of s, wrapped word by word at width characters (emphasis markers take no width)
   function wrapStarts(s, width){
@@ -1208,8 +1208,24 @@
     }
     // Backspace on the empty line of a new paragraph (empty line above, text above that) takes back the whole break
     // Enter or Tab made: the cursor returns to the end of the paragraph above and the spacing is as before
+    // Backspace or Delete on one marker of a pair (_..._ or *...*) removes both, in one change
+    function delPair(dir){
+      if (cm.somethingSelected()) return false;
+      var cur = cm.getCursor(), s = line(cur.line), k = dir < 0 ? cur.ch - 1 : cur.ch;
+      if (k < 0 || k >= s.length || (s.charAt(k) !== '_' && s.charAt(k) !== '*')) return false;
+      var E = emphOf(s), o = E.pr[k];
+      if (!E.mk[k] || o === undefined) return false;
+      var a = Math.min(k, o), b = Math.max(k, o), ln = cur.line;
+      cm.operation(function(){
+        cm.replaceRange('', {line:ln, ch:b}, {line:ln, ch:b + 1}, '+delete');
+        cm.replaceRange('', {line:ln, ch:a}, {line:ln, ch:a + 1}, '+delete');
+        caret(ln, k === a ? a : k - 1);
+      });
+      return true;
+    }
     function backspace(){
       var cur = cm.getCursor(), ln = cur.line;
+      if (delPair(-1)) return;
       if (!cm.somethingSelected() && cur.ch === 0 && ln >= 2 && isBlank(line(ln)) && isBlank(line(ln - 1)) && !isBlank(line(ln - 2)) && !hid[ln - 1] && !hid[ln - 2]){
         put('', {line:ln - 2, ch:line(ln - 2).length}, {line:ln, ch:0});
         cyc = null;
@@ -1561,7 +1577,7 @@
       'Shift-Ctrl-5': function(){}, 'Shift-Ctrl-0': function(){},
       'Esc': function(){ if (view === 1) return CodeMirror.Pass; setView(1); },
       'Backspace': function(){ return backspace(); },
-      'Delete': function(){ return guard(1); }
+      'Delete': function(){ if (delPair(1)) return; return guard(1); }
     });
     // Cursor finding, views and notes also work when the editor has lost focus; the other numbers are swallowed there too,
     // so the browser never opens bookmarks or other pages with Cmd+Option+number (Ctrl+Shift+number on Windows)
@@ -1605,14 +1621,6 @@
       return (c > 0 && isBlank(line(c)) && isBlank(line(c - 1))) ? c : -1;
     }
     cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
-    // Moving onto or off a line with emphasis markers shows or hides them
-    var mkLine = -1;
-    cm.on('cursorActivity', function(){
-      var ln = cm.getCursor().line;
-      if (ln === mkLine) return;
-      var was = mkLine; mkLine = ln;
-      if ((was >= 0 && was < cm.lineCount() && /[_*]/.test(line(was))) || /[_*]/.test(line(ln))) decorate();
-    });
     function decorate(){
       var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd(), lang = langIn(line, te);
       function empty(j){ return j !== curLn && isBlank(line(j)); }
@@ -1636,9 +1644,8 @@
             if (nx < cm.lineCount() && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
-          // Emphasis markers show (at full width) only on the line holding the cursor, which gets that much wider;
-          // everywhere else they take no width and stay invisible, so the lines wrap as on the printed page
-          if (i === cm.getCursor().line && /[_*]/.test(s)){ var nmk = emphOf(s).mk.filter(Boolean).length; if (nmk) want(i, 'text', 'sm-mkshow sm-mk' + Math.min(nmk, 40)); }
+          // A line with emphasis markers is wider by their number, as they are not printed
+          if (/[_*]/.test(s)){ var nmk = emphOf(s).mk.filter(Boolean).length; if (nmk) want(i, 'text', 'sm-mk' + Math.min(nmk, 40)); }
           // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
           if (i > te && isCmdLn(i)){ want(i, 'text', 'sm-t-act sm-t-cmd'); continue; }
           if (i <= te || isMarkLn(i)){
