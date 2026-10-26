@@ -989,6 +989,13 @@
       cyc = {line:ln + 2, pos:pos, text:t};
       if (t === ',,') activeCue = ln + 2;
     }
+    // After a transition comes a slugline, as in Final Draft: Tab or Enter at its end starts a new paragraph with .i
+    function afterTrans(ln, s){
+      var below = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1)), t = RING[0];
+      put('\n\n' + t + (below ? '\n\n' : ''), {line:ln, ch:s.length});
+      caret(ln + 2, caretFor(t));
+      cyc = {line:ln + 2, pos:0, text:t};
+    }
     function ringPos(ln, s){
       if (cyc && cyc.line === ln && cyc.text === s) return cyc.pos;
       if (/^\.i\s*$/i.test(s)) return 0;
@@ -1017,6 +1024,7 @@
       var cur = cm.getCursor(), ln = cur.line, s = line(ln);
       if (isPreLn(ln) && ln < preEnd()){ preStep(ln, false); return; }
       if (tabSlug(ln)) return;
+      if (isTransLn(ln)){ afterTrans(ln, s); return; }
       var cb = blockCue(ln);
       if (cb >= 0){
         if (/^\(/.test(s)){
@@ -1087,6 +1095,7 @@
         return;
       }
       if (isBlank(s) || cur.ch !== s.length || isNoteLn(ln) || isCueLn(ln)) return CodeMirror.Pass;
+      if (isTransLn(ln)){ afterTrans(ln, s); return; }
       var below = ln + 1 < cm.lineCount() && !isBlank(line(ln + 1));
       put(below ? '\n\n\n' : '\n\n', {line:ln, ch:s.length});
       caret(ln + 2, 0);
@@ -1413,17 +1422,13 @@
       var pos = cm.getCursor();
       centerCursor();
       requestAnimationFrame(function(){
-        var c = cm.cursorCoords(pos, 'window'), cs = getComputedStyle(host);
-        var gap = parseFloat(cs.getPropertyValue('--sm-gap')) || 0, band = parseFloat(cs.getPropertyValue('--sm-band')) || (c.bottom - c.top);
-        var tail = parseFloat(cs.getPropertyValue('--sm-tail')) || 0;
-        var left = c.left, top = c.top + gap, height = band + tail;
-        // Take the size of the real cursor, so the grown cursor is exactly as high as the resting one
-        var cur = cm.display.cursorDiv.firstChild, r = cur && cur.getBoundingClientRect();
-        if (r && r.height > 0){ left = r.left; top = r.top; height = r.height; }
-        var inShot = isShotLn(pos.line);
-        var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;left:' + left + 'px;top:' + top + 'px;height:' + height + 'px;width:3px;background:' + ((cm.display.cursorDiv.firstChild && getComputedStyle(cm.display.cursorDiv.firstChild).borderLeftColor) || cs.getPropertyValue(inShot ? '--sm-blue-alt' : '--sm-blue').trim());
-        document.body.appendChild(el);
+        // The grown cursor is a copy of the real one inside the editor, so it has exactly its size and place and moves
+        // with the text while the page scrolls (Safari scrolls smoothly)
+        var cur = cm.display.cursorDiv.firstChild;
+        if (!cur) return;
+        var cs = getComputedStyle(cur), el = document.createElement('div');
+        el.style.cssText = 'position:absolute;z-index:5;pointer-events:none;left:' + cur.style.left + ';top:' + cur.style.top + ';height:' + cs.height + ';margin-top:' + cs.marginTop + ';width:3px;background:' + cs.borderLeftColor;
+        cm.display.cursorDiv.parentNode.appendChild(el);
         if (el.animate){
           var a = el.animate([{width:'3px'}, {width:FIND_PX + 'px'}, {width:'3px'}], {duration:FIND_MS, easing:'ease-in-out'});
           a.onfinish = function(){ el.remove(); };
