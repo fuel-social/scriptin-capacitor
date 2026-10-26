@@ -32,6 +32,7 @@ function para(){
   if (r < 0.22) return '.t CUT TO:';
   if (r < 0.26) return '// ' + pick(['a note', 'check this', 'longer note about the scene']);
   if (r < 0.28) return '===';
+  if (r < 0.30) return '/pdf';
   if (r < 0.55){ let d = ',' + pick(['ANNA', 'BEN', 'MARA']) + ',\n'; const k = 1 + Math.floor(rnd() * 6); for (let i = 0; i < k; i++) d += (rnd() < 0.2 ? '(' + pick(['quietly', 'beat', 'to Ben']) + ')' : pick(SENT) + ' ' + pick(SENT)) + (i < k - 1 ? '\n' : ''); return d; }
   let a = ''; const k = 1 + Math.floor(rnd() * 5); for (let i = 0; i < k; i++) a += pick(SENT) + ' '; return a.trim();
 }
@@ -61,6 +62,7 @@ setTimeout(async function(){
     same(label + ' #' + s);
     if (rnd() < 0.25) cm.setCursor({line:14 + Math.floor(rnd() * (cm.lineCount() - 14)), ch:0});
     { const c = cm.smClasses(); checks++;
+      if (c.cmdInc !== c.cmdFull){ fails++; if (fails < 6) console.log('FAIL commands after ' + label + ' #' + s + ' inc ' + c.cmdInc + ' full ' + c.cmdFull); }
       for (let i = 0; i < c.full.length; i++) if (c.inc[i] !== c.full[i]){ fails++; if (fails < 6) console.log('FAIL classes after ' + label + ' #' + s + ' line ' + i + ': ' + JSON.stringify(cm.getLine(i)) + ' inc ' + c.inc[i] + ' full ' + c.full[i]); break; } }
     if (s % 50 === 0) await sleep(40);
   }

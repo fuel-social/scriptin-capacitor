@@ -1786,10 +1786,14 @@
     var pagesOn = true, scenesOn = false, pageStarts = [], sceneStarts = [];
     function marginLayer(cls){ var d = document.createElement('div'); d.className = cls; host.appendChild(d); return d; }
     var pageLayer = marginLayer('sm-pages'), sceneLayer = marginLayer('sm-scenes'), cmdLayer = marginLayer('sm-scenes sm-cmds'), cmdStarts = [];
+    // the labels last written are kept next to the layer, so an unchanged list costs no reading of the page
     function fill(layer, labels, cls){
+      var was = layer.smLabels || [];
+      if (was.length === labels.length && was.every(function(x, k){ return x === labels[k]; })) return;
       while (layer.children.length > labels.length) layer.removeChild(layer.lastChild);
       while (layer.children.length < labels.length){ var n = document.createElement('div'); n.className = cls; layer.appendChild(n); }
-      for (var k = 0; k < labels.length; k++) if (layer.children[k].textContent !== labels[k]) layer.children[k].textContent = labels[k];
+      for (var k = 0; k < labels.length; k++) if (was[k] !== labels[k]) layer.children[k].textContent = labels[k];
+      layer.smLabels = labels.slice(); layer.smTops = [];
     }
     // The editor has no inner scrolling, so each number keeps its place next to its line: positions are worked out
     // in document coordinates whenever the text or the layout changes, and the page scrolls numbers and text together
@@ -1806,11 +1810,11 @@
       // that begins in the middle of a paragraph) is measured. Positions are only written when they change
       var off = cm.charCoords(origin, 'local').top - cm.heightAtLine(0, 'local');
       function place(layer, starts){
-        var t0 = wrap.offsetTop + 'px';
-        if (layer.style.top !== t0) layer.style.top = t0;
+        var t0 = wrap.offsetTop + 'px', tops = layer.smTops || (layer.smTops = []);
+        if (layer.smTop !== t0){ layer.style.top = t0; layer.smTop = t0; }
         for (var k = 0; k < starts.length; k++){
-          var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : cm.charCoords(p, 'local').top) + lead, v = y + 'px', el = layer.children[k];
-          if (el.style.top !== v) el.style.top = v;
+          var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : cm.charCoords(p, 'local').top) + lead;
+          if (tops[k] !== y){ layer.children[k].style.top = y + 'px'; tops[k] = y; }
         }
       }
       if (showPages) place(pageLayer, pageStarts);
@@ -1886,15 +1890,17 @@
     // for the tests: the classes after the incremental update next to a full one
     cm.smClasses = function(){
       function snap(){ var o = []; for (var i = 0; i < cm.lineCount(); i++){ var h = cm.getLineHandle(i); o.push((h.wrapClass || '') + '|' + (h.textClass || '')); } return o; }
-      clearTimeout(timer); refreshChanged(); var inc = snap(); decorate(); return {inc:inc, full:snap()};
+      clearTimeout(timer); refreshChanged(); var inc = snap(), ic = JSON.stringify(cmdStarts); decorate(); paginatePages(); return {inc:inc, full:snap(), cmdInc:ic, cmdFull:JSON.stringify(cmdStarts)};
     };
-    function paginatePages(){
+    // rng: after typing, the lines that changed ({a, b, delta} as for the line classes), so the export commands are only
+    // looked for there; without it the whole script is read
+    function paginatePages(rng){
       pageStarts = pagesNow();
       fill(pageLayer, pageStarts.map(function(_, k){ return (k + 2) + '.'; }), 'sm-pagenum');
-      // Scenes are counted over the whole script, so a number stays the same in every view
+      // Scenes are counted over the whole script, so a number stays the same in every view (only read while shown)
       var labels = [], scene = 0;
       sceneStarts = [];
-      for (var i = 0; i < cm.lineCount(); i++){
+      if (scenesOn) for (var i = 0; i < cm.lineCount(); i++){
         if (!isSlugHead(i)) continue;
         scene++;
         if (hid[i]) continue;
@@ -1902,9 +1908,18 @@
       }
       fill(sceneLayer, labels, 'sm-scenenum');
       // A recognised export command gets ↵ in the left margin, where scene numbers stand: Enter runs it
-      var te = preEnd();
-      cmdStarts = [];
-      for (var c = te + 1; c < cm.lineCount(); c++) if (!hid[c] && isCmdLn(c)) cmdStarts.push({line:c, ch:0});
+      var te = preEnd(), n = cm.lineCount();
+      if (!rng){
+        cmdStarts = [];
+        for (var c = te + 1; c < n; c++) if (!hid[c] && isCmdLn(c)) cmdStarts.push({line:c, ch:0});
+      } else {
+        var a = rng.a, b = rng.b, kept = [];
+        // known commands above the changed lines stay, those below move with the lines gained; in between they are read again
+        cmdStarts.forEach(function(p){ if (p.line < a) kept.push(p); else if (p.line > b - rng.delta) kept.push({line:p.line + rng.delta, ch:0}); });
+        for (var c2 = Math.max(te + 1, a); c2 <= Math.min(b, n - 1); c2++) if (!hid[c2] && isCmdLn(c2)) kept.push({line:c2, ch:0});
+        kept.sort(function(x, y){ return x.line - y.line; });
+        cmdStarts = kept;
+      }
       fill(cmdLayer, cmdStarts.map(function(){ return '\u21b5'; }), 'sm-scenenum sm-cmdmark');
       placePages();
     }
@@ -1987,9 +2002,10 @@
           var sl = slotLine(); if (sl >= 0) rs.push(decoRange(sl, sl));
           decorateLines(rs);
         }
+        DEC.rng = full || !DEC.dirty ? (full ? null : {a:0, b:-1, delta:0}) : (function(){ var r = decoRange(DEC.dirty.a, DEC.dirty.b); return {a:r.a, b:r.b, delta:DEC.dirty.delta}; })();
         DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang;
       });
-      belowPre(); paginatePages(); applyTheme(); undoing = false;
+      belowPre(); paginatePages(DEC.rng); applyTheme(); undoing = false;
     }
     // Day or Night from the title page: the colours of OptS_theme_ui light or dark for the editor and the page behind it;
     // colorBlue of the other theme is the cursor on shot bars
