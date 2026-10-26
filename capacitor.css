@@ -8,7 +8,7 @@
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
 #sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap)}
 #sm-editor .sm-on-bar .CodeMirror-cursor{border-left-color:var(--sm-blue-alt) !important}
-/* Night: the cursor on sluglines and transitions takes colorBlue of the day theme, on cues colorBlue of the night theme */
+/* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
 #sm-editor[data-mode=night] .sm-on-slug .CodeMirror-cursor{border-left-color:var(--sm-blue-day) !important}
 #sm-editor[data-mode=night] .sm-on-trans .CodeMirror-cursor{border-left-color:var(--sm-blue-night) !important}
 #sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-inactive)}
