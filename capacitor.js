@@ -640,8 +640,10 @@
     });
   }
   function widthStyles(){
-    var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px)}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px)}\n';
-    for (var d = 0; d <= 12; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px)}\n';
+    var MK = ' + var(--sm-mk, 0ch)';
+    var css = '#sm-editor pre.sm-t-act{width:calc(' + W_ACTION + 'ch + ' + PAD + 'px' + MK + ')}\n#sm-editor pre.sm-t-dlg{width:calc(' + W_DIALOG + 'ch + ' + PAD + 'px' + MK + ')}\n#sm-editor pre.sm-t-par{width:calc(' + W_PAREN + 'ch + ' + PAD + 'px' + MK + ')}\n';
+    for (var d = 0; d <= 12; d++) css += '#sm-editor pre.sm-t-s' + d + '{width:calc(' + (W_ACTION - d) + 'ch + ' + PAD + 'px' + MK + ')}\n';
+    for (var k = 1; k <= 40; k++) css += '#sm-editor pre.sm-mk' + k + '{--sm-mk:' + k + 'ch}\n';
     // Holding Option on a Mac would switch the mouse pointer to CodeMirror's rectangle selection crosshair; keep the text pointer
     css += '#sm-editor .CodeMirror-crosshair,#sm-editor .CodeMirror-crosshair *{cursor:text !important}\n';
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
@@ -1073,13 +1075,13 @@
     function afterPre(te){
       var first = te + 1;
       while (first <= cm.lastLine() && isBlank(line(first))) first++;
-      var t = RING[0], at = te + 2;
-      if (first > cm.lastLine()){
+      var t = RING[0], at = te + 2, empty = first > cm.lastLine();
+      if (empty){
         // nothing below the title page yet: the slugline goes on the line after the empty one
         if (at > cm.lastLine()) put('\n' + (te + 1 > cm.lastLine() ? '\n' : '') + t, {line:cm.lastLine(), ch:line(cm.lastLine()).length});
         else put(t, {line:at, ch:0}, {line:at, ch:line(at).length});
       } else put(t + '\n\n', {line:first, ch:0});
-      at = first > cm.lastLine() ? te + 2 : first;
+      at = empty ? te + 2 : first;
       caret(at, caretFor(t));
       cyc = {line:at, pos:0, text:t};
     }
@@ -1603,6 +1605,14 @@
       return (c > 0 && isBlank(line(c)) && isBlank(line(c - 1))) ? c : -1;
     }
     cm.on('cursorActivity', function(){ if (slotLine() !== spacedFor) decorate(); });
+    // Moving onto or off a line with emphasis markers shows or hides them
+    var mkLine = -1;
+    cm.on('cursorActivity', function(){
+      var ln = cm.getCursor().line;
+      if (ln === mkLine) return;
+      var was = mkLine; mkLine = ln;
+      if ((was >= 0 && was < cm.lineCount() && /[_*]/.test(line(was))) || /[_*]/.test(line(ln))) decorate();
+    });
     function decorate(){
       var tk = '', noted = {}, ps = paragraphs(true), curLn = slotLine(), te = preEnd(), lang = langIn(line, te);
       function empty(j){ return j !== curLn && isBlank(line(j)); }
@@ -1626,6 +1636,9 @@
             if (nx < cm.lineCount() && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want(i, 'wrap', 'sm-sp2');
           }
           if (hid[i] || isBlank(s)) continue;
+          // Emphasis markers show (at full width) only on the line holding the cursor, which gets that much wider;
+          // everywhere else they take no width and stay invisible, so the lines wrap as on the printed page
+          if (i === cm.getCursor().line && /[_*]/.test(s)){ var nmk = emphOf(s).mk.filter(Boolean).length; if (nmk) want(i, 'text', 'sm-mkshow sm-mk' + Math.min(nmk, 40)); }
           // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
           if (i > te && isCmdLn(i)){ want(i, 'text', 'sm-t-act sm-t-cmd'); continue; }
           if (i <= te || isMarkLn(i)){

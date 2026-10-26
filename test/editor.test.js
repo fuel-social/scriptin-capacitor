@@ -585,6 +585,8 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   doc('Tab again goes on in the ring: .e', T + '\n\n.e  @14:3');
   cm.setValue(T + '\n'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:13, ch:0}); tab();
   doc('Tab on the empty line right below ---: .i with an empty line between, cursor on it', T + '\n\n.i  @14:3');
+  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:12, ch:3}); tab();
+  doc('Tab on --- as the very last line: cursor on the new .i', T + '\n\n.i  @14:3');
   cm.setValue(T + '\n\nAction.'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:13, ch:0}); tab();
   doc('the same above existing text: .i in front of it', T + '\n\n.i \n\nAction. @14:3');
   k9();
