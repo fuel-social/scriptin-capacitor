@@ -2011,6 +2011,9 @@
     measureBand();
     paginatePages();
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(function(){ cm.refresh(); measureBand(); placePages(); });
+    // The italic face only loads once italic text is drawn; until then the browser measures a fallback, so load it up front
+    // and measure again, or lines with *italic* would wrap differently from the printed page
+    if (document.fonts && document.fonts.load) document.fonts.load("italic 21px 'GTPressuraMonoRegular'").then(function(){ cm.refresh(); measureBand(); placePages(); }, function(){});
     window.addEventListener('resize', function(){ measureBand(); placePages(); });
   }
   // Load CodeMirror plus the mark-selection addon (selected text gets its own class, so the highlight can match the text height)
