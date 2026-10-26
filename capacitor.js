@@ -1668,10 +1668,26 @@
           var h = cm.getLineHandle(j), w = W[j] || '', x = X[j] || '';
           if ((h.wrapClass || '') !== w){ cm.removeLineClass(j, 'wrap'); if (w) cm.addLineClass(j, 'wrap', w); }
           if ((h.textClass || '') !== x){ cm.removeLineClass(j, 'text'); if (x) cm.addLineClass(j, 'text', x); }
+          emphBreaks(j, h, x);
         }
       });
       if (tk !== transKey){ transKey = tk; cm.refresh(); }
       barCursor();
+    }
+    // A line with emphasis markers is wider by their number, so the browser alone would wrap it later than the printed
+    // page; it is broken exactly where the print breaks it instead (a line break after the last character of each
+    // printed line), so every row holds the same words as on paper, markers included
+    var brkMarks = new WeakMap();
+    function emphBreaks(j, h, x){
+      var old = brkMarks.get(h), s = line(j), m = /\bsm-mk\d+/.test(x) && x.match(/sm-t-(act|dlg|par|s(\d+))\b/), key = '';
+      var w = !m ? 0 : m[1] === 'act' ? W_ACTION : m[1] === 'dlg' ? W_DIALOG : m[1] === 'par' ? W_PAREN : W_ACTION - +m[2];
+      if (w) key = w + '|' + s;
+      if (old && old.key === key) return;
+      if (old) old.marks.forEach(function(k){ k.clear(); });
+      if (!key){ brkMarks.delete(h); return; }
+      var lead = s.length - s.replace(/^\s+/, '').length, st = wrapStarts(s.slice(lead), w), marks = [];
+      for (var r = 1; r < st.length; r++){ var at = lead + st[r]; marks.push(cm.markText({line:j, ch:at - 1}, {line:j, ch:at}, {className:'sm-brk'})); }
+      brkMarks.set(h, {key:key, marks:marks});
     }
     // ---- Margin numbers: not part of the text, so never edited, copied or saved ----
     // Page numbers (reading script) right of the editor, at the line where each page begins: colorForeground with a
