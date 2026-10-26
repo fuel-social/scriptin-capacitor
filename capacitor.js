@@ -574,7 +574,7 @@
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
     // the line spans the whole editor and the text's own padding carries the block on to the right frame line,
     // so the block is one piece with the same height as cue blocks (as shot blocks run to the left frame line)
-    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
+    css += '#sm-editor .CodeMirror pre.CodeMirror-line.sm-t-trans{width:100%;padding-right:0;text-align:right}\n#sm-editor pre.sm-t-trans > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-fg) var(--sm-inset),var(--sm-fg) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-fg);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -807,10 +807,10 @@
     function chipCursor(){ var ln = cm.getCursor().line; cm.getWrapperElement().classList.toggle('sm-on-chip', activeCue === ln && !!settingOf(ln)); }
     function barCursor(){
       var cl = cm.getCursor().line, wr = cm.getWrapperElement();
-      // Cues look like shots used to (cursor colorBlue of the other mode), shots like sluglines
-      wr.classList.toggle('sm-on-bar', isCueLn(cl));
-      wr.classList.toggle('sm-on-slug', isSlugLn(cl) || isShotLn(cl));
-      wr.classList.toggle('sm-on-trans', isTransLn(cl));
+      // Shots have the cursor colour of the other mode, transitions that of sluglines, cues that of transitions before
+      wr.classList.toggle('sm-on-bar', isShotLn(cl));
+      wr.classList.toggle('sm-on-slug', isSlugLn(cl) || isTransLn(cl));
+      wr.classList.toggle('sm-on-trans', isCueLn(cl));
       chipCursor();
     }
     // Cue: ,NAME, or ,NAME (EXT), with the extension inside the commas

@@ -8,14 +8,13 @@
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
 #sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap)}
 #sm-editor .sm-on-bar .CodeMirror-cursor{border-left-color:var(--sm-blue-alt) !important}
-/* Night: the cursor on sluglines and shots takes colorBlue of the day theme, on transitions colorBlue of the night theme */
+/* Night: the cursor on sluglines and transitions takes colorBlue of the day theme, on cues colorBlue of the night theme */
 #sm-editor[data-mode=night] .sm-on-slug .CodeMirror-cursor{border-left-color:var(--sm-blue-day) !important}
 #sm-editor[data-mode=night] .sm-on-trans .CodeMirror-cursor{border-left-color:var(--sm-blue-night) !important}
-#sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg)}
-#sm-editor .cm-smcue.cm-smcuecomma{color:var(--sm-frame)}
+#sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-inactive)}
 #sm-editor .sm-l-slug{box-shadow:0 var(--sm-tail) 0 0 var(--sm-fg);background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
-#sm-editor pre.sm-t-shot > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-fg) var(--sm-inset),var(--sm-fg) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-fg),calc(16px - var(--sm-under) / 2 + var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-fg);-webkit-box-decoration-break:clone;box-decoration-break:clone}
-#sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-bg)}
+#sm-editor pre.sm-t-shot > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive),calc(16px - var(--sm-under) / 2 + var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+#sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .CodeMirror-selected{background:transparent !important}
 #sm-editor .CodeMirror-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}
 #sm-editor pre.sm-t-note{color:var(--sm-blue)}
