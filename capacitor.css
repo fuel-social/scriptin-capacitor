@@ -2,7 +2,7 @@
   font-family: 'GTPressuraMonoRegular';
   src: url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1705585947012x778432208426352100/GT-Pressura-Mono-Regular.woff');
 }
-#sm-editor{position:relative;width:720px;margin:80px auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px;--sm-tail:2px}
+#sm-editor{position:relative;width:720px;margin:0 auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px;--sm-tail:2px}
 #sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
 #sm-editor .CodeMirror-lines{padding:10px 0}
 #sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
