@@ -1738,8 +1738,73 @@
       if (scenesOn) place(sceneLayer, sceneStarts);
       place(cmdLayer, cmdStarts);
     }
+    // ---- Incremental page count: after a change only a few pages around it are laid out again ----
+    // The known page starts are kept with the region of lines changed since (dirty, in today's line numbers, and how
+    // many lines it gained). The layout runs again from a page start at least two pages before the change (a change can
+    // move the end of the page before it, and a slugline looks one element ahead) and stops at the first page start after
+    // the change that is also a known one: from there on everything is the same, only moved by the lines gained.
+    // A change on the title page that leaves Page size, Language and the closing --- alone only moves the lines
+    var PG = {starts:null, dirty:null, size:'', lang:'', te:-2, fulls:0};
+    function pgDirty(d, from, to, added){
+      var F = from.line, T = to.line, dl = added - (T - F);
+      if (!d) return {a:F, b:F + added, delta:dl};
+      var a = d.a < F ? d.a : (d.a > T ? d.a + dl : F), b = d.b < F ? d.b : (d.b > T ? d.b + dl : F + added);
+      return {a:Math.min(a, F), b:Math.max(b, F + added), delta:d.delta + dl};
+    }
+    function pgSettings(get, te){ return {size:sizeOf(preValue(get, te, 'size')), lang:(langOf(preValue(get, te, 'lang') || '') || LANGS[0]).code}; }
+    function pgHead(get, te, ln){ return ln === te + 1 || isBlank(get(ln - 1)) || isMark(get(ln - 1)); }
+    // Page starts for the text given by get(k) and n lines, from the known starts and the changes since (d)
+    function pgCompute(get, n, d){
+      var te = titleEnd(get, n), st = pgSettings(get, te), L = langIn(get, te), lines = st.size === 'US Letter' ? LETTER_LINES : A4_LINES;
+      function full(){ PG.fulls++; return layoutFrom(get, n, te, L, lines, te + 1, false, null).starts; }
+      var old = PG.starts;
+      if (!old || st.size !== PG.size || st.lang !== PG.lang) return {starts:full(), size:st.size, lang:st.lang, te:te};
+      if (!d) return {starts:old, size:st.size, lang:st.lang, te:te};
+      var res = {size:st.size, lang:st.lang, te:te};
+      // only the title page changed: the pages are the same, moved by the lines it gained
+      if (d.b < te && te - PG.te === d.delta){
+        res.starts = old.map(function(p){ return {line:p.line + d.delta, ch:p.ch}; });
+        return res;
+      }
+      if (d.a <= Math.max(te, PG.te) + 1 || PG.te !== te){ res.starts = full(); return res; }
+      // the paragraph the change begins in
+      var e0 = Math.min(d.a, n - 1);
+      while (e0 > te + 1 && !pgHead(get, te, e0)) e0--;
+      // two known page starts before it that begin with a whole element
+      var cand = [];
+      for (var k = 0; k < old.length && old[k].line < e0; k++) if (old[k].ch === 0 && pgHead(get, te, old[k].line)) cand.push(k);
+      // too close to the start for two: from the first line of the script on, still stopping where the pages meet again
+      var j = cand.length < 2 ? -1 : cand[cand.length - 2], from = j < 0 ? te + 1 : old[j].line, oldB = d.b - d.delta;
+      var r = layoutFrom(get, n, te, L, lines, from, false, function(pos){
+        if (pos.ch !== 0 || pos.line <= d.b || !pgHead(get, te, pos.line)) return;
+        var o = pos.line - d.delta, lo = 0, hi = old.length - 1;
+        if (o <= oldB) return;
+        while (lo <= hi){ var mid = (lo + hi) >> 1; if (old[mid].line < o) lo = mid + 1; else hi = mid - 1; }
+        for (var m = lo; m < old.length && old[m].line === o; m++) if (old[m].ch === 0) return m;
+      });
+      var out = old.slice(0, j + 1).concat(r.starts);
+      if (r.stop >= 0) for (var m = r.stop + 1; m < old.length; m++) out.push({line:old[m].line + d.delta, ch:old[m].ch});
+      res.starts = out;
+      return res;
+    }
+    function pgAdopt(r){ PG.starts = r.starts; PG.size = r.size; PG.lang = r.lang; PG.te = r.te; PG.dirty = null; }
+    // Today's page starts (with any changes since the last count worked in)
+    function pagesNow(){
+      if (PG.starts && !PG.dirty) return PG.starts;
+      pgAdopt(pgCompute(line, cm.lineCount(), PG.dirty));
+      return PG.starts;
+    }
+    cm.on('changes', function(_cm, list){
+      var ah = PG.ahead; PG.ahead = null;
+      if (list.some(function(c){ return c.origin === 'setValue'; })){ PG.starts = null; PG.dirty = null; return; }
+      var P = CodeMirror.cmpPos, c0 = list[0];
+      if (ah && !PG.dirty && list.length === 1 && P(c0.from, ah.from) === 0 && P(c0.to, ah.to) === 0 && c0.text.join('\n') === ah.text){ pgAdopt(ah.r); return; }
+      for (var k = 0; k < list.length; k++) PG.dirty = pgDirty(PG.dirty, list[k].from, list[k].to, list[k].text.length - 1);
+    });
+    // for the tests: the incremental page starts next to a full count
+    cm.smPages = function(){ return {inc:pagesNow(), full:paginate(cm.getValue()), fulls:PG.fulls}; };
     function paginatePages(){
-      pageStarts = paginate(cm.getValue());
+      pageStarts = pagesNow();
       fill(pageLayer, pageStarts.map(function(_, k){ return (k + 2) + '.'; }), 'sm-pagenum');
       // Scenes are counted over the whole script, so a number stays the same in every view
       var labels = [], scene = 0;
@@ -2045,10 +2110,15 @@
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
       if (ch.text.join('') === '') return;
-      var from = cm.indexFromPos(ch.from), to = cm.indexFromPos(ch.to), old = cm.getValue();
-      var next = old.slice(0, from) + ch.text.join('\n') + old.slice(to);
-      var pages = paginate(next).length + 1;
-      if (pages > MAX_PAGES && pages > paginate(old).length + 1) ch.cancel();
+      // the text as it would be after this change, read line by line without building it: only the pages around the
+      // change are laid out again (see the incremental page count)
+      var F = ch.from.line, T = ch.to.line, A = ch.text.length - 1, dl = A - (T - F), nl = ch.text.slice();
+      nl[0] = line(F).slice(0, ch.from.ch) + nl[0]; nl[A] = nl[A] + line(T).slice(ch.to.ch);
+      var get = function(k){ return k < F ? line(k) : k <= F + A ? nl[k - F] : line(k - dl); };
+      var now = pagesNow(), r = pgCompute(get, cm.lineCount() + dl, pgDirty(null, ch.from, ch.to, A)), pages = r.starts.length + 1;
+      if (pages > MAX_PAGES && pages > now.length + 1){ ch.cancel(); return; }
+      // kept, so the count after the change needs no second run when the change goes in exactly like this
+      PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};
     });
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
