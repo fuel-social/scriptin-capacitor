@@ -1415,9 +1415,14 @@
       requestAnimationFrame(function(){
         var c = cm.cursorCoords(pos, 'window'), cs = getComputedStyle(host);
         var gap = parseFloat(cs.getPropertyValue('--sm-gap')) || 0, band = parseFloat(cs.getPropertyValue('--sm-band')) || (c.bottom - c.top);
+        var tail = parseFloat(cs.getPropertyValue('--sm-tail')) || 0;
+        var left = c.left, top = c.top + gap, height = band + tail;
+        // Take the size of the real cursor, so the grown cursor is exactly as high as the resting one
+        var cur = cm.display.cursorDiv.firstChild, r = cur && cur.getBoundingClientRect();
+        if (r && r.height > 0){ left = r.left; top = r.top; height = r.height; }
         var inShot = isShotLn(pos.line);
         var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;left:' + c.left + 'px;top:' + (c.top + gap) + 'px;height:' + band + 'px;width:3px;background:' + ((cm.display.cursorDiv.firstChild && getComputedStyle(cm.display.cursorDiv.firstChild).borderLeftColor) || cs.getPropertyValue(inShot ? '--sm-blue-alt' : '--sm-blue').trim());
+        el.style.cssText = 'position:fixed;z-index:9999;pointer-events:none;left:' + left + 'px;top:' + top + 'px;height:' + height + 'px;width:3px;background:' + ((cm.display.cursorDiv.firstChild && getComputedStyle(cm.display.cursorDiv.firstChild).borderLeftColor) || cs.getPropertyValue(inShot ? '--sm-blue-alt' : '--sm-blue').trim());
         document.body.appendChild(el);
         if (el.animate){
           var a = el.animate([{width:'3px'}, {width:FIND_PX + 'px'}, {width:'3px'}], {duration:FIND_MS, easing:'ease-in-out'});
