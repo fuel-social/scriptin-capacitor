@@ -869,6 +869,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       transWidth = w; host.style.setProperty('--sm-trans-w', String(w)); cm.refresh();
     }
     setTransW();
+    // With a selection (a completion offered, words marked) the cursor is a thin line, so it covers no letter
+    cm.on('cursorActivity', function(){ var w = cm.getWrapperElement(), on = cm.somethingSelected(); if (w.classList.contains('sm-has-sel') !== on) w.classList.toggle('sm-has-sel', on); });
     cm.on('changes', function(_cm, list){ if (list.some(function(c){ return c.from.line <= preEnd() + 1; })) setTransW(); });
     var cyc = null, lastAuto = -1, saveTimer = null;
     // Active cue (or transition): plain Up/Down pick names, extensions or transitions only where the writer is working
