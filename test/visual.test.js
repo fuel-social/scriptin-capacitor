@@ -40,7 +40,7 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     const cm = document.getElementById('sm-editor').smCM, v = cm.view, dpr = devicePixelRatio;
     const host = document.getElementById('sm-editor'), cs = getComputedStyle(host);
     const gap = parseFloat(cs.getPropertyValue('--sm-gap')) || 0, band = parseFloat(cs.getPropertyValue('--sm-band')), tail = parseFloat(cs.getPropertyValue('--sm-tail')) || 0;
-    const lh = v.defaultLineHeight;
+    const lh = v.defaultLineHeight, B = cm.smBand();
     const bands = [...document.querySelectorAll('.sm-bands > div')].map(e => { const r = e.getBoundingClientRect(); return { cls: e.className, top: r.top, bottom: r.bottom, left: r.left, right: r.right }; });
     // row tops: every drawn line, every screen row of it
     const lines = [...document.querySelectorAll('.cm-line')].map(l => { const r = l.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, cls: l.className, text: l.textContent }; });
@@ -62,7 +62,7 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     const cur = document.querySelector('.cm-cursor'), cr = cur && getComputedStyle(cur).display !== 'none' ? cur.getBoundingClientRect() : null;
     const sel = cm.somethingSelected();
     const docTop = v.documentTop;
-    return { dpr, gap, band, tail, lh, bands, lines: lines.map(l => ({ top: l.top, bottom: l.bottom, left: l.left, right: l.right, cls: l.cls, text: l.text })), glyphs: glyphs.map(g => ({ ch: g.ch, left: g.left, right: g.right, top: g.top, bottom: g.bottom, onTop: g.onTop })), cursor: cr && { top: cr.top, height: cr.height }, sel, docTop };
+    return { dpr, gap: B.gap, band: B.h, tail: 0, lh, bands, lines: lines.map(l => ({ top: l.top, bottom: l.bottom, left: l.left, right: l.right, cls: l.cls, text: l.text })), glyphs: glyphs.map(g => ({ ch: g.ch, left: g.left, right: g.right, top: g.top, bottom: g.bottom, onTop: g.onTop })), cursor: cr && { top: cr.top, height: cr.height }, sel, docTop };
   });
   function rules(m, label){
     const H = m.band + m.tail, grid = x => Math.abs(x * m.dpr - Math.round(x * m.dpr)) < 0.02;

@@ -868,6 +868,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.refresh();
     cm.focus();
     host.smCM = cm;
+    cm.smBand = function(){ return BAND; };
     // The width of transitions in the editor follows the script's language (see transW)
     var transWidth = -1;
     function setTransW(){
@@ -919,7 +920,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         // How far every bar reaches below the line (cue, shot and transition bars are drawn on the text box, which can
         // end a little above its inset): the cursor and the slugline bar end exactly there too
         host.style.setProperty('--sm-tail', Math.max(0, u + ib - it) + 'px');
-        var nb = {gap:Math.max(0, r.top - lr.top), h:Math.min(r.height, lh) + Math.max(0, u + ib - it)};
+        // Accents on capitals (Å, É, Ü) can reach above the line: bands and the cursor start that much higher (selected
+        // text is light, so a part outside the band would vanish)
+        var ma = Math.max.apply(null, ['\u00c5', '\u00c9', '\u00dc', '\u00c8', '\u00ca'].map(function(t){ return cx.measureText(t).actualBoundingBoxAscent || 0; }));
+        var over = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), Math.ceil((ma - base) * 2) / 2)) : 0;
+        host.style.setProperty('--sm-over', over + 'px');
+        var nb = {gap:Math.max(0, r.top - lr.top) - over, h:Math.min(r.height, lh) + Math.max(0, u + ib - it) + over};
         if (nb.gap !== BAND.gap || nb.h !== BAND.h){ BAND = nb; cm.refresh(); }
       } catch (e){}
       // Distance from the page's right text edge to the editor's right frame line
