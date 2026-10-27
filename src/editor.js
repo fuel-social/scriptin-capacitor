@@ -858,7 +858,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     window.addEventListener('pagehide', function(){ sync.flush(); });
     // Slugline bars, shot blocks and the cursor get the same band height as cue blocks and selections (the text's own box inside the line)
     function measureBand(){
-      var sp = host.querySelector('.cm-line > .sm-in');
+      // a drawn line with text on one row (hidden lines at the top have no height, wrapped ones several rows)
+      var sp = null, cand = host.querySelectorAll('.cm-line:not(.sm-gone) > .sm-in');
+      for (var q = 0; q < cand.length && !sp; q++) { var hq = cand[q].parentNode.getBoundingClientRect().height; if (hq && hq < 1.5 * cm.defaultTextHeight()) sp = cand[q]; }
       if (!sp) return;
       var r = sp.getBoundingClientRect(), lr = sp.parentNode.getBoundingClientRect();
       if (!r.height) return;
