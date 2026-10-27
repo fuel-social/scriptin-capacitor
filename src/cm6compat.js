@@ -44,7 +44,7 @@ export function createEditor(host, opts){
   var wrapCls = [], textCls = [];              // line classes by line number
   var markers = [];                            // markText results, in document offsets
   var hist = {done: [], undone: [], lastOp: -1, lastOrigin: null, lastTime: 0};
-  var readOnlyComp = new Compartment(), keysComp = new Compartment();
+  var readOnlyComp = new Compartment(), keysComp = new Compartment(), themeComp = new Compartment();
   var extraKeys = {};
   var lineTokens = opts.lineTokens || null;
 
@@ -385,7 +385,7 @@ export function createEditor(host, opts){
   function bandMarkers(v){
     var out = [];
     var st = v.state, d = st.doc, sel = st.selection.main, box = (opts.bandBox && opts.bandBox()) || {gap: 0, h: v.defaultLineHeight};
-    var lh = v.defaultLineHeight, dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1;
+    var lcs = getComputedStyle(v.contentDOM), lh = parseFloat(lcs.lineHeight) || parseFloat(lcs.fontSize) || v.defaultLineHeight, dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1;
     // never lower than a line (a measurement taken before the stylesheet arrived)
     if (!(box.h >= lh)) box = {gap: Math.min(0, box.gap || 0), h: lh + Math.max(0, box.h - lh)};
     function snap(x){ return Math.round(x * dpr) / dpr; }
@@ -441,7 +441,7 @@ export function createEditor(host, opts){
     above: false,
     class: 'sm-bands',
     markers: bandMarkers,
-    update: function(u){ return u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.effects.some(function(e){ return e.is(redraw); }); }); }
+    update: function(u){ return u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.reconfigured || t.effects.some(function(e){ return e.is(redraw); }); }); }
   });
 
   // ---- keys ----
@@ -473,6 +473,7 @@ export function createEditor(host, opts){
     doc: opts.value || '',
     extensions: [
       readOnlyComp.of(EditorState.readOnly.of(!!opts.readOnly)),
+      themeComp.of(EditorView.theme({})),
       Prec.highest(keysComp.of(keymap.of([]))),
       keymap.of(historyKeys),
       keymap.of(baseKeys),
@@ -602,6 +603,8 @@ export function createEditor(host, opts){
     contentWidth: function(){ return view.contentDOM.clientWidth; },
     cursorElement: function(){ flush(); return view.dom.querySelector('.cm-cursor'); },
     version: function(){ return version; },
+    // measure line height and character width again (a stylesheet or font that arrived after the editor started)
+    remeasure: function(){ flush(); view.dispatch({effects: themeComp.reconfigure(EditorView.theme({}))}); },
     // f runs when the editor next reads its layout (once, however often it is asked for before)
     afterLayout: function(f){ var k = f.smKey || (f.smKey = {}); view.requestMeasure({key: k, read: function(){ f(); }}); },
     // keys and typing as the browser delivers them (used by the tests)

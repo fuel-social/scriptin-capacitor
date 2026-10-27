@@ -848,7 +848,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         }
         return out;
       },
-      bandBox:function(){ return BAND; }});
+      // measured again right here when font, size or line height changed since (no redraw needed: this is the drawing)
+      bandBox:function(){ if (BAND.k !== bandKeyNow()) measureBand(true); return BAND; }});
     // Marks inside line n (text s): see emphRuns; the title page, cues and shots as CodeMirror 5's mode had them
     function lineTokens(n, s){
       var out = [], te = preEnd();
@@ -903,18 +904,22 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     window.addEventListener('pagehide', function(){ sync.flush(); });
     // Slugline bars, shot blocks and the cursor get the same band height as cue blocks and selections (the text's own box inside the line)
     // Every band and the cursor: from the row's top plus gap, h high (the line's height and the descenders' reach)
-    var BAND = {gap:0, h:cm.defaultTextHeight()};
-    function measureBand(){
+    var BAND = {gap:0, h:cm.defaultTextHeight(), k:''};
+    // the line height as the stylesheet sets it now (CodeMirror's own measure can be older in Safari)
+    function lineH(){ var cs = getComputedStyle(cm.getInputField()); return parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) || cm.defaultTextHeight(); }
+    // what the bands depend on: font, size, line height, fonts loaded
+    function bandKeyNow(){ var cs = getComputedStyle(cm.getInputField()); return cs.fontFamily + '|' + cs.fontSize + '|' + cs.lineHeight + '|' + (document.fonts ? document.fonts.status + document.fonts.size : ''); }
+    function measureBand(quiet){
       // a drawn line with text on one row (hidden lines at the top have no height, wrapped ones several rows)
       var sp = null, cand = host.querySelectorAll('.cm-line:not(.sm-gone) > .sm-in');
-      for (var q = 0; q < cand.length && !sp; q++) { var hq = cand[q].parentNode.getBoundingClientRect().height; if (hq && hq < 1.5 * cm.defaultTextHeight()) sp = cand[q]; }
+      for (var q = 0; q < cand.length && !sp; q++) { var hq = cand[q].parentNode.getBoundingClientRect().height; if (hq && hq < 1.5 * lineH()) sp = cand[q]; }
       if (!sp) return;
       var r = sp.getBoundingClientRect(), lr = sp.parentNode.getBoundingClientRect();
       if (!r.height) return;
-      host.style.setProperty('--sm-lh', cm.defaultTextHeight() + 'px');
+      host.style.setProperty('--sm-lh', lineH() + 'px');
       // Single spaced: the font's text box (r) can be taller than the line; bars and the cursor take the line's height,
       // and --sm-inset is how far the text box reaches beyond the line above and below
-      var lh = cm.defaultTextHeight();
+      var lh = lineH();
       host.style.setProperty('--sm-band', Math.min(r.height, lh) + 'px');
       host.style.setProperty('--sm-gap', Math.max(0, r.top - lr.top) + 'px');
       host.style.setProperty('--sm-inset', Math.max(0, lr.top - r.top) + 'px');
@@ -936,7 +941,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var over = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), Math.ceil((ma - base) * 2) / 2)) : 0;
         host.style.setProperty('--sm-over', over + 'px');
         var nb = {gap:Math.max(0, r.top - lr.top) - over, h:Math.min(r.height, lh) + Math.max(0, u + ib - it) + over};
-        if (nb.gap !== BAND.gap || nb.h !== BAND.h){ BAND = nb; cm.refresh(); }
+        nb.k = bandKeyNow();
+        var changed = nb.gap !== BAND.gap || nb.h !== BAND.h;
+        BAND = nb;
+        if (changed && !quiet) cm.refresh();
       } catch (e){}
       // Distance from the page's right text edge to the editor's right frame line
       host.style.setProperty('--sm-trans-tail', (cm.contentWidth() - (W_ACTION * cm.defaultCharWidth() + PAD / 2)) + 'px');
@@ -2195,11 +2203,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // whenever the line height, the character width or the width of the text changes, the bands are measured again
     var bandKey = '';
     cm.on('update', function(){
-      var k = cm.defaultTextHeight() + '|' + cm.defaultCharWidth() + '|' + cm.contentWidth();
+      var k = bandKeyNow() + '|' + cm.contentWidth();
       if (k === bandKey) return;
       bandKey = k;
-      setTimeout(function(){ measureBand(); placePages(); }, 0);
+      setTimeout(function(){ if (Math.abs(cm.defaultTextHeight() - lineH()) > 0.5) cm.remeasure(); measureBand(); placePages(); }, 0);
     });
+    // fonts that finish loading and the page's last stylesheet: CodeMirror measures again, then the bands
+    function lateMeasure(){ if (Math.abs(cm.defaultTextHeight() - lineH()) > 0.5) cm.remeasure(); measureBand(); placePages(); }
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', function(){ setTimeout(lateMeasure, 0); });
+    window.addEventListener('load', function(){ setTimeout(lateMeasure, 0); });
     cm.on('update', placePages);
     // scrolling brings other numbers near the window: they are placed then (once per frame)
     var scrollPlace = false;
