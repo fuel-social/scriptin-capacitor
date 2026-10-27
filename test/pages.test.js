@@ -64,7 +64,8 @@ setTimeout(async function(){
     // now and then only a small part is laid out, and the next edit comes before the rest: checked a few steps later
     if (rnd() < 0.5){ cm.smPagesStep(1 + Math.floor(rnd() * 3)); if (rnd() < 0.6) continue; }
     same(label + ' #' + s);
-    if (rnd() < 0.25) cm.setCursor({line:14 + Math.floor(rnd() * (cm.lineCount() - 14)), ch:0});
+    // the cursor goes to a line with text (in a view, empty lines between paragraphs are hidden and the writer cannot get there)
+    if (rnd() < 0.25){ const c = 14 + Math.floor(rnd() * (cm.lineCount() - 14)); if (cm.getLine(c).trim()) cm.setCursor({line:c, ch:0}); }
     { const v = cm.smView(); checks++; if (v.cur !== v.fresh){ fails++; if (fails < 6) console.log('FAIL hidden runs after ' + label + ' #' + s + '\n  cur   ' + v.cur.slice(0, 200) + '\n  fresh ' + v.fresh.slice(0, 200)); } }
     { const x = cm.smIndex(); checks++; if (x.cue !== x.cueFull || x.slug !== x.slugFull){ fails++; if (fails < 6) console.log('FAIL index after ' + label + ' #' + s); } }
     { const c = cm.smClasses(); checks++;

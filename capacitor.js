@@ -1068,7 +1068,9 @@
       if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, keepLast ? last - 1 : last, prevEnd < 0, out);
       return out;
     }
-    var markRanges = [], viewSig = {head:-1, sig:'', cur:-1};
+    var markRanges = [], viewSig = {head:-1, sig:'', cur:-1, end:-1};
+    // last line of the paragraph starting at h (the paragraph runs on to the next empty line or the closing ---)
+    function paraEnd(h){ var te = preEnd(), n = cm.lineCount(), e = h; if (isBlank(line(h))) return h; while (e + 1 < n && !isBlank(line(e + 1)) && e !== te) e++; return e; }
     function applyView(){
       var want = viewRanges(), same = want.length === marks.length && want.length === markRanges.length;
       for (var q = 0; same && q < want.length; q++){
@@ -1087,8 +1089,9 @@
       hid = []; topGone = -1;
       want.forEach(function(w){ for (var i = w.a; i <= w.b; i++) hid[i] = 1; if (w.top) topGone = w.b; });
       // what the paragraph holding the cursor was, so typing in it can keep these runs (see refreshChanged)
+      // (with its last line: typing into an empty line next to it would join two paragraphs, emptying one would split it)
       var cl = cm.getCursor().line, ch0 = paraHead(cl);
-      viewSig = {head:ch0, sig:JSON.stringify(paraType(ch0, preEnd())), cur:ch0};
+      viewSig = {head:ch0, sig:JSON.stringify(paraType(ch0, preEnd())), cur:ch0, end:paraEnd(ch0)};
       return !same;
     }
     function centerCursor(){
@@ -2216,7 +2219,7 @@
         var d = DEC.dirty, keep = false;
         if (!DEC.full && d && d.delta === 0 && d.a === d.b && markRanges.length && (view !== 1 || notesOff) && te === DEC.te){
           var hd = paraHead(d.a), cur = paraHead(cm.getCursor().line), sig = JSON.stringify(paraType(hd, te));
-          keep = hd === viewSig.head && sig === viewSig.sig && cur === viewSig.cur;
+          keep = hd === viewSig.head && sig === viewSig.sig && cur === viewSig.cur && paraEnd(hd) === viewSig.end;
         }
         if (!keep) rebuilt = applyView();
         // with runs hidden inside the script (a view, notes off), lines can move into or out of them while the runs keep
