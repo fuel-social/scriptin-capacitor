@@ -37,7 +37,8 @@
 #sm-editor .cm-line.sm-t-shot{color:var(--sm-type,#61686E)}
 #sm-editor .sm-bands{pointer-events:none}
 #sm-editor .sm-bands > div{position:absolute}
-#sm-editor .sm-band-slug{background:var(--sm-fg)}
+/* Sluglines: colorType of the theme behind light text */
+#sm-editor .sm-band-slug{background:var(--sm-type,#61686E)}
 #sm-editor .sm-band-cue{background:var(--sm-frame)}
 #sm-editor .sm-band-trans{background:var(--sm-frame)}
 /* Shots: the transitions' colour behind colorType text */
