@@ -78,6 +78,12 @@ setTimeout(async function(){
   const viewSwitch = ONLY && ONLY !== 'view' ? skip : await op('view', () => { k1(); cm.setCursor({line:dl(), ch:5}); }, () => k3(), Math.min(R, 5));
   const inView = ONLY && ONLY !== 'view' ? skip : await op('inview', () => { cm.setCursor({line:dl(), ch:cm.getLine(dl()).length}); }, () => type('y'), R);
   k1();
+  // commands on the whole script: Reformat, notes off and on, title page shown and hidden
+  const kk = (code, key) => () => cm.triggerOnKeyDown({ type:'keydown', keyCode:code, key, ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const reformat = ONLY && ONLY !== 'cmd' ? skip : await op('reformat', () => { cm.setCursor({line:ml, ch:3}); type('  x'); }, kk(13, 'Enter'), 3);
+  const notes = ONLY && ONLY !== 'cmd' ? skip : await op('notes', () => {}, kk(54, '6'), 4);
+  const title = ONLY && ONLY !== 'cmd' ? skip : await op('title', () => {}, kk(57, '9'), 4);
+  console.log(JSON.stringify({reformat, notes, title}));
   console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2, enter, cue, slug, tab, viewSwitch, inView}));
   process.exit(0);
 }, 150);

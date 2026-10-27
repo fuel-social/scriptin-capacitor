@@ -1820,9 +1820,57 @@
         else want('text', 'sm-t-act');
         return {w:W, x:X};
       }
+      // The whole script in one pass: every line read once, each paragraph's first line looked at once, and the notes of
+      // each scene collected on the way; gives the same classes as classes(), which the line ranges use
+      var T = null, H = null, noted = null;
+      if (!todo){
+        T = []; H = []; noted = {};
+        cm.eachLine(function(h){ T.push(h.text); });
+        var head = 0, scene = -1;
+        for (var k = 0; k < n; k++){
+          if (k === 0 || T[k - 1].trim() === '' || k - 1 === te) head = k;
+          H[k] = head;
+          if (head === k && k > te && T[k].trim() !== ''){
+            if (slugDelta(T[k]) >= 0) scene = k;
+            else if (NOTE.test(T[k]) && !isMark(T[k]) && scene >= 0) noted[scene] = 1;
+          }
+        }
+      }
+      function emptyF(j){ return j !== curLn && T[j].trim() === ''; }
+      function classesFast(i){
+        var W = '', X = '';
+        function want(where, cls){ if (where === 'wrap') W = W ? W + ' ' + cls : cls; else X = X ? X + ' ' + cls : cls; }
+        if (i <= topGone) return {w:'sm-gone', x:''};
+        var s = T[i], blank = s.trim() === '';
+        if (emptyF(i) && !hid[i] && i > 0 && !emptyF(i - 1)){
+          var nx = i + 1;
+          while (nx < n && emptyF(nx)) nx++;
+          if (nx < n && nx !== curLn && H[nx] === nx && (slugDelta(T[nx]) >= 0 || SHOT.test(T[nx])) && i - 1 > te) want('wrap', 'sm-sp2');
+        }
+        if (hid[i] || blank) return {w:W, x:X};
+        var h0 = H[i], hs = T[h0];
+        if (i > te && CMD_EXPORT.test(s) && h0 === i && (i + 1 >= n || T[i + 1].trim() === '')){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
+        if (i <= te || isMark(s)){
+          want('text', 'sm-t-act sm-t-note');
+          if (i < te && headOf(s)) want('wrap', 'sm-head');
+          if (i === activeCue && settingOf(i)) want('wrap', 'sm-set-on');
+        }
+        else if (slugDelta(hs) >= 0){
+          var isHead = h0 === i;
+          want('wrap', 'sm-l-slug' + (isHead && noted[i] ? ' sm-n-note' : ''));
+          want('text', isHead ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
+        }
+        else if (NOTE.test(hs)) want('text', 'sm-t-act sm-t-note');
+        else if (SHOT.test(hs)) want('text', 'sm-t-act sm-t-shot');
+        else if (TRANS.test(hs)) want('text', 'sm-t-trans');
+        else if (h0 === i && /^,([^,]*),(.*)$/.test(s) && isBlank(s.match(/^,([^,]*),(.*)$/)[2])) {}
+        else if (h0 < i && /^,([^,]*),(\s*)$/.test(hs)) want('text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
+        else want('text', 'sm-t-act');
+        return {w:W, x:X};
+      }
       cm.operation(function(){
         function one(j){
-          var h = cm.getLineHandle(j), c = classes(j), oldX = h.textClass || '';
+          var h = cm.getLineHandle(j), c = T ? classesFast(j) : classes(j), oldX = h.textClass || '';
           if ((h.wrapClass || '') !== c.w){ cm.removeLineClass(j, 'wrap'); if (c.w) cm.addLineClass(j, 'wrap', c.w); }
           if (oldX !== c.x){
             // a transition is right aligned, which moves its characters: CodeMirror measures again when one comes or goes
