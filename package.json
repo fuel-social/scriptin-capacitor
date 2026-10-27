@@ -3,7 +3,8 @@
   "private": true,
   "description": "Editor code for scriptin Machine (loaded by the Bubble element htmlCapacitor via jsDelivr)",
   "scripts": {
-    "test": "node test/pagination.test.js && node test/editor.test.js"
+    "test": "node test/pagination.test.js && node test/editor.test.js && PAGES_STEPS=300 node test/pages.test.js",
+    "bench": "node test/bench.js"
   },
   "devDependencies": {
     "codemirror": "5.65.16",

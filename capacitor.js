@@ -959,21 +959,27 @@
     // 4 action and shots; views 3 and 4 show only the sluglines of scenes that hold such paragraphs.
     // The paragraph holding the cursor always stays visible, so text typed in a view does not vanish.
     var view = 1, who = '', marks = [], hid = [], home = null, viewPos = null, notesOff = false, preOn = false;
+    // What the paragraph starting at line s is, from its first line: pre (title page), mark, slug, note, shot, trans,
+    // dialog (with the speaker's name) or action
+    function paraType(s, te){
+      var h = line(s), type = 'action', name = '', c;
+      if (s <= te) type = 'pre';
+      else if (isMark(h)) type = 'mark';
+      else if (slugDelta(h) >= 0) type = 'slug';
+      else if (NOTE.test(h)) type = 'note';
+      else if (SHOT.test(h)) type = 'shot';
+      else if (TRANS.test(h)) type = 'trans';
+      else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
+      return {type:type, name:name};
+    }
     function paragraphs(noCursor){
       var out = [], n = cm.lineCount(), i = 0, te = preEnd();
       while (i < n){
         if (isBlank(line(i))){ i++; continue; }
         var s = i;
         while (i < n && !isBlank(line(i)) && !(i > s && i - 1 === te)) i++;
-        var h = line(s), type = 'action', name = '', c;
-        if (s <= te) type = 'pre';
-        else if (isMark(h)) type = 'mark';
-        else if (slugDelta(h) >= 0) type = 'slug';
-        else if (NOTE.test(h)) type = 'note';
-        else if (SHOT.test(h)) type = 'shot';
-        else if (TRANS.test(h)) type = 'trans';
-        else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
-        out.push({s:s, e:i - 1, type:type, name:name, scene:-1, owner:null});
+        var t = paraType(s, te);
+        out.push({s:s, e:i - 1, type:t.type, name:t.name, scene:-1, owner:null});
       }
       // A note belongs to the nearest element above it that is not a note
       for (var q = 0, own = null; q < out.length; q++){
@@ -1057,7 +1063,7 @@
       if (run) hideRange(prevEnd < 0 ? 0 : prevEnd + 1, keepLast ? last - 1 : last, prevEnd < 0, out);
       return out;
     }
-    var markRanges = [];
+    var markRanges = [], viewSig = {head:-1, sig:'', cur:-1};
     function applyView(){
       var want = viewRanges(), same = want.length === marks.length && want.length === markRanges.length;
       for (var q = 0; same && q < want.length; q++){
@@ -1071,10 +1077,14 @@
           if (w.top) marks.push(roMark({line:0, ch:0}, {line:w.b, ch:line(w.b).length}, {readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
           else marks.push(roMark({line:w.a, ch:line(w.a).length}, {line:w.b, ch:line(w.b).length}, {collapsed:true, readOnly:true, inclusiveLeft:false, inclusiveRight:false}));
         });
-        markRanges = want;
       }
+      markRanges = want;
       hid = []; topGone = -1;
       want.forEach(function(w){ for (var i = w.a; i <= w.b; i++) hid[i] = 1; if (w.top) topGone = w.b; });
+      // what the paragraph holding the cursor was, so typing in it can keep these runs (see refreshChanged)
+      var cl = cm.getCursor().line, ch0 = paraHead(cl);
+      viewSig = {head:ch0, sig:JSON.stringify(paraType(ch0, preEnd())), cur:ch0};
+      return !same;
     }
     function centerCursor(){
       var c = cm.cursorCoords(cm.getCursor(), 'window');
@@ -1381,9 +1391,39 @@
       return CodeMirror.Pass;
     }
     // Character names used in other cues, unique, alphabetical
+    // ---- Index of the lines that can be cues or sluglines, so completion does not read the whole script per letter ----
+    // Every line whose text looks like one (,NAME, or .i .e .ie .ei) is kept by its line handle; after changes only the
+    // changed lines are looked at again. A query checks each kept line where it stands now (paragraph start, still there)
+    var IDX = {built:false, cue:new Map(), slug:new Map(), dirty:null};
+    var CUE_LIKE = /^,[^,]*,/, SLUG_LIKE = /^\.(IE|EI|I|E)(\s|$)/i;
+    function idxLook(h){
+      if (CUE_LIKE.test(h.text)) IDX.cue.set(h, 1); else IDX.cue.delete(h);
+      if (SLUG_LIKE.test(h.text)) IDX.slug.set(h, 1); else IDX.slug.delete(h);
+    }
+    function idxLines(which){
+      if (!IDX.built){ IDX.cue.clear(); IDX.slug.clear(); cm.eachLine(idxLook); IDX.built = true; IDX.dirty = null; }
+      else if (IDX.dirty){
+        var n = cm.lineCount();
+        for (var k = Math.max(0, IDX.dirty.a); k <= Math.min(IDX.dirty.b, n - 1); k++) idxLook(cm.getLineHandle(k));
+        IDX.dirty = null;
+      }
+      var out = [], map = IDX[which];
+      map.forEach(function(_, h){
+        var ln = h.lineNo();
+        if (ln === null || ln === undefined){ map.delete(h); return; }
+        out.push(ln);
+      });
+      return out.sort(function(a, b){ return a - b; });
+    }
+    cm.on('changes', function(_cm, list){
+      // a whole new text: the index is built again soon after, between keystrokes
+      if (list.some(function(c){ return c.origin === 'setValue'; })){ IDX.built = false; setTimeout(function(){ if (!IDX.built) idxLines('cue'); }, 50); return; }
+      for (var q = 0; q < list.length; q++) IDX.dirty = pgDirty(IDX.dirty, list[q].from, list[q].to, list[q].text.length - 1);
+    });
     function allNames(skipLn){
-      var seen = {}, out = [];
-      for (var i = 0; i < cm.lineCount(); i++){
+      var seen = {}, out = [], lines = idxLines('cue');
+      for (var x = 0; x < lines.length; x++){
+        var i = lines[x];
         if (i === skipLn) continue;
         var c = cueParts(i);
         if (!c) continue;
@@ -1398,12 +1438,16 @@
     // Empty cue: Up starts at the last speaker, Down at the speaker before him (the dialogue partner).
     function nameLadder(ln){
       var seen = {}, recent = [], below = [], i, c, n, k;
-      for (i = ln - 1; i >= 0; i--){
+      var lines = idxLines('cue'), x, at = 0;
+      while (at < lines.length && lines[at] < ln) at++;
+      for (x = at - 1; x >= 0; x--){
+        i = lines[x];
         c = cueParts(i); if (!c) continue;
         n = c.name.trim(); k = n.toUpperCase();
         if (n && !seen[k]){ seen[k] = 1; recent.push(n); }
       }
-      for (i = ln + 1; i < cm.lineCount(); i++){
+      for (x = at; x < lines.length; x++){
+        i = lines[x]; if (i === ln) continue;
         c = cueParts(i); if (!c) continue;
         n = c.name.trim(); k = n.toUpperCase();
         if (n && !seen[k]){ seen[k] = 1; below.push(n); }
@@ -1535,7 +1579,9 @@
       // Every location of every earlier slugline counts, INT. and EXT. alike and wherever it stood in its slugline (ROOM
       // after SHAFT is offered at the start too); locations already on this line are left out; times only after a location
       var mine = {}; pre.forEach(function(x){ mine[x] = 1; });
-      for (var i = 0; i < cm.lineCount(); i++){
+      var lines = idxLines('slug');
+      for (var x = 0; x < lines.length; x++){
+        var i = lines[x];
         if (i === ln || !isSlugHead(i)) continue;
         var parts = slugParts(i);
         for (var j = 0; j < parts.length; j++){
@@ -1949,6 +1995,15 @@
     // for the tests: the incremental page starts next to a full count
     cm.smPages = function(){ return {inc:pagesNow(), full:paginate(cm.getValue()), fulls:PG.fulls}; };
     cm.smPagesStep = function(b){ return pagesNow(b); };
+    // for the tests: the hidden runs in use next to freshly worked out ones
+    cm.smView = function(){ clearTimeout(timer); refreshChanged(); return {cur:JSON.stringify(markRanges), fresh:JSON.stringify(viewRanges())}; };
+    // for the tests: cue and slugline lines from the index next to a full read
+    cm.smIndex = function(){
+      var cues = [], slugs = [];
+      for (var i = 0; i < cm.lineCount(); i++){ if (cueParts(i)) cues.push(i); if (isSlugHead(i)) slugs.push(i); }
+      return {cue:JSON.stringify(idxLines('cue').filter(function(i){ return !!cueParts(i); })), cueFull:JSON.stringify(cues),
+        slug:JSON.stringify(idxLines('slug').filter(isSlugHead)), slugFull:JSON.stringify(slugs)};
+    };
     // for the tests: the classes after the incremental update next to a full one
     cm.smClasses = function(){
       function snap(){ var o = []; for (var i = 0; i < cm.lineCount(); i++){ var h = cm.getLineHandle(i); o.push((h.wrapClass || '') + '|' + (h.textClass || '')); } return o; }
@@ -2061,9 +2116,20 @@
     function refreshChanged(){
       preGaps();
       cm.operation(function(){
-        var before = markRanges, te = preEnd(), lang = scriptLang().code;
-        applyView();
-        var full = DEC.full || markRanges !== before || te !== DEC.te || lang !== DEC.lang;
+        var te = preEnd(), lang = scriptLang().code, rebuilt = false;
+        // In a view (or with notes off) the hidden runs come from reading every paragraph. Typing inside one line that
+        // keeps its paragraph what it was (no line more or less, the same kind of paragraph, the cursor still in the
+        // paragraph it was in) cannot change them, so they are kept
+        var d = DEC.dirty, keep = false;
+        if (!DEC.full && d && d.delta === 0 && d.a === d.b && markRanges.length && (view !== 1 || notesOff) && te === DEC.te){
+          var hd = paraHead(d.a), cur = paraHead(cm.getCursor().line), sig = JSON.stringify(paraType(hd, te));
+          keep = hd === viewSig.head && sig === viewSig.sig && cur === viewSig.cur;
+        }
+        if (!keep) rebuilt = applyView();
+        // with runs hidden inside the script (a view, notes off), lines can move into or out of them while the runs keep
+        // their numbers, so their classes are all worked out again unless the runs were kept above
+        var inner = !keep && markRanges.some(function(r){ return !r.top; });
+        var full = DEC.full || rebuilt || inner || te !== DEC.te || lang !== DEC.lang;
         if (full) decorate();
         else {
           var rs = [];

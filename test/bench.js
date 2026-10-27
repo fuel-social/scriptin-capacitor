@@ -10,7 +10,7 @@ Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3
 Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
 w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
 w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
-w.scrollTo = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
+w.scrollTo = () => {}; w.scrollBy = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
 const nm = path.join(__dirname, '..', 'node_modules', 'codemirror') + '/';
 w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
 w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
@@ -71,6 +71,13 @@ setTimeout(async function(){
   const cue = ONLY && ONLY !== 'cue' ? skip : await op('cue', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); keyDown('Enter', 13); }, () => { type(','); type('a'); }, R);
   const slug = ONLY && ONLY !== 'slug' ? skip : await op('slug', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); keyDown('Enter', 13); type('.'); type('i'); }, () => type('h'), R);
   const tab = ONLY && ONLY !== 'tab' ? skip : await op('tab', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); }, () => keyDown('Tab', 9), R);
-  console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2, enter, cue, slug, tab}));
+  // typing inside view 3 (dialogue only) and the switch into it
+  const k3 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:51, key:'3', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const k1 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:49, key:'1', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const dl = () => { let l = ml; while (!/^Where is it/.test(cm.getLine(l))) l++; return l; };
+  const viewSwitch = ONLY && ONLY !== 'view' ? skip : await op('view', () => { k1(); cm.setCursor({line:dl(), ch:5}); }, () => k3(), Math.min(R, 5));
+  const inView = ONLY && ONLY !== 'view' ? skip : await op('inview', () => { cm.setCursor({line:dl(), ch:cm.getLine(dl()).length}); }, () => type('y'), R);
+  k1();
+  console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2, enter, cue, slug, tab, viewSwitch, inView}));
   process.exit(0);
 }, 150);

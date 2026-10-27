@@ -9,7 +9,7 @@ Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3
 Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
 w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
 w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
-w.scrollTo = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
+w.scrollTo = () => {}; w.scrollBy = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
 const nm = path.join(__dirname, '..', 'node_modules', 'codemirror') + '/';
 w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
 w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
@@ -59,11 +59,14 @@ setTimeout(async function(){
     else if (r < 0.82){ cm.replaceRange('\n\n' + para() + '\n\n' + para(), {line:ln, ch:L.length}, null, 'paste'); label = 'paste'; }
     else if (r < 0.9){ cm.operation(() => { cm.replaceRange('two ', {line:ln, ch}, null, '+input'); const l2 = 14 + Math.floor(rnd() * (cm.lineCount() - 14)); cm.replaceRange('\n', {line:l2, ch:0}, null, '+input'); }); label = 'two changes in one go'; }
     else if (r < 0.95){ cm.replaceRange('x', {line:3, ch:cm.getLine(3).length}, null, '+input'); label = 'title page'; }
+    else if (r < 0.97){ const v = pick([1, 2, 3, 4, 6, 1]); cm.triggerOnKeyDown({ type:'keydown', keyCode:48 + v, key:String(v), ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); label = 'view ' + v; }
     else { cm.execCommand(rnd() < 0.7 ? 'undo' : 'redo'); label = 'undo/redo'; }
     // now and then only a small part is laid out, and the next edit comes before the rest: checked a few steps later
     if (rnd() < 0.5){ cm.smPagesStep(1 + Math.floor(rnd() * 3)); if (rnd() < 0.6) continue; }
     same(label + ' #' + s);
     if (rnd() < 0.25) cm.setCursor({line:14 + Math.floor(rnd() * (cm.lineCount() - 14)), ch:0});
+    { const v = cm.smView(); checks++; if (v.cur !== v.fresh){ fails++; if (fails < 6) console.log('FAIL hidden runs after ' + label + ' #' + s + '\n  cur   ' + v.cur.slice(0, 200) + '\n  fresh ' + v.fresh.slice(0, 200)); } }
+    { const x = cm.smIndex(); checks++; if (x.cue !== x.cueFull || x.slug !== x.slugFull){ fails++; if (fails < 6) console.log('FAIL index after ' + label + ' #' + s); } }
     { const c = cm.smClasses(); checks++;
       if (c.cmdInc !== c.cmdFull){ fails++; if (fails < 6) console.log('FAIL commands after ' + label + ' #' + s + ' inc ' + c.cmdInc + ' full ' + c.cmdFull); }
       for (let i = 0; i < c.full.length; i++) if (c.inc[i] !== c.full[i]){ fails++; if (fails < 6) console.log('FAIL classes after ' + label + ' #' + s + ' line ' + i + ': ' + JSON.stringify(cm.getLine(i)) + ' inc ' + c.inc[i] + ' full ' + c.full[i]); break; } }
