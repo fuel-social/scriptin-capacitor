@@ -66,6 +66,9 @@ setTimeout(async function(){
     same(label + ' #' + s);
     // the cursor goes to a line with text (in a view, empty lines between paragraphs are hidden and the writer cannot get there)
     if (rnd() < 0.25){ const c = 14 + Math.floor(rnd() * (cm.lineCount() - 14)); if (cm.getLine(c).trim()) cm.setCursor({line:c, ch:0}); }
+    // an edit can leave the cursor on an empty line, which a view hides (the editor then moves it on, as it always has):
+    // the checks start from a line with text
+    { let c = cm.getCursor().line; if (!cm.getLine(c).trim()){ let k = c; while (k < cm.lastLine() && !cm.getLine(k).trim()) k++; cm.setCursor({line:k, ch:0}); } }
     { const v = cm.smView(); checks++; if (v.cur !== v.fresh){ fails++; if (fails < 6) console.log('FAIL hidden runs after ' + label + ' #' + s + '\n  cur   ' + v.cur.slice(0, 200) + '\n  fresh ' + v.fresh.slice(0, 200)); } }
     { const x = cm.smIndex(); checks++; if (x.cue !== x.cueFull || x.slug !== x.slugFull){ fails++; if (fails < 6) console.log('FAIL index after ' + label + ' #' + s); } }
     { const c = cm.smClasses(); checks++;
