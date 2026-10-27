@@ -29,7 +29,13 @@
 #sm-editor[data-mode=night] .sm-on-trans .cm-cursor{border-left-color:var(--sm-blue-night) !important}
 #sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-inactive)}
 #sm-editor .sm-l-slug{box-shadow:0 var(--sm-tail) 0 0 var(--sm-fg);background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
-#sm-editor .cm-line.sm-t-shot > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);padding:0 16px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+/* Shot and transition blocks: drawn behind the text by the editor, one rectangle per row as tall as the text box,
+   the band trimmed to the line like cue blocks */
+#sm-editor .cm-line.sm-t-shot{color:var(--sm-bg)}
+#sm-editor .sm-blocks{z-index:-1}
+#sm-editor .sm-b-shot,#sm-editor .sm-b-trans{position:absolute;background:linear-gradient(to bottom,transparent var(--sm-inset),var(--c) var(--sm-inset),var(--c) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)))}
+#sm-editor .sm-b-shot{--c:var(--sm-inactive)}
+#sm-editor .sm-b-trans{--c:var(--sm-frame)}
 #sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .cm-selectionBackground,#sm-editor .cm-focused .cm-selectionBackground,#sm-editor .cm-content ::selection{background:transparent !important}
 #sm-editor .sm-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}

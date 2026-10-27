@@ -654,15 +654,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // a cue: the leading comma takes one character in front of the name
     var css = '#sm-editor .cm-line.sm-t-cue' + w(W_CUE + 1) + '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
-    // Shot and transition blocks: the text's own box carries the colour band, and its padding (repeated on every row)
-    // reaches 16px to the left and right of the text, so a block is one piece in each row. The line gives up its left
-    // padding for it and the row still holds exactly the printed number of characters
-    css += '#sm-editor .cm-line.sm-t-shot{padding-left:0 !important;padding-right:calc(100% - ' + W_ACTION + 'ch - ' + PAD + 'px) !important}\n';
-    // Transition: text flush right at the page width, W_TRANS characters per row; the padding on the right carries the
-    // block on to the right frame line, the line cuts off a space hanging at the end of a row; the first row has room for the
-    // .t and its space as well (they are not printed)
-    css += '#sm-editor .cm-line.sm-t-trans{padding-right:0 !important;padding-left:calc(100% - ' + W_TRANS + 'ch - ' + (PAD / 2) + 'px - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;overflow:hidden}\n' +
-      '#sm-editor .cm-line.sm-t-trans > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-left:' + (PAD / 2) + 'px;padding-right:var(--sm-trans-tail,67px) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
+    // Transition: text flush right at the page width, W_TRANS characters per row; the first row has room for the .t
+    // and its space as well (they are not printed). The block behind it is drawn by the editor (see blocks below)
+    css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - ' + W_TRANS + 'ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-inactive)}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -827,7 +821,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // The editor grows with its text and has no scroll bar of its own: the browser page has the only one, and CodeMirror 6
     // draws only the lines in and near the window
     var cm = null;
-    cm = createEditor(host, {value:linked ? '' : saved, readOnly:linked, lineTokens:function(n, s){ return cm ? lineTokens(n, s) : []; }});
+    cm = createEditor(host, {value:linked ? '' : saved, readOnly:linked, lineTokens:function(n, s){ return cm ? lineTokens(n, s) : []; },
+      // blocks behind shots (16px beyond the text on both sides) and transitions (from 16px before the text to the frame)
+      blocks:function(n){
+        if (!cm) return null;
+        var x = cm.lineClass(n, 'text');
+        if (/\bsm-t-shot\b/.test(x)) return {cls:'sm-b-shot', l:16, r:16};
+        if (/\bsm-t-trans\b/.test(x)) return {cls:'sm-b-trans', l:16, r:'end'};
+        return null;
+      }});
     // Marks inside line n (text s): see emphRuns; the title page, cues and shots as CodeMirror 5's mode had them
     function lineTokens(n, s){
       var out = [], te = preEnd();

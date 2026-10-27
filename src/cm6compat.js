@@ -8,7 +8,7 @@
 //   undo history with CodeMirror 5's grouping (one step per operation, typing joined for 1.25 s)
 //   line classes ('wrap' and 'text' as one class list on the line) and a per line token function for marks
 import {EditorState, EditorSelection, Transaction, Annotation, StateField, StateEffect, Compartment, Prec, RangeSetBuilder} from '@codemirror/state';
-import {EditorView, Decoration, ViewPlugin, keymap, drawSelection, runScopeHandlers} from '@codemirror/view';
+import {EditorView, Decoration, ViewPlugin, keymap, drawSelection, runScopeHandlers, layer, RectangleMarker} from '@codemirror/view';
 import {standardKeymap} from '@codemirror/commands';
 
 export var Pass = {toString: function(){ return 'CodeMirror.Pass'; }};
@@ -373,6 +373,51 @@ export function createEditor(host, opts){
     return true;
   }
 
+  // ---- blocks behind the text (shots, transitions): one rectangle per row, from the row's first to its last character
+  // (a space at the end of a row left out), widened by opts.blocks(n) = {cls, l, r}: l and r pixels to the left and right,
+  // r === 'end' to the right edge of the line. Drawn from the text's positions, so every row of a block is one piece
+  // and has exactly the height of the text box (the class's background trims it like the other bands) ----
+  var blocksOf = opts.blocks || null;
+  function blockMarkers(v){
+    var out = [];
+    if (!blocksOf) return out;
+    var d = v.state.doc, sr = v.scrollDOM.getBoundingClientRect(), base = {left: sr.left - v.scrollDOM.scrollLeft, top: sr.top - v.scrollDOM.scrollTop};
+    var seen = {};
+    v.visibleRanges.forEach(function(rg){
+      for (var pos = rg.from; pos <= rg.to;){
+        var l = d.lineAt(pos), n = l.number - 1;
+        pos = l.to + 1;
+        if (seen[n]) continue;
+        seen[n] = 1;
+        var b = blocksOf(n);
+        if (!b || !l.length) continue;
+        var lineEl = null;
+        var rows = [], cur = null;
+        for (var p = l.from; p < l.to; p++){
+          var c0 = v.coordsAtPos(p, 1), c1 = v.coordsAtPos(p + 1, -1);
+          if (!c0 || !c1) continue;
+          var top = Math.min(c0.top, c1.top), bot = Math.max(c0.bottom, c1.bottom), space = /\s/.test(d.sliceString(p, p + 1));
+          if (!cur || Math.abs(top - cur.top) > 2){ cur = {top: top, bottom: bot, left: c0.left, right: space ? c0.left : c1.right, any: !space}; rows.push(cur); }
+          else if (!space){ cur.right = Math.max(cur.right, c1.right); if (!cur.any){ cur.left = c0.left; cur.any = true; } }
+        }
+        if (b.r === 'end'){ var dom = v.domAtPos(l.from).node; while (dom && !(dom.classList && dom.classList.contains('cm-line'))) dom = dom.parentNode; lineEl = dom; }
+        var edge = lineEl ? lineEl.getBoundingClientRect().right : null;
+        rows.forEach(function(r){
+          if (!r.any) return;
+          var left = r.left - (b.l || 0), right = b.r === 'end' ? (edge != null ? edge : r.right) : r.right + (b.r || 0);
+          out.push(new RectangleMarker(b.cls, left - base.left, r.top - base.top, Math.max(0, right - left), r.bottom - r.top));
+        });
+      }
+    });
+    return out;
+  }
+  var blockLayer = layer({
+    above: false,
+    class: 'sm-blocks',
+    markers: blockMarkers,
+    update: function(u){ return u.docChanged || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.effects.some(function(e){ return e.is(redraw); }); }); }
+  });
+
   // ---- keys ----
   function keyBindings(){
     var out = [];
@@ -407,6 +452,7 @@ export function createEditor(host, opts){
       keymap.of(baseKeys),
       EditorView.lineWrapping,
       drawSelection({cursorBlinkRate: 0}),
+      blockLayer,
       EditorState.transactionFilter.of(filter),
       hiddenField,
       drawPlugin,
