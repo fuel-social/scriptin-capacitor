@@ -140,6 +140,20 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
   ok(g.shot.length >= 2, 'shot block has a rectangle per row', '' + g.shot.length);
   ok(g.shot.every(r => Math.abs(r.left - (Math.min(...g.shotText) - 16)) < 0.6), 'shot block starts 16px before the text');
   ok(g.trans.length >= 2 && g.trans.every(r => Math.abs(r.right - r.lineRight) < 0.6), 'transition block reaches the frame');
+  // selected text is light everywhere, also in cues, shots, transitions and the .s of a shot
+  for (const [label, line] of [['cue', L.cue], ['shot', L.shot], ['transition', L.trans], ['slugline', L.slug]]){
+    await sel({ line, ch: 0 }, { line, ch: 999 });
+    await page.waitForTimeout(120);
+    const bad = await page.evaluate(n => {
+      const cm = document.getElementById('sm-editor').smCM, v = cm.view, bg = getComputedStyle(document.getElementById('sm-editor')).getPropertyValue('--sm-bg').trim();
+      const probe = document.createElement('span'); probe.style.color = bg; document.body.appendChild(probe); const want = getComputedStyle(probe).color; probe.remove();
+      const el = [...document.querySelectorAll('.cm-line')].find(e => v.state.doc.lineAt(v.posAtDOM(e)).number === n + 1), out = [];
+      const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let t;
+      while ((t = w.nextNode())) if (t.data.trim() && getComputedStyle(t.parentNode).color !== want) out.push(t.data.trim() + ':' + getComputedStyle(t.parentNode).color);
+      return out;
+    }, line);
+    ok(!bad.length, 'selected ' + label + ': all text light', bad.slice(0, 3).join(' '));
+  }
   // the stylesheet arriving after the editor started (Safari draws once before it is in): the bands follow
   {
     const p2 = await browser.newPage({ viewport: { width: 1000, height: 1400 }, deviceScaleFactor: 2 });

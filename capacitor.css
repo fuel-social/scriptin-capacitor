@@ -33,18 +33,19 @@
 #sm-editor .sm-l-slug{color:var(--sm-bg)}
 /* Colour bands (slugline bars, cue boxes, shot and transition blocks, the selection): drawn by the editor in one layer
    behind the text, one rectangle per row, all the same height; the text itself never has a background */
-#sm-editor .cm-line.sm-t-shot{color:var(--sm-bg)}
+#sm-editor .cm-line.sm-t-shot{color:var(--sm-fg)}
 #sm-editor .sm-bands{pointer-events:none}
 #sm-editor .sm-bands > div{position:absolute}
 #sm-editor .sm-band-slug{background:var(--sm-fg)}
 #sm-editor .sm-band-cue{background:var(--sm-frame)}
 #sm-editor .sm-band-trans{background:var(--sm-frame)}
-/* Shots: colorType of the theme behind light text */
-#sm-editor .sm-band-shot{background:var(--sm-type,#61686E)}
+/* Shots: the transitions' colour behind colorForeground text */
+#sm-editor .sm-band-shot{background:var(--sm-frame)}
 #sm-editor .sm-band-sel{background:var(--sm-blue)}
-#sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
+#sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-inactive)}
 #sm-editor .cm-selectionBackground,#sm-editor .cm-focused .cm-selectionBackground,#sm-editor .cm-content ::selection{background:transparent !important}
-#sm-editor .sm-selectedtext{color:var(--sm-bg) !important}
+/* Selected text is light on the blue band, also inside cues and other coloured marks */
+#sm-editor .sm-selectedtext,#sm-editor .sm-selectedtext *{color:var(--sm-bg) !important}
 #sm-editor .cm-line.sm-t-note{color:var(--sm-blue)}
 #sm-editor .cm-line.sm-t-cmd{color:var(--sm-blue)}
 #sm-editor .sm-scenenum.sm-cmdmark{color:var(--sm-blue)}

@@ -821,7 +821,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     if (T.frame) host.style.setProperty('--sm-frame', T.frame);
     if (T.inactive) host.style.setProperty('--sm-inactive', T.inactive);
     var red = T.red || themeRed(); if (red) host.style.setProperty('--sm-red', red);
-    // colorType of the current theme: the shot blocks (light text on it stays readable)
+    // colorType of the current theme (kept as --sm-type for blocks that need a darker colour)
     var typ = T.type || themeType(); if (typ) host.style.setProperty('--sm-type', typ);
     var alt = altBlue(); if (alt) host.style.setProperty('--sm-blue-alt', alt);
     var night = nightBlue(); if (night) host.style.setProperty('--sm-blue-night', night);
