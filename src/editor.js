@@ -1745,10 +1745,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var cur = cm.cursorElement();
         if (!cur) return;
         var cs = getComputedStyle(cur), el = document.createElement('div');
-        el.style.cssText = 'position:absolute;z-index:5;pointer-events:none;left:' + cur.style.left + ';top:' + cur.style.top + ';height:' + cs.height + ';margin-top:' + cs.marginTop + ';width:3px;background:' + cs.borderLeftColor;
+        var cw = cur.style.width || '2px';
+        el.style.cssText = 'position:absolute;z-index:5;pointer-events:none;left:' + cur.style.left + ';top:' + cur.style.top + ';height:' + cs.height + ';width:' + cw + ';background:' + cs.backgroundColor;
         cur.parentNode.appendChild(el);
         if (el.animate){
-          var a = el.animate([{width:'3px'}, {width:FIND_PX + 'px'}, {width:'3px'}], {duration:FIND_MS, easing:'ease-in-out'});
+          var a = el.animate([{width:cw}, {width:FIND_PX + 'px'}, {width:cw}], {duration:FIND_MS, easing:'ease-in-out'});
           a.onfinish = function(){ el.remove(); };
         } else setTimeout(function(){ el.remove(); }, FIND_MS);
       });

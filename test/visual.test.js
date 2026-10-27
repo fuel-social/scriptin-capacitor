@@ -59,10 +59,11 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
       }
     });
     hit.remove();
-    const cur = document.querySelector('.cm-cursor'), cr = cur && getComputedStyle(cur).display !== 'none' ? cur.getBoundingClientRect() : null;
+    const cur = document.querySelector('.sm-caret'), cr = cur && getComputedStyle(cur).display !== 'none' && cur.offsetParent !== null ? cur.getBoundingClientRect() : null;
+    const hc = v.coordsAtPos(v.state.selection.main.head, 1), gapX = hc ? hc.left : null;
     const sel = cm.somethingSelected();
     const docTop = v.documentTop;
-    return { dpr, gap: B.gap, band: B.h, tail: 0, lh, bands, lines: lines.map(l => ({ top: l.top, bottom: l.bottom, left: l.left, right: l.right, cls: l.cls, text: l.text })), glyphs: glyphs.map(g => ({ ch: g.ch, left: g.left, right: g.right, top: g.top, bottom: g.bottom, onTop: g.onTop })), cursor: cr && { top: cr.top, height: cr.height }, sel, docTop };
+    return { dpr, gap: B.gap, band: B.h, tail: 0, lh, bands, lines: lines.map(l => ({ top: l.top, bottom: l.bottom, left: l.left, right: l.right, cls: l.cls, text: l.text })), glyphs: glyphs.map(g => ({ ch: g.ch, left: g.left, right: g.right, top: g.top, bottom: g.bottom, onTop: g.onTop })), cursor: cr && { top: cr.top, height: cr.height, left: cr.left, width: cr.width }, gapX, sel, docTop };
   });
   function rules(m, label){
     const H = m.band + m.tail, grid = x => Math.abs(x * m.dpr - Math.round(x * m.dpr)) < 0.02;
@@ -91,6 +92,9 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     else if (m.cursor){
       ok(Math.abs(m.cursor.height - H) < 0.51, label + ': cursor height', m.cursor.height + ' vs ' + H);
       ok(rowTops.some(t => Math.abs(m.cursor.top - (t + m.gap)) < 0.51), label + ': cursor at a row top', '' + m.cursor.top);
+      ok(Math.abs(m.cursor.width - 2) < 0.01, label + ': cursor 2px wide', '' + m.cursor.width);
+      ok(Math.abs(m.cursor.left + m.cursor.width / 2 - m.gapX) <= 0.5 / m.dpr + 0.01, label + ': cursor centred on the gap', (m.cursor.left + m.cursor.width / 2) + ' vs ' + m.gapX);
+      ok(grid(m.cursor.left) && grid(m.cursor.top), label + ': cursor on device pixels');
     }
   }
   const sel = (a, b) => page.evaluate(([a, b]) => { const cm = document.getElementById('sm-editor').smCM; cm.focus(); cm.setSelection(a, b); }, [a, b]);

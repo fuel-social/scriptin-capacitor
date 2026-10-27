@@ -437,6 +437,30 @@ export function createEditor(host, opts){
     list.forEach(function(x){ out.push(x.m); });
     return out;
   }
+  // ---- The cursor: drawn here too, with the bands' height rule, centred on the gap between two characters and on
+  // whole device pixels (CodeMirror's own cursor starts at the gap and reaches into the next letter); opts.caretWidth px
+  // wide; only while the editor has the focus and nothing is selected ----
+  function caretMarkers(v){
+    var sel = v.state.selection.main;
+    if (!sel.empty || !v.hasFocus) return [];
+    var box = (opts.bandBox && opts.bandBox()) || {gap: 0, h: v.defaultLineHeight};
+    var lcs = getComputedStyle(v.contentDOM), lh = parseFloat(lcs.lineHeight) || parseFloat(lcs.fontSize) || v.defaultLineHeight;
+    if (!(box.h >= lh)) box = {gap: Math.min(0, box.gap || 0), h: lh};
+    var dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1, snap = function(x){ return Math.round(x * dpr) / dpr; };
+    var c = v.coordsAtPos(sel.head, sel.assoc || 1);
+    if (!c) return [];
+    var blk = v.lineBlockAt(sel.head), top0 = blk.top + v.documentTop, mid = (c.top + c.bottom) / 2;
+    var rowTop = top0 + Math.max(0, Math.floor((mid - top0) / lh)) * lh, w = opts.caretWidth || 2;
+    var sr = v.scrollDOM.getBoundingClientRect(), bl = sr.left - v.scrollDOM.scrollLeft, bt = sr.top - v.scrollDOM.scrollTop;
+    var x0 = snap(c.left - w / 2), y0 = snap(rowTop + box.gap), y1 = snap(rowTop + box.gap + box.h);
+    return [new RectangleMarker('sm-caret', x0 - bl, y0 - bt, w, y1 - y0)];
+  }
+  var caretLayer = layer({
+    above: true,
+    class: 'sm-carets',
+    markers: caretMarkers,
+    update: function(u){ return u.docChanged || u.selectionSet || u.focusChanged || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.reconfigured || t.effects.some(function(e){ return e.is(redraw); }); }); }
+  });
   var bandLayer = layer({
     above: false,
     class: 'sm-bands',
@@ -480,6 +504,7 @@ export function createEditor(host, opts){
       EditorView.lineWrapping,
       drawSelection({cursorBlinkRate: 0}),
       bandLayer,
+      caretLayer,
       EditorState.transactionFilter.of(filter),
       hiddenField,
       drawPlugin,
@@ -601,7 +626,7 @@ export function createEditor(host, opts){
     defaultTextHeight: function(){ return view.defaultLineHeight; },
     defaultCharWidth: function(){ return view.defaultCharacterWidth; },
     contentWidth: function(){ return view.contentDOM.clientWidth; },
-    cursorElement: function(){ flush(); return view.dom.querySelector('.cm-cursor'); },
+    cursorElement: function(){ flush(); return view.dom.querySelector('.sm-caret') || view.dom.querySelector('.cm-cursor'); },
     version: function(){ return version; },
     // measure line height and character width again (a stylesheet or font that arrived after the editor started)
     remeasure: function(){ flush(); view.dispatch({effects: themeComp.reconfigure(EditorView.theme({}))}); },

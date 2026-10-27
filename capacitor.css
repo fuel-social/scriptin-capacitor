@@ -22,12 +22,14 @@
 #sm-editor .cm-lineWrapping{white-space:pre-wrap;overflow-wrap:break-word;word-break:normal}
 #sm-editor .cm-line{padding:0 16px;box-sizing:border-box}
 /* CodeMirror 6 puts the cursor at the top of the text box, which reaches --sm-inset above the line: it starts at the line top as before */
-#sm-editor .cm-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail) + var(--sm-over,0px)) !important;margin-top:calc(var(--sm-gap) + var(--sm-inset) - var(--sm-over,0px));margin-left:0}
-/* A selection on screen (completion, marked words): no cursor, the blue band shows where it is */
-#sm-editor .sm-has-sel .cm-cursor{display:none !important}
+/* The cursor (drawn by the editor, see cm6compat): 2px, centred on the gap, the bands' height; CodeMirror's own is hidden */
+#sm-editor .cm-cursor{display:none !important}
+#sm-editor .sm-caret{background:var(--sm-blue)}
+#sm-editor .cm-editor:not(.cm-focused) .sm-carets{display:none}
+/* A selection on screen (completion, marked words): no cursor, the blue band shows where it is (the editor draws none) */
 /* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
-#sm-editor[data-mode=night] .sm-on-slug .cm-cursor{border-left-color:var(--sm-blue-day) !important}
-#sm-editor[data-mode=night] .sm-on-trans .cm-cursor{border-left-color:var(--sm-blue-night) !important}
+#sm-editor[data-mode=night] .sm-on-slug .sm-caret{background:var(--sm-blue-day)}
+#sm-editor[data-mode=night] .sm-on-trans .sm-caret{background:var(--sm-blue-night)}
 #sm-editor .cm-smcue{color:var(--sm-inactive)}
 #sm-editor .sm-l-slug{color:var(--sm-bg)}
 /* Colour bands (slugline bars, cue boxes, shot and transition blocks, the selection): drawn by the editor in one layer
