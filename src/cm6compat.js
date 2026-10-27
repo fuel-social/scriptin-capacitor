@@ -161,7 +161,8 @@ export function createEditor(host, opts){
       });
       pend.changes.push.apply(pend.changes, objs);
       if (!tr.annotation(noHistory)) record(tr, origin);
-      if (origin === '+input' || origin === '*compose') objs.forEach(function(c){ pend.inputs.push(c); });
+      // inputRead only for text the writer typed or pasted (as CodeMirror 5), never for changes made in code
+      if (tr.annotation(originAnn) === undefined && (tr.isUserEvent('input.type') || tr.isUserEvent('input.paste'))) objs.forEach(function(c){ pend.inputs.push(c); });
     }
     if (tr.docChanged || tr.selection){
       // cursor activity when the cursor or selection now stands elsewhere (line and character), as in CodeMirror 5
