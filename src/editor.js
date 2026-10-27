@@ -236,22 +236,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (k === te && cur.length){ paras.push(cur); cur = []; }
     });
     if (cur.length) paras.push(cur);
-    // Slugline separators all become the dash used most often in the script's sluglines (a tie goes to the one used first),
-    // with one space on each side: 3 x - and 13 x – turn the three - into –
+    // Slugline separators all become an en dash with one space on each side (HAUS – ZIMMER); a hyphen inside a word
+    // (METRO-STATION) is no separator and stays
     var isSlugPara = function(p){ return /^\.(IE|EI|I|E)(\s|$)/i.test(p[0]); };
-    var kindOf = function(run){ return run.indexOf('—') >= 0 ? '—' : run.indexOf('–') >= 0 ? '–' : '-'; };
-    var count = {}, first = [];
-    paras.forEach(function(p){
-      if (!isSlugPara(p)) return;
-      p.forEach(function(l){
-        (l.match(new RegExp(SLUG_SEP.source, 'g')) || []).forEach(function(sep){
-          var k = kindOf(sep);
-          if (!count[k]){ count[k] = 0; first.push(k); }
-          count[k]++;
-        });
-      });
-    });
-    var dash = first.reduce(function(best, k){ return count[k] > count[best] ? k : best; }, first[0] || '-');
+    var dash = '\u2013';
     return paras.map(function(p){
       var h = p[0], m;
       if (isSlugPara(p)){
@@ -2414,6 +2402,28 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var clean = t.replace(CTRL, '');
       if (clean === '' && CodeMirror.cmpPos(ch.from, ch.to) === 0){ ch.cancel(); return; }
       ch.update(ch.from, ch.to, clean.split('\n'));
+    });
+    // Capitals while typing, as Reformat writes them: sluglines, shots and transitions after .i .e .ie .ei .s .t and
+    // a space (the short form itself stays lowercase, the lines below the first too), cues between the two commas,
+    // extension included. Only typed letters; pasted text is left to Reformat
+    var CAPS_HEAD = /^\.(ie|ei|i|e|s|t)(\s+|$)/i;
+    cm.on('beforeChange', function(_cm, ch){
+      if (!ch.update || ch.origin !== '+input' || ch.text.length !== 1 || ch.from.line !== ch.to.line) return;
+      var t = ch.text[0];
+      if (t.toUpperCase() === t) return;
+      var ln = ch.from.line;
+      if (ln <= preEnd()) return;
+      var s = line(ln), a = ch.from.ch, ns = s.slice(0, a) + t + s.slice(ch.to.ch), from = -1, to = Infinity, m;
+      if (paraStart(ln)){
+        if ((m = ns.match(CAPS_HEAD)) && m[2]) from = m[0].length;
+        else if (ns.charAt(0) === ','){ from = 1; var c2 = ns.indexOf(',', 1); if (c2 >= 0) to = c2; }
+      } else if ((m = line(paraHead(ln)).match(CAPS_HEAD)) && m[2]) from = 0;
+      if (from < 0) return;
+      // .i, space, e: the automatic space makes it .ie (see autoSpace), the e stays lowercase
+      if (lastAuto === ln && a === 3 && /^\.(i e|e i)$/i.test(ns)) return;
+      var out = '';
+      for (var k = 0; k < t.length; k++) out += (a + k >= from && a + k < to) ? t.charAt(k).toUpperCase() : t.charAt(k);
+      if (out !== t) ch.update(ch.from, ch.to, [out]);
     });
     // A change that starts inside the hidden title page and reaches into the script (Cmd+A, then typing or Backspace)
     // is moved to start right after the hidden lines, with the script set off by an empty line: CodeMirror would put the

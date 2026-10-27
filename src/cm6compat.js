@@ -7,7 +7,7 @@
 //   events: beforeChange (cancel / update), inputRead, cursorActivity, changes (one list per operation), update, mousedown
 //   undo history with CodeMirror 5's grouping (one step per operation, typing joined for 1.25 s)
 //   line classes ('wrap' and 'text' as one class list on the line) and a per line token function for marks
-import {EditorState, EditorSelection, Annotation, StateField, StateEffect, Compartment, Prec, RangeSetBuilder} from '@codemirror/state';
+import {EditorState, EditorSelection, Transaction, Annotation, StateField, StateEffect, Compartment, Prec, RangeSetBuilder} from '@codemirror/state';
 import {EditorView, Decoration, ViewPlugin, keymap, drawSelection, runScopeHandlers} from '@codemirror/view';
 import {standardKeymap} from '@codemirror/commands';
 
@@ -272,7 +272,7 @@ export function createEditor(host, opts){
       }
       return EditorSelection.range(adj(r.anchor), adj(r.head));
     });
-    return {changes: changes, selection: EditorSelection.create(sel), annotations: [originAnn.of(origin)].concat(tr.annotation(noHistory) ? [noHistory.of(true)] : []), scrollIntoView: tr.scrollIntoView, effects: tr.effects};
+    return {changes: changes, selection: EditorSelection.create(sel), annotations: (tr.annotation(originAnn) !== undefined ? [originAnn.of(origin)] : []).concat(tr.annotation(noHistory) ? [noHistory.of(true)] : []).concat(tr.annotation(Transaction.userEvent) ? [Transaction.userEvent.of(tr.annotation(Transaction.userEvent))] : []), scrollIntoView: tr.scrollIntoView, effects: tr.effects};
   }
 
   // ---- hidden (collapsed) text ----

@@ -16,7 +16,7 @@ function start(text){ cm.setValue(text); cm.setCursor({line: cm.lastLine(), ch: 
 
 const base = '.i HOUSE - LIVING ROOM - DAY\n\nAction.\n\n.e GARDEN - NIGHT\n\nMore.\n\n';
 // First DAY is never completed: only GARDEN and HOUSE as locations, times DAY and NIGHT
-start('.i HOUSE\n\nAction.\n\n'); type('.id'); check('no time words in script yet, d stays d', '".i d" cursor 4:4');
+start('.i HOUSE\n\nAction.\n\n'); type('.id'); check('no time words in script yet, d stays D (capitals while typing)', '".i D" cursor 4:4');
 start(base); type('.ih'); check('h completes house (typed lowercase)', '".i HOUSE" cursor 8:4 selected "OUSE"');
 tab(); check('Tab after location stays on the line', '".i HOUSE" cursor 8:8');
 type(' - l'); check('l completes living room under HOUSE', '".i HOUSE - LIVING ROOM" cursor 8:12 selected "IVING ROOM"');
@@ -26,21 +26,21 @@ tab(); check('Tab after time moves on to action', '"" cursor 10:0');
 start(base); type('.iH'); check('typed capital keeps stored case', '".i HOUSE" cursor 8:4 selected "OUSE"');
 start(base); type('.il'); check('L at the start offers a location from any position', '".i LIVING ROOM" cursor 8:4 selected "IVING ROOM"');
 start(base); type('.el'); check('EXT. offers INT. locations too', '".e LIVING ROOM" cursor 8:4 selected "IVING ROOM"');
-start(base); type('.ih'); right(); type(' - h'); check('a location already on the line is not offered again', '".i HOUSE - h" cursor 8:12');
-start(base); type('.in'); check('no time at the start', '".i n" cursor 8:4');
-start(base); type('.egx'); check('typing overwrites the completion', '".e Gx" cursor 8:5');
+start(base); type('.ih'); right(); type(' - h'); check('a location already on the line is not offered again', '".i HOUSE - H" cursor 8:12');
+start(base); type('.in'); check('no time at the start', '".i N" cursor 8:4');
+start(base); type('.egx'); check('typing overwrites the completion', '".e GX" cursor 8:5');
 start(base); type('.egarden'); check('typing the whole word leaves it as typed', '".e GARDEN" cursor 8:9');
 type(' - n'); check('n completes night', '".e GARDEN - NIGHT" cursor 8:13 selected "IGHT"');
-start(base); type('.ihouse - k'); check('unknown room, nothing', '".i HOUSE - k" cursor 8:12');
-start(base); type('.ioffice - d'); check('time words come from the whole script', '".i office - DAY" cursor 8:13 selected "AY"');
-start(base + '.i HOUSE - DUSK\n\nX.\n\n'); type('.ihouse - d'); check('DAY and DUSK used, d ambiguous', '".i HOUSE - d" cursor 12:12');
+start(base); type('.ihouse - k'); check('unknown room, nothing', '".i HOUSE - K" cursor 8:12');
+start(base); type('.ioffice - d'); check('time words come from the whole script', '".i OFFICE - DAY" cursor 8:13 selected "AY"');
+start(base + '.i HOUSE - DUSK\n\nX.\n\n'); type('.ihouse - d'); check('DAY and DUSK used, d ambiguous', '".i HOUSE - D" cursor 12:12');
 type('u'); check('du completes dusk', '".i HOUSE - DUSK" cursor 12:13 selected "SK"');
-start(base); type('.ihouse - day - x'); check('nothing after the time', '".i HOUSE - DAY - x" cursor 8:18');
-start('.i HOUSE - SAME\n\n.i HOUSE - SAME TIME\n\n'); type('.ihouse - same'); check('SAME and SAME TIME, same stays', '".i HOUSE - same" cursor 4:15');
+start(base); type('.ihouse - day - x'); check('nothing after the time', '".i HOUSE - DAY - X" cursor 8:18');
+start('.i HOUSE - SAME\n\n.i HOUSE - SAME TIME\n\n'); type('.ihouse - same'); check('SAME and SAME TIME, same stays', '".i HOUSE - SAME" cursor 4:15');
 type(' '); check('same + space completes same time', '".i HOUSE - SAME TIME" cursor 4:16 selected "TIME"');
 start('.i TWENTY-ONE CLUB - DAY\n\n'); type('.it'); check('hyphen inside a word is not a separator', '".i TWENTY-ONE CLUB" cursor 2:4 selected "WENTY-ONE CLUB"');
-start('.i HOUSE - DAY (FLASHBACK)\n\n'); type('.ex - d'); check('completion stops at the time word', '".e x - DAY" cursor 2:8 selected "AY"');
-start('.i HOUSE – DAY\n\n'); type('.ex -d'); check('en dash and missing space still separate', '".e x -DAY" cursor 2:7 selected "AY"');
+start('.i HOUSE - DAY (FLASHBACK)\n\n'); type('.ex - d'); check('completion stops at the time word', '".e X - DAY" cursor 2:8 selected "AY"');
+start('.i HOUSE – DAY\n\n'); type('.ex -d'); check('en dash and missing space still separate', '".e X -DAY" cursor 2:7 selected "AY"');
 start('.i HOUSE - DAY\n\nThe house is old.\n\n'); type('h'); check('action lines are not completed', '"h" cursor 4:1');
 start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type(',a'); check('cue completion unchanged', '",ANNA," cursor 5:2 selected "NNA"');
 start('.i HOUSE - DAY\n\n'); type('.ieh'); check('.ie sluglines complete too', '".ie HOUSE" cursor 2:5 selected "OUSE"');
@@ -52,9 +52,9 @@ start('.i HOUSE - DAY\n\n,JOHN,\nHi.\n\n,JO,\nYes.\n\n'); type(',joh'); type('n'
 function reformatAll(){ cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); }
 function rf(label, text, want){ cm.setValue(text); cm.setCursor({line:0, ch:0}); reformatAll(); const got = cm.getValue(); const ok = got === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + ' -> ' + JSON.stringify(got) + (ok ? '' : '   wanted ' + JSON.stringify(want))); }
 const N = '–', M = '—';
-rf('majority en dash wins', '.i a - b\n\n.i c '+N+' d\n\n.i e '+N+' f\n\n.e g - h '+N+' i '+N+' day', '.i A '+N+' B\n\n.i C '+N+' D\n\n.i E '+N+' F\n\n.e G '+N+' H '+N+' I '+N+' DAY');
-rf('majority hyphen wins, spacing fixed', '.i a'+M+' b\n\n.i c -d\n\n.i e  -  f', '.i A - B\n\n.i C - D\n\n.i E - F');
-rf('tie goes to the dash used first', '.i a '+M+' b\n\n.i c - d', '.i A '+M+' B\n\n.i C '+M+' D');
+rf('separators become en dashes', '.i a - b\n\n.i c '+N+' d\n\n.i e '+N+' f\n\n.e g - h '+N+' i '+N+' day', '.i A '+N+' B\n\n.i C '+N+' D\n\n.i E '+N+' F\n\n.e G '+N+' H '+N+' I '+N+' DAY');
+rf('hyphens and em dashes become en dashes, spacing fixed', '.i a'+M+' b\n\n.i c -d\n\n.i e  -  f', '.i A '+N+' B\n\n.i C '+N+' D\n\n.i E '+N+' F');
+rf('em dash and hyphen both become en dashes', '.i a '+M+' b\n\n.i c - d', '.i A '+N+' B\n\n.i C '+N+' D');
 rf('hyphen inside a word untouched', '.i twenty-one '+N+' day\n\n.i x '+N+' y', '.i TWENTY-ONE '+N+' DAY\n\n.i X '+N+' Y');
 rf('dashes outside sluglines untouched', '.i a '+N+' b\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.', '.i A '+N+' B\n\nShe waits - then '+M+' runs.\n\n,ANNA,\nNo - never.');
 rf('no separators, nothing changes', '.i house\n\nAction.', '.i HOUSE\n\nAction.');
@@ -316,7 +316,7 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   cm.setCursor({line:15, ch:5}); type('x');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  { const ok = /\.i HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat with a hidden title page'); }
+  { const ok = /\.i HOUSE \u2013 DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat with a hidden title page'); }
   undo();
   { const ok = cm.getValue() === T + 'x'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+Z takes Reformat back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
   undo();
@@ -392,7 +392,7 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   { const ok = cm.getValue() === T && cm.historySize().undo === 0; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one Cmd+Z brings everything back' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-30)) + JSON.stringify(cm.historySize()))); }
   k9(); cm.setCursor({line:12, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:13, key:'Enter', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  { const ok = /\n---\n\n\.i HOUSE - DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat sets the script off from --- by an empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-40)))); }
+  { const ok = /\n---\n\n\.i HOUSE \u2013 DAY/.test(cm.getValue()); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Reformat sets the script off from --- by an empty line' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue().slice(-40)))); }
   k9();
 }
 
@@ -516,12 +516,12 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   const off = lang => lang === 'de' ? '---\n\n//TITELSEITE\nTitel: A\nAutor:in: B\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Aus\nModus: Tag\n\n---\n\n'
     : '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nMode: Day\n\n---\n\n';
   const body = '.i HOUSE - LIVING ROOM - DAY\n\n,ANNA,\nHi.\n\n';
-  start(off('en') + body); type('.ih'); check('Off: no location completion', '".i h" cursor 19:4');
-  type('ouse - l'); check('Off: no second location', '".i house - l" cursor 19:12');
-  type('iving room - d'); check('Off: no time of day', '".i house - living room - d" cursor 19:26');
-  start(off('en') + body); type(',a'); check('Off: no name completion', '",a," cursor 19:2');
+  start(off('en') + body); type('.ih'); check('Off: no location completion', '".i H" cursor 19:4');
+  type('ouse - l'); check('Off: no second location', '".i HOUSE - L" cursor 19:12');
+  type('iving room - d'); check('Off: no time of day', '".i HOUSE - LIVING ROOM - D" cursor 19:26');
+  start(off('en') + body); type(',a'); check('Off: no name completion', '",A," cursor 19:2');
   start(off('en') + body); type('.t'); check('Off: transitions still come', '".t CUT TO:" cursor 19:10');
-  start(off('de') + body); type(',a'); check('Aus (Deutsch): no name completion', '",a," cursor 19:2');
+  start(off('de') + body); type(',a'); check('Aus (Deutsch): no name completion', '",A," cursor 19:2');
   start(off('en').replace('Off', 'On') + body); type(',a'); check('On: names complete', '",ANNA," cursor 19:2 selected "NNA"');
   // Up/Down on the active Autocomplete line, in the script's language
   start('Action.'); k9(); if (!/^---/.test(cm.getValue()) || /sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); tab(); tab(); tab(); tab();
@@ -597,6 +597,16 @@ eq2('no character before: stays empty; an extension stays', cm.getValue().split(
 start(',MARIA,\nHallo.\n\n,THOMAS,\nHi.\n\n,,\nWie gehts?'); cm.setCursor({line:7, ch:3}); reformatAll();
 check('the cursor stays in the same word', '"Wie gehts?" cursor 7:3');
 cm.execCommand('undo'); eq2('one Cmd+Z takes it back', cm.getLine(6), ',,');
+
+// Capitals while typing: sluglines, shots, transitions after their short form, cues between the commas
+start('Action.\n\n'); type('.sclose on her'); check('shot: description in capitals, .s stays', '".s CLOSE ON HER" cursor 2:15');
+start('Action.\n\n'); type('.iehouse'); check('.ie stays lowercase, location in capitals', '".ie HOUSE" cursor 2:9');
+start('Action.\n\n'); type('She waits.'); check('action stays as typed', '"She waits." cursor 2:10');
+start('Action.\n\n,ANNA,\nHi.\n\n'); type(',b'); check('cue name in capitals', '",B," cursor 5:2');
+start('Action.\n\n,ANNA,\nHi.\n\n,BEN (v.o.),'); cm.setCursor({line:5, ch:6}); type('x'); check('cue extension in capitals', '",BEN (Xv.o.)," cursor 5:7');
+start('Action.\n\n,ANNA,\nhi'); check('dialogue below a cue stays as typed', '"hi" cursor 3:2');
+start('Action.\n\n.i HOUSE\n'); type('garden'); check('second line of a slugline in capitals', '"GARDEN" cursor 3:6');
+rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \u2013 DAY');
 
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
