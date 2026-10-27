@@ -16,6 +16,8 @@ To release a change: run `npm test` (it builds `capacitor.js` first), commit, pu
 
 `npm test` runs the pagination tests, the editor tests (simulated keys in jsdom) and a random edit test (`test/pages.test.js`): hundreds of random edits on a long script, after each one the incremental page count, line classes, hidden runs, cue and slugline index and export command marks must equal a full recomputation.
 
+`npm run visual` (also part of `npm test`) opens the editor in a real Chromium (Playwright) and measures every colour band and the cursor in many situations (selections over sluglines, shots, transitions, cues, several rows, emphasis): same height and top in every row, on whole device pixels, one piece per row, the text always above the bands. A release only goes out when it passes.
+
 `npm run bench` loads a 510 page script (`BENCH_SCENES`, default 1700 scenes) and reports per keystroke the longest blocking piece of work in ms (CodeMirror and jsdom included). `BENCH_PLAIN=1` runs a bare CodeMirror 6 with the same text for comparison. The difference is the editor's own cost; the goal is at most 5 ms per keystroke on 500 pages.
 
 How the editor stays fast on long scripts:

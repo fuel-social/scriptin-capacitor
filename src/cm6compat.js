@@ -373,49 +373,73 @@ export function createEditor(host, opts){
     return true;
   }
 
-  // ---- blocks behind the text (shots, transitions): one rectangle per row, from the row's first to its last character
-  // (a space at the end of a row left out), widened by opts.blocks(n) = {cls, l, r}: l and r pixels to the left and right,
-  // r === 'end' to the right edge of the line. Drawn from the text's positions, so every row of a block is one piece
-  // and has exactly the height of the text box (the class's background trims it like the other bands) ----
-  var blocksOf = opts.blocks || null;
-  function blockMarkers(v){
+  // ---- Colour bands, all drawn in one layer behind the text ----
+  // Every coloured area (slugline bars, cue boxes, shot and transition blocks, the selection) is a rectangle per screen
+  // row in this layer: never a background on the text itself, so the text always lies on top (no band ever covers a
+  // letter, a descender or an underscore) and a row is one piece (no hairlines where marks meet). All rows follow one
+  // rule: from the row's top plus opts.bandBox().gap, opts.bandBox().h high, corners on whole device pixels.
+  // opts.bands(n, text) gives the areas of line n: [{from, to, cls, z, l, r, spaces}] (from/to in the line; l and r
+  // pixels beyond the text, or 'start' / 'end' for the edges of the line; spaces: a space ending a row counts).
+  // The selection is added here (z 2). Higher z is drawn later, on top
+  var bandsOf = opts.bands || null;
+  function bandMarkers(v){
     var out = [];
-    if (!blocksOf) return out;
-    var d = v.state.doc, sr = v.scrollDOM.getBoundingClientRect(), base = {left: sr.left - v.scrollDOM.scrollLeft, top: sr.top - v.scrollDOM.scrollTop};
-    var seen = {};
-    v.visibleRanges.forEach(function(rg){
-      for (var pos = rg.from; pos <= rg.to;){
-        var l = d.lineAt(pos), n = l.number - 1;
-        pos = l.to + 1;
-        if (seen[n]) continue;
-        seen[n] = 1;
-        var b = blocksOf(n);
-        if (!b || !l.length) continue;
-        var lineEl = null;
-        var rows = [], cur = null;
-        for (var p = l.from; p < l.to; p++){
-          var c0 = v.coordsAtPos(p, 1), c1 = v.coordsAtPos(p + 1, -1);
-          if (!c0 || !c1) continue;
-          var top = Math.min(c0.top, c1.top), bot = Math.max(c0.bottom, c1.bottom), space = /\s/.test(d.sliceString(p, p + 1));
-          if (!cur || Math.abs(top - cur.top) > 2){ cur = {top: top, bottom: bot, left: c0.left, right: space ? c0.left : c1.right, any: !space}; rows.push(cur); }
-          else if (!space){ cur.right = Math.max(cur.right, c1.right); if (!cur.any){ cur.left = c0.left; cur.any = true; } }
+    var st = v.state, d = st.doc, sel = st.selection.main, box = (opts.bandBox && opts.bandBox()) || {gap: 0, h: v.defaultLineHeight};
+    var lh = v.defaultLineHeight, dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1;
+    function snap(x){ return Math.round(x * dpr) / dpr; }
+    var sr = v.scrollDOM.getBoundingClientRect(), base = {left: sr.left - v.scrollDOM.scrollLeft, top: sr.top - v.scrollDOM.scrollTop};
+    var docTop = v.documentTop, seen = {}, list = [];
+    function lineEdges(l){
+      var node = v.domAtPos(l.from).node;
+      while (node && !(node.classList && node.classList.contains('cm-line'))) node = node.parentNode;
+      return node ? node.getBoundingClientRect() : null;
+    }
+    // one rectangle per screen row of [a, b) in line l
+    function rows(l, a, b, spec, edges){
+      var txt = l.text, blk = v.lineBlockAt(l.from), top0 = blk.top + docTop, pos = l.from + a, end = l.from + b, guard = 0;
+      while (pos < end && guard++ < 500){
+        var rowEnd = Math.min(end, v.moveToLineBoundary(EditorSelection.cursor(pos, 1), true, true).head);
+        if (rowEnd <= pos) rowEnd = Math.min(end, pos + 1);
+        var e = rowEnd;
+        if (!spec.spaces) while (e > pos && /\s/.test(txt.charAt(e - 1 - l.from))) e--;
+        var s0 = pos;
+        if (!spec.spaces) while (s0 < e && /\s/.test(txt.charAt(s0 - l.from))) s0++;
+        if (e > s0){
+          var c0 = v.coordsAtPos(s0, 1), c1 = v.coordsAtPos(e, -1);
+          if (c0 && c1){
+            var mid = (c0.top + c0.bottom) / 2, k = Math.max(0, Math.floor((mid - top0) / lh)), rowTop = top0 + k * lh;
+            var left = spec.l === 'start' ? (edges ? edges.left : c0.left) : c0.left - (spec.l || 0);
+            var right = spec.r === 'end' ? (edges ? edges.right : c1.right) : c1.right + (spec.r || 0);
+            var y0 = snap(rowTop + box.gap), y1 = snap(rowTop + box.gap + box.h), x0 = snap(left), x1 = snap(right);
+            if (x1 > x0) list.push({z: spec.z || 0, n: list.length, m: new RectangleMarker(spec.cls, x0 - base.left, y0 - base.top, x1 - x0, y1 - y0)});
+          }
         }
-        if (b.r === 'end'){ var dom = v.domAtPos(l.from).node; while (dom && !(dom.classList && dom.classList.contains('cm-line'))) dom = dom.parentNode; lineEl = dom; }
-        var edge = lineEl ? lineEl.getBoundingClientRect().right : null;
-        rows.forEach(function(r){
-          if (!r.any) return;
-          var left = r.left - (b.l || 0), right = b.r === 'end' ? (edge != null ? edge : r.right) : r.right + (b.r || 0);
-          out.push(new RectangleMarker(b.cls, left - base.left, r.top - base.top, Math.max(0, right - left), r.bottom - r.top));
-        });
+        pos = rowEnd;
+      }
+    }
+    v.visibleRanges.forEach(function(rg){
+      for (var p = rg.from; p <= rg.to;){
+        var l = d.lineAt(p), n = l.number - 1;
+        p = l.to + 1;
+        if (seen[n] || !l.length) { seen[n] = 1; continue; }
+        seen[n] = 1;
+        if (v.lineBlockAt(l.from).height < 1) continue;
+        var specs = bandsOf ? (bandsOf(n, l.text) || []) : [];
+        if (!sel.empty && sel.from < l.to && sel.to > l.from) specs = specs.concat([{from: Math.max(0, sel.from - l.from), to: Math.min(l.length, sel.to - l.from), cls: 'sm-band-sel', z: 2, spaces: true}]);
+        if (!specs.length) continue;
+        var edges = specs.some(function(sp){ return sp.l === 'start' || sp.r === 'end'; }) ? lineEdges(l) : null;
+        specs.forEach(function(sp){ if (sp.to > sp.from) rows(l, sp.from, sp.to, sp, edges); });
       }
     });
+    list.sort(function(x, y){ return x.z - y.z || x.n - y.n; });
+    list.forEach(function(x){ out.push(x.m); });
     return out;
   }
-  var blockLayer = layer({
+  var bandLayer = layer({
     above: false,
-    class: 'sm-blocks',
-    markers: blockMarkers,
-    update: function(u){ return u.docChanged || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.effects.some(function(e){ return e.is(redraw); }); }); }
+    class: 'sm-bands',
+    markers: bandMarkers,
+    update: function(u){ return u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.effects.some(function(e){ return e.is(redraw); }); }); }
   });
 
   // ---- keys ----
@@ -452,7 +476,7 @@ export function createEditor(host, opts){
       keymap.of(baseKeys),
       EditorView.lineWrapping,
       drawSelection({cursorBlinkRate: 0}),
-      blockLayer,
+      bandLayer,
       EditorState.transactionFilter.of(filter),
       hiddenField,
       drawPlugin,

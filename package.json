@@ -3,9 +3,10 @@
   "private": true,
   "description": "Editor code for scriptin Machine (loaded by the Bubble element htmlCapacitor via jsDelivr)",
   "scripts": {
-    "test": "npm run build && node test/pagination.test.js && node test/editor.test.js && PAGES_STEPS=300 node test/pages.test.js",
+    "test": "npm run build && node test/pagination.test.js && node test/editor.test.js && PAGES_STEPS=300 node test/pages.test.js && node test/visual.test.js",
     "bench": "node test/bench.js",
-    "build": "esbuild src/editor.js --bundle --format=iife --minify --target=es2019 --legal-comments=none --outfile=capacitor.js"
+    "build": "esbuild src/editor.js --bundle --format=iife --minify --target=es2019 --legal-comments=none --outfile=capacitor.js",
+    "visual": "node test/visual.test.js"
   },
   "devDependencies": {
     "@codemirror/commands": "^6.11.1",

@@ -824,14 +824,21 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // draws only the lines in and near the window
     var cm = null;
     cm = createEditor(host, {value:linked ? '' : saved, readOnly:linked, lineTokens:function(n, s){ return cm ? lineTokens(n, s) : []; },
-      // blocks behind shots (16px beyond the text on both sides) and transitions (from 16px before the text to the frame)
-      blocks:function(n){
+      // the colour bands behind the text (see cm6compat): slugline bars from frame to frame, cue boxes around the name,
+      // shot blocks 16px beyond the text on both sides, transition blocks from 16px before the text to the frame
+      bands:function(n, s){
         if (!cm) return null;
-        var x = cm.lineClass(n, 'text');
-        if (/\bsm-t-shot\b/.test(x)) return {cls:'sm-b-shot', l:16, r:16};
-        if (/\bsm-t-trans\b/.test(x)) return {cls:'sm-b-trans', l:16, r:'end'};
-        return null;
-      }});
+        var out = [], w = cm.lineClass(n, 'wrap'), x = cm.lineClass(n, 'text');
+        if (/\bsm-l-slug\b/.test(w)) out.push({from:0, to:s.length, cls:'sm-band-slug', z:0, l:'start', r:'end', spaces:true});
+        if (/\bsm-t-shot\b/.test(x)) out.push({from:0, to:s.length, cls:'sm-band-shot', z:1, l:16, r:16});
+        else if (/\bsm-t-trans\b/.test(x)) out.push({from:0, to:s.length, cls:'sm-band-trans', z:1, l:16, r:'end'});
+        else if (s.charAt(0) === ','){
+          var t = lineTokens(n, s);
+          for (var k = 0; k < t.length; k++) if (t[k][2] === 'cm-smcue'){ out.push({from:t[k][0], to:t[k][1], cls:'sm-band-cue', z:1, spaces:true}); break; }
+        }
+        return out;
+      },
+      bandBox:function(){ return BAND; }});
     // Marks inside line n (text s): see emphRuns; the title page, cues and shots as CodeMirror 5's mode had them
     function lineTokens(n, s){
       var out = [], te = preEnd();
@@ -884,6 +891,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var sync = makeSync(cm, saved);
     window.addEventListener('pagehide', function(){ sync.flush(); });
     // Slugline bars, shot blocks and the cursor get the same band height as cue blocks and selections (the text's own box inside the line)
+    // Every band and the cursor: from the row's top plus gap, h high (the line's height and the descenders' reach)
+    var BAND = {gap:0, h:cm.defaultTextHeight()};
     function measureBand(){
       // a drawn line with text on one row (hidden lines at the top have no height, wrapped ones several rows)
       var sp = null, cand = host.querySelectorAll('.cm-line:not(.sm-gone) > .sm-in');
@@ -899,17 +908,19 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       host.style.setProperty('--sm-gap', Math.max(0, r.top - lr.top) + 'px');
       host.style.setProperty('--sm-inset', Math.max(0, lr.top - r.top) + 'px');
       var ib = r.bottom - lr.bottom, it = Math.max(0, lr.top - r.top);
-      // Descenders (g, j, p, q, y) reach below the line: bars go down that far too (never beyond the text box)
+      // Descenders (g, j, p, q, y) and the underscore reach below the line: bars go down that far too (never beyond the text box)
       try {
         var cx = document.createElement('canvas').getContext('2d'), fs = getComputedStyle(sp);
         cx.font = fs.fontSize + ' ' + fs.fontFamily;
-        var mt = cx.measureText('gjpqy'), base = (mt.fontBoundingBoxAscent || 0) - Math.max(0, lr.top - r.top);
+        var mt = cx.measureText('gjpqy_'), base = (mt.fontBoundingBoxAscent || 0) - Math.max(0, lr.top - r.top);
         var under = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), base + mt.actualBoundingBoxDescent - lh)) : 0;
         var u = Math.ceil(under * 2) / 2;
         host.style.setProperty('--sm-under', u + 'px');
         // How far every bar reaches below the line (cue, shot and transition bars are drawn on the text box, which can
         // end a little above its inset): the cursor and the slugline bar end exactly there too
         host.style.setProperty('--sm-tail', Math.max(0, u + ib - it) + 'px');
+        var nb = {gap:Math.max(0, r.top - lr.top), h:Math.min(r.height, lh) + Math.max(0, u + ib - it)};
+        if (nb.gap !== BAND.gap || nb.h !== BAND.h){ BAND = nb; cm.refresh(); }
       } catch (e){}
       // Distance from the page's right text edge to the editor's right frame line
       host.style.setProperty('--sm-trans-tail', (cm.contentWidth() - (W_ACTION * cm.defaultCharWidth() + PAD / 2)) + 'px');
