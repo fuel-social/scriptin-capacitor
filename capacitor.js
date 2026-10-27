@@ -1609,6 +1609,35 @@
       return true;
     }
     // Reformat the whole script in one undoable step, keeping the cursor on the same character
+    // Replaces the text by nt line by line: only the runs of lines that differ are written (one change each, all in one
+    // step for Cmd+Z), so CodeMirror redraws those and not the whole script. The result is checked; should it differ,
+    // the whole text is written as before
+    function replaceLines(old, nt, origin){
+      var O = old.split('\n'), N = nt.split('\n'), hunks = [], i = 0, j = 0, K = 40;
+      while (i < O.length || j < N.length){
+        if (i < O.length && j < N.length && O[i] === N[j]){ i++; j++; continue; }
+        var i0 = i, j0 = j, done = false;
+        while (!done && (i < O.length || j < N.length)){
+          if (i < O.length && j < N.length && O[i] === N[j]){ done = true; break; }
+          var hit = false;
+          for (var k = 1; k <= K && !hit; k++){
+            if (j < N.length && i + k < O.length && O[i + k] === N[j]){ i += k; hit = true; }
+            else if (i < O.length && j + k < N.length && N[j + k] === O[i]){ j += k; hit = true; }
+          }
+          if (hit){ done = true; break; }
+          if (i < O.length) i++;
+          if (j < N.length) j++;
+        }
+        hunks.push({i0:i0, i1:i, j0:j0, j1:j});
+      }
+      for (var h = hunks.length - 1; h >= 0; h--){
+        var u = hunks[h], add = N.slice(u.j0, u.j1);
+        if (u.i1 < O.length) cm.replaceRange(add.length ? add.join('\n') + '\n' : '', {line:u.i0, ch:0}, {line:u.i1, ch:0}, origin);
+        else if (u.i0 > 0) cm.replaceRange(add.length ? '\n' + add.join('\n') : '', {line:u.i0 - 1, ch:O[u.i0 - 1].length}, {line:O.length - 1, ch:O[O.length - 1].length}, origin);
+        else cm.replaceRange(add.join('\n'), {line:0, ch:0}, {line:O.length - 1, ch:O[O.length - 1].length}, origin);
+      }
+      if (cm.getValue() !== nt){ replaceLines.fallbacks = (replaceLines.fallbacks || 0) + 1; cm.replaceRange(nt, {line:0, ch:0}, {line:cm.lastLine(), ch:line(cm.lastLine()).length}, origin); }
+    }
     function reformat(){
       var old = cm.getValue(), filled = fillCues(old), nt = reformatText(filled.text);
       var pos = cm.getCursor(), idx = cm.indexFromPos(pos);
@@ -1627,7 +1656,7 @@
       cm.operation(function(){
         for (var m = 0; m < marks.length; m++) marks[m].clear();
         marks = []; markRanges = []; hid = [];
-        cm.replaceRange(nt, {line:0, ch:0}, cm.posFromIndex(old.length), '+reformat');
+        replaceLines(old, nt, '+reformat');
         if (tail) target = {line:cm.lineCount() - 1, ch:0};
         else if (onBlank) target = n === 0 ? {line:0, ch:0} : {line:cm.posFromIndex(i).line + 1, ch:0};
         else {
@@ -2043,6 +2072,7 @@
     // for the tests: the incremental page starts next to a full count
     cm.smPages = function(){ return {inc:pagesNow(), full:paginate(cm.getValue()), fulls:PG.fulls}; };
     cm.smPagesStep = function(b){ return pagesNow(b); };
+    cm.smReplaceLines = function(nt){ cm.operation(function(){ replaceLines(cm.getValue(), nt, '+reformat'); }); return replaceLines.fallbacks || 0; };
     // for the tests: the hidden runs in use next to freshly worked out ones
     cm.smView = function(){ clearTimeout(timer); refreshChanged(); return {cur:JSON.stringify(markRanges), fresh:JSON.stringify(viewRanges())}; };
     // for the tests: cue and slugline lines from the index next to a full read
@@ -2177,7 +2207,9 @@
         // with runs hidden inside the script (a view, notes off), lines can move into or out of them while the runs keep
         // their numbers, so their classes are all worked out again unless the runs were kept above
         var inner = !keep && markRanges.some(function(r){ return !r.top; });
-        var full = DEC.full || rebuilt || inner || te !== DEC.te || lang !== DEC.lang;
+        // a change over many lines (Reformat, a long paste) is quicker as one pass over the whole script
+        var big = !!d && d.b - d.a > 1500;
+        var full = DEC.full || rebuilt || inner || big || te !== DEC.te || lang !== DEC.lang;
         if (full) decorate();
         else {
           var rs = [];
