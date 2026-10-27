@@ -5,17 +5,18 @@ Editor code for scriptin Machine.
 The Bubble element htmlCapacitor (app fuel-social, page scriptin) holds only a small loader. It loads these files from Cloudflare Pages (project scriptin-capacitor, production branch `live`, domain scriptin.fuel.social):
 
 - `capacitor.css`: editor styles
-- `capacitor.js`: editor script (CodeMirror 5.65.16)
+- `capacitor.js`: editor script, built from `src/` with `npm run build` (one file, CodeMirror 6 included); commit it with the sources
+- `src/editor.js`: the editor logic; `src/cm6compat.js`: CodeMirror 6 with the CodeMirror 5 style calls and events the logic uses (only the lines near the window are drawn)
 - `vendor/`, `fonts/`: jsPDF and Courier Prime for the PDF export, loaded on the first export
 - `_headers`: lets fuel.social load the fonts and scripts (CORS)
 
-To release a change: commit, run `npm test`, push to `main`, test with `?cap=<commit>` (loads that commit from jsDelivr in that tab only), then move `live` to the commit and push it. htmlCapacitor needs no change.
+To release a change: run `npm test` (it builds `capacitor.js` first), commit, push to `main`, test with `?cap=<commit>` (loads that commit from jsDelivr in that tab only), then move `live` to the commit and push it. htmlCapacitor needs no change.
 
 ## Tests and performance
 
 `npm test` runs the pagination tests, the editor tests (simulated keys in jsdom) and a random edit test (`test/pages.test.js`): hundreds of random edits on a long script, after each one the incremental page count, line classes, hidden runs, cue and slugline index and export command marks must equal a full recomputation.
 
-`npm run bench` loads a 510 page script (`BENCH_SCENES`, default 1700 scenes) and reports per keystroke the longest blocking piece of work in ms (CodeMirror and jsdom included). `BENCH_PLAIN=1` runs a bare CodeMirror with the same text for comparison. The difference is the editor's own cost; the goal is at most 5 ms per keystroke on 500 pages.
+`npm run bench` loads a 510 page script (`BENCH_SCENES`, default 1700 scenes) and reports per keystroke the longest blocking piece of work in ms (CodeMirror and jsdom included). `BENCH_PLAIN=1` runs a bare CodeMirror 6 with the same text for comparison. The difference is the editor's own cost; the goal is at most 5 ms per keystroke on 500 pages.
 
 How the editor stays fast on long scripts:
 

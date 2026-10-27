@@ -13,22 +13,25 @@
 #sm-editor .cm-smu{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
 
 #sm-editor{position:relative;width:720px;margin:0 auto;--sm-bg:#F9F9F9;--sm-fg:#1C2F42;--sm-blue:#009ECE;--sm-blue-alt:#81C7E3;--sm-blue-night:#81C7E3;--sm-frame:#E2E2E2;--sm-inactive:#929BA4;--sm-lh:21px;--sm-band:21px;--sm-gap:0px;--sm-inset:2.75px;--sm-under:2px;--sm-tail:2px}
-#sm-editor .CodeMirror{height:auto;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
-#sm-editor .CodeMirror-lines{padding:10px 0}
-#sm-editor .CodeMirror pre.CodeMirror-line{padding:0 16px;box-sizing:border-box}
-#sm-editor .CodeMirror-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap)}
-#sm-editor .sm-on-bar .CodeMirror-cursor{border-left-color:var(--sm-blue-alt) !important}
+/* CodeMirror 6: .cm-editor is the frame, .cm-content holds the lines (.cm-line, the text inside one .sm-in span) */
+#sm-editor .cm-editor{height:auto;border:0;border-left:2px solid var(--sm-frame);border-right:2px solid var(--sm-frame);border-radius:0;background:transparent;color:var(--sm-fg)}
+#sm-editor .cm-editor.cm-focused{outline:none}
+#sm-editor .cm-scroller{font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;overflow:visible}
+#sm-editor .cm-content{padding:10px 0;caret-color:transparent}
+#sm-editor .cm-line{padding:0 16px;box-sizing:border-box}
+#sm-editor .cm-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap);margin-left:0}
+#sm-editor .sm-on-bar .cm-cursor{border-left-color:var(--sm-blue-alt) !important}
 /* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
-#sm-editor[data-mode=night] .sm-on-slug .CodeMirror-cursor{border-left-color:var(--sm-blue-day) !important}
-#sm-editor[data-mode=night] .sm-on-trans .CodeMirror-cursor{border-left-color:var(--sm-blue-night) !important}
+#sm-editor[data-mode=night] .sm-on-slug .cm-cursor{border-left-color:var(--sm-blue-day) !important}
+#sm-editor[data-mode=night] .sm-on-trans .cm-cursor{border-left-color:var(--sm-blue-night) !important}
 #sm-editor .cm-smcue{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-inactive)}
 #sm-editor .sm-l-slug{box-shadow:0 var(--sm-tail) 0 0 var(--sm-fg);background:repeating-linear-gradient(to bottom,transparent 0,transparent var(--sm-gap),var(--sm-fg) var(--sm-gap),var(--sm-fg) calc(var(--sm-gap) + var(--sm-band)),transparent calc(var(--sm-gap) + var(--sm-band)),transparent var(--sm-lh));color:var(--sm-bg)}
-#sm-editor pre.sm-t-shot > span{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive),calc(16px - var(--sm-under) / 2 + var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
-#sm-editor pre.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
-#sm-editor .CodeMirror-selected{background:transparent !important}
-#sm-editor .CodeMirror-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}
-#sm-editor pre.sm-t-note{color:var(--sm-blue)}
-#sm-editor pre.sm-t-cmd{color:var(--sm-blue)}
+#sm-editor .cm-line.sm-t-shot > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-inactive) var(--sm-inset),var(--sm-inactive) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-bg);box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive),calc(16px - var(--sm-under) / 2 + var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-inactive);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+#sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
+#sm-editor .cm-selectionBackground,#sm-editor .cm-focused .cm-selectionBackground,#sm-editor .cm-content ::selection{background:transparent !important}
+#sm-editor .sm-selectedtext{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-blue) var(--sm-inset),var(--sm-blue) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under))) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone;color:var(--sm-bg) !important}
+#sm-editor .cm-line.sm-t-note{color:var(--sm-blue)}
+#sm-editor .cm-line.sm-t-cmd{color:var(--sm-blue)}
 #sm-editor .sm-scenenum.sm-cmdmark{color:var(--sm-blue)}
 #sm-editor .sm-n-note{position:relative}
 #sm-editor .sm-n-note::after{content:'//';position:absolute;top:var(--sm-gap);right:16px;height:var(--sm-band);line-height:var(--sm-band);color:var(--sm-bg);pointer-events:none}
@@ -44,14 +47,14 @@
 /* Single spaced like Final Draft (line height = font size); the font's own text box is taller than a line, so
    cue, shot, transition and selection backgrounds are painted only on the line's height (--sm-inset trims them) */
 /* The editor grows with its text; the frame lines reach at least down to 80px above the bottom of the window */
-#sm-editor .CodeMirror-scroll{min-height:calc(100vh - 160px)}
+#sm-editor .cm-scroller{min-height:calc(100vh - 160px)}
 /* Bubble clips its HTML elements; the page numbers sit outside, left of the frame line */
 .bubble-element:has(> #sm-editor){overflow:visible !important}
 /* The Bubble page is at least 1200px tall (more than the window): the element, the editor and its frame lines stretch
    to the page bottom, so the lines end 80px above it however far the page scrolls; a longer script still grows them */
 .bubble-element:has(> #sm-editor){flex-grow:1 !important;display:flex !important;flex-direction:column}
 #sm-editor{flex-grow:1;display:flex;flex-direction:column}
-#sm-editor .CodeMirror{flex-grow:1}
+#sm-editor .cm-editor{flex-grow:1}
 /* The empty line above a slugline counts twice, as in Final Draft */
 #sm-editor .sm-sp2{padding-bottom:var(--sm-lh)}
 /* Hidden lines at the very top take no space */

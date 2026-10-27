@@ -1,27 +1,14 @@
 // Performance check: a 500+ page script in a jsdom CodeMirror; per keystroke the longest blocking piece of work
 // (the key handling, or the longest task after it), in ms, jsdom and CodeMirror included (BENCH_PLAIN: CodeMirror alone).
 // Run with: node test/bench.js   (BENCH_SCENES to change the size)
-const fs = require('fs');
 const path = require('path');
-const { JSDOM } = require('jsdom');
-const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://fuel.social/version-test/scriptin' });
-const w = dom.window;
-Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3000; } });
-Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
-// a browser measures a line as 21 px high and CodeMirror keeps that; jsdom measures 0, and CodeMirror would measure again
-// on every hidden run it removes, which no browser does
-Object.defineProperty(w.HTMLElement.prototype, 'offsetHeight', { get(){ return /CodeMirror-line-like/.test(this.className) ? 21 * 50 : 21; } });
-w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
-w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
-w.scrollTo = () => {}; w.scrollBy = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
-const nm = path.join(__dirname, '..', 'node_modules', 'codemirror') + '/';
-w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
-w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
-w.__smMarkSelection = 1;
-const Orig = w.CodeMirror; let cm;
-w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); return cm; }, Orig);
-w.CodeMirror.prototype = Orig.prototype;
-if (process.env.BENCH_PLAIN) { w.CodeMirror(w.document.getElementById('sm-editor'), {lineWrapping:true, viewportMargin:Infinity}); } else w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
+let { w, cm } = require('./harness')();
+if (process.env.BENCH_PLAIN){
+  // CodeMirror 6 alone with the same text: what it and jsdom cost without the editor logic
+  const fs = require('fs'), esb = require('esbuild');
+  const code = esb.buildSync({stdin:{contents:"import {createEditor} from './src/cm6compat.js'; window.__plain = createEditor(document.getElementById('sm-editor'), {});", resolveDir:path.join(__dirname, '..')}, bundle:true, format:'iife', write:false}).outputFiles[0].text;
+  w.eval(code); cm = w.__plain;
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Every task the page runs is timed: what blocks a keystroke is the key handling itself and the longest task after it
 // (the deferred redraw or one step of the page count), not the sum of all small steps between keystrokes
@@ -34,8 +21,7 @@ function script(n){
   return out.join('\n\n');
 }
 setTimeout(async function(){
-  const inp = cm.display.input;
-  function type(ch){ cm.state.focused = true; inp.reset(); const ta = inp.textarea; ta.value = ch; ta.selectionStart = ta.selectionEnd = 1; inp.poll(); }
+  function type(ch){ cm.typeText(ch); }
   const N = +(process.env.BENCH_SCENES || 1700), text = script(N);
   let t = process.hrtime.bigint();
   cm.setValue(text); await sleep(60);

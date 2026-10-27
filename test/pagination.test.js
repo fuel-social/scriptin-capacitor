@@ -1,12 +1,11 @@
 // Pagination tests: loads capacitor.js with paginate exposed
 const fs = require('fs');
-let src = fs.readFileSync(require('path').join(__dirname, '..', 'capacitor.js'), 'utf8');
+let src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'editor.js'), 'utf8').replace(/^import .*$/m, '');
 src = src.replace('var PAGE_LINES = 58,', 'var PAGE_LINES = (global.__LINES || 58),');
-src = src.replace('  function defineMode(){', '  globalThis.__pg = {layout:layout, paginate:paginate, els:pageElements, lines:elLines};\n  function defineMode(){');
+src = src.replace('  function widthStyles(){', '  globalThis.__pg = {layout:layout, paginate:paginate, els:pageElements, lines:elLines};\n  function widthStyles(){');
 global.window = { SM_THEME:{}, location:{hash:''}, addEventListener(){} };
 global.document = { readyState:'complete', getElementById(){ return null; }, addEventListener(){}, createElement(){ return {}; }, head:{ appendChild(){} } };
-global.CodeMirror = { defineMode(){} };
-window.CodeMirror = global.CodeMirror; window.__smMarkSelection = 1;
+global.Pass = {}; global.cmpPos = () => 0; global.changeEnd = () => null;
 global.__LINES = +(process.env.LINES || 54);
 eval(src);
 const P = globalThis.__pg.paginate;

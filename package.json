@@ -3,11 +3,16 @@
   "private": true,
   "description": "Editor code for scriptin Machine (loaded by the Bubble element htmlCapacitor via jsDelivr)",
   "scripts": {
-    "test": "node test/pagination.test.js && node test/editor.test.js && PAGES_STEPS=300 node test/pages.test.js",
-    "bench": "node test/bench.js"
+    "test": "npm run build && node test/pagination.test.js && node test/editor.test.js && PAGES_STEPS=300 node test/pages.test.js",
+    "bench": "node test/bench.js",
+    "build": "esbuild src/editor.js --bundle --format=iife --minify --target=es2019 --legal-comments=none --outfile=capacitor.js"
   },
   "devDependencies": {
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
     "codemirror": "5.65.16",
+    "esbuild": "^0.24.2",
     "jsdom": "^26.0.0",
     "jspdf": "^4.2.1"
   }

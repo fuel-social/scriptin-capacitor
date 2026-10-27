@@ -1,35 +1,8 @@
 // Simulated typing in a jsdom CodeMirror: completion, Tab, Reformat. Run with: npm test
-const fs = require('fs');
-const { JSDOM } = require('jsdom');
-const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://fuel.social/version-test/scriptin' });
-const w = dom.window;
-Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3000; } });
-Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
-w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
-w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
-const nm = require('path').join(__dirname, '..', 'node_modules', 'codemirror') + '/';
-w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
-w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
-w.__smMarkSelection = 1;
-// Capture the editor instance
-const Orig = w.CodeMirror; let cm;
-w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); return cm; }, Orig);
-w.CodeMirror.prototype = Orig.prototype;
-w.eval(fs.readFileSync(require('path').join(__dirname, '..', 'capacitor.js'), 'utf8'));
+const { w, cm } = require('./harness')();
 setTimeout(main, 100);
 function main(){
-if (!cm) { console.log('no editor'); process.exit(1); }
-cm.state.focused = true;
-const inp = cm.display.input;
-function type(str){
-  for (const ch of str){
-    cm.state.focused = true;
-    inp.reset();
-    const ta = inp.textarea;
-    ta.value = ch; ta.selectionStart = ta.selectionEnd = 1;
-    inp.poll();
-  }
-}
+const type = cm.type;
 function key(name, code){ cm.triggerOnKeyDown({ type:'keydown', keyCode: code, key: name, preventDefault(){}, stopPropagation(){} }); }
 const tab = () => key('Tab', 9), right = () => key('ArrowRight', 39);
 function state(){
@@ -479,7 +452,7 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
 {
   const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
-  const click = (ln, ch) => { Orig.signal(cm, 'mousedown', cm, {}); cm.setCursor({line:ln, ch:ch}); };
+  const click = (ln, ch) => { cm.signal('mousedown', {}); cm.setCursor({line:ln, ch:ch}); };
   const DE = '---\n\n//TITELSEITE\nTitel: A\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\n\n---\n\n,ANNA (V.O.),\nHallo.';
   cm.setValue(DE);
   const cue = () => cm.getValue().split('\n').find(l => l.startsWith(',ANNA'));

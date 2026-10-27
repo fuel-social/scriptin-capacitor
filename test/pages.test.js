@@ -1,23 +1,6 @@
 // Performance check: a 500+ page script in a jsdom CodeMirror; time per keystroke for our own code.
 // Run with: node test/bench.js   (BENCH_SCENES to change the size)
-const fs = require('fs');
-const path = require('path');
-const { JSDOM } = require('jsdom');
-const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://fuel.social/version-test/scriptin' });
-const w = dom.window;
-Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3000; } });
-Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
-w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
-w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
-w.scrollTo = () => {}; w.scrollBy = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
-const nm = path.join(__dirname, '..', 'node_modules', 'codemirror') + '/';
-w.eval(fs.readFileSync(nm + 'lib/codemirror.js', 'utf8'));
-w.eval(fs.readFileSync(nm + 'addon/selection/mark-selection.js', 'utf8'));
-w.__smMarkSelection = 1;
-const Orig = w.CodeMirror; let cm;
-w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); return cm; }, Orig);
-w.CodeMirror.prototype = Orig.prototype;
-w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
+const { w, cm } = require('./harness')();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 // Incremental page count and line classes against full ones: random edits on a long script, after every edit both must agree.
 // Run with: node test/pages.test.js (PAGES_SEED, PAGES_STEPS to vary)
