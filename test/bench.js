@@ -8,6 +8,9 @@ const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></
 const w = dom.window;
 Object.defineProperty(w.HTMLElement.prototype, 'clientHeight', { get(){ return 3000; } });
 Object.defineProperty(w.HTMLElement.prototype, 'clientWidth', { get(){ return 720; } });
+// a browser measures a line as 21 px high and CodeMirror keeps that; jsdom measures 0, and CodeMirror would measure again
+// on every hidden run it removes, which no browser does
+Object.defineProperty(w.HTMLElement.prototype, 'offsetHeight', { get(){ return /CodeMirror-line-like/.test(this.className) ? 21 * 50 : 21; } });
 w.document.createRange = () => ({ setEnd(){}, setStart(){}, getBoundingClientRect(){ return {top:0,bottom:0,left:0,right:0,height:0,width:0}; }, getClientRects(){ return { length: 0, item(){ return null; } }; } });
 w.HTMLElement.prototype.getClientRects = function(){ return { length: 0, item(){ return null; } }; };
 w.scrollTo = () => {}; w.scrollBy = () => {}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){}; w.document.elementFromPoint = () => null; w.HTMLElement.prototype.scrollIntoView = function(){};
