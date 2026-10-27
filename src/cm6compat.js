@@ -447,12 +447,16 @@ export function createEditor(host, opts){
     var lcs = getComputedStyle(v.contentDOM), lh = parseFloat(lcs.lineHeight) || parseFloat(lcs.fontSize) || v.defaultLineHeight;
     if (!(box.h >= lh)) box = {gap: Math.min(0, box.gap || 0), h: lh};
     var dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1, snap = function(x){ return Math.round(x * dpr) / dpr; };
-    var c = v.coordsAtPos(sel.head, sel.assoc || 1);
+    // the gap between the character before and the one after, the same whichever side the cursor came from (a browser
+    // can place the end of one character and the start of the next a pixel apart)
+    var cb = sel.head > 0 ? v.coordsAtPos(sel.head, -1) : null, ca = v.coordsAtPos(sel.head, 1), c = v.coordsAtPos(sel.head, sel.assoc || 1);
     if (!c) return [];
+    var gx = c.left;
+    if (cb && ca && Math.abs(cb.top - ca.top) < 2 && Math.abs(cb.right - ca.left) < 4) gx = (cb.right + ca.left) / 2;
     var blk = v.lineBlockAt(sel.head), top0 = blk.top + v.documentTop, mid = (c.top + c.bottom) / 2;
     var rowTop = top0 + Math.max(0, Math.floor((mid - top0) / lh)) * lh, w = opts.caretWidth || 2;
     var sr = v.scrollDOM.getBoundingClientRect(), bl = sr.left - v.scrollDOM.scrollLeft, bt = sr.top - v.scrollDOM.scrollTop;
-    var x0 = snap(c.left - w / 2), y0 = snap(rowTop + box.gap), y1 = snap(rowTop + box.gap + box.h);
+    var x0 = snap(gx - w / 2), y0 = snap(rowTop + box.gap), y1 = snap(rowTop + box.gap + box.h);
     return [new RectangleMarker('sm-caret', x0 - bl, y0 - bt, w, y1 - y0)];
   }
   var caretLayer = layer({

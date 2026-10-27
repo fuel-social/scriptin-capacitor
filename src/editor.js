@@ -496,7 +496,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // (rows of W_CUE characters, see W_CUE)
   function cueStr(name, cont, L){
     var n = (name || '').trim().replace(/\s+/g, ' ');
-    return cont && !CONT_ANY.test(noMarks(n).toUpperCase()) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
+    return cont && !CONT_ANY.test(noMarks(n).toUpperCase().replace(/[\u2019\u2018\u02bc`\u00b4]/g, "'")) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
   }
   function cueRows(name, cont, L){ var c = cueStr(name, cont, L); return c ? runRows(c, W_CUE).map(upSegs) : [{t:'', segs:[]}]; }
   function cueLines(el){ return el.cue ? wrapStarts(cueStr(el.name, el.contd), W_CUE).length : 0; }

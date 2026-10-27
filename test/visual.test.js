@@ -158,6 +158,13 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     }, line);
     ok(!bad.length, 'selected ' + label + ': all text light', bad.slice(0, 3).join(' '));
   }
+  // the cursor stands at the same place whichever side it came from (Left or Right arrow)
+  {
+    const pos = await page.evaluate(n => document.getElementById('sm-editor').smCM.view.state.doc.line(n + 1).from + 9, L.act);
+    const at = async side => { await page.evaluate(([p, sd]) => { const cm = document.getElementById('sm-editor').smCM, v = cm.view; cm.focus(); const ES = v.state.selection.constructor; v.dispatch({ selection: ES.create([ES.cursor(p, sd)]) }); window.__assoc = v.state.selection.main.assoc; }, [pos, side]); await page.waitForTimeout(120); return page.evaluate(() => document.querySelector('.sm-caret').getBoundingClientRect().left); };
+    const fromRight = await at(-1), fromLeft = await at(1);
+    ok(fromRight === fromLeft, 'cursor at the same place from the left and from the right', fromLeft + ' / ' + fromRight);
+  }
   // the stylesheet arriving after the editor started (Safari draws once before it is in): the bands follow
   {
     const p2 = await browser.newPage({ viewport: { width: 1000, height: 1400 }, deviceScaleFactor: 2 });
