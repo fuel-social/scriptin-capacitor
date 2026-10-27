@@ -174,6 +174,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       return out;
     } catch (e){ return ''; }
   }
+  // colorType of the current theme (the one whose colorBlue is in use)
+  function themeType(){
+    try {
+      var v = window.app.option_sets._theme_ui.values, cur = (T.blue || '#009ECE').toUpperCase(), out = '';
+      Object.keys(v).forEach(function(k){ if (!out && v[k].colortype && (v[k].colorblue || '').toUpperCase() === cur) out = v[k].colortype; });
+      return out;
+    } catch (e){ return ''; }
+  }
   // colorBlue of the night theme (the one with the darker colorBackground): the bars behind title page values
   function nightBlue(){
     try {
@@ -658,7 +666,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
     // Transition: text flush right at the page width, transW characters per row (--sm-trans-w, set for the script's language); the first row has room for the .t
     // and its space as well (they are not printed). The block behind it is drawn by the editor (see blocks below)
-    css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - var(--sm-trans-w,' + W_TRANS + ') * 1ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-inactive)}\n';
+    css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - var(--sm-trans-w,' + W_TRANS + ') * 1ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-bg)}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -813,6 +821,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     if (T.frame) host.style.setProperty('--sm-frame', T.frame);
     if (T.inactive) host.style.setProperty('--sm-inactive', T.inactive);
     var red = T.red || themeRed(); if (red) host.style.setProperty('--sm-red', red);
+    // colorType of the current theme: the transition blocks (light text on it stays readable)
+    var typ = T.type || themeType(); if (typ) host.style.setProperty('--sm-type', typ);
     var alt = altBlue(); if (alt) host.style.setProperty('--sm-blue-alt', alt);
     var night = nightBlue(); if (night) host.style.setProperty('--sm-blue-night', night);
     widthStyles();
@@ -2295,6 +2305,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       host.style.setProperty('--sm-bg', t.colorbackground); host.style.setProperty('--sm-fg', t.colorforeground);
       host.style.setProperty('--sm-blue', t.colorblue); host.style.setProperty('--sm-frame', t.colorframe);
       host.style.setProperty('--sm-inactive', t.colorinactive); if (t.colorred) host.style.setProperty('--sm-red', t.colorred);
+      if (t.colortype) host.style.setProperty('--sm-type', t.colortype);
       if (o && o.colorblue) host.style.setProperty('--sm-blue-alt', o.colorblue);
       host.setAttribute('data-mode', THEMES[m] === 'dark' ? 'night' : 'day');
       var dc = themeColors('light'), nc = themeColors('dark');
