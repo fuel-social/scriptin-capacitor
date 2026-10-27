@@ -146,6 +146,7 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
     eq('a long cue wraps after 38 characters, as in Final Draft', pg, ['FÖALSKD FALÖSKDJ FAÖLS AÖSLKDJ FAÖSLDK', 'ASD']);
     eq('a cue of two rows takes two lines on the page', Lay(',' + name + ',\nHi.', true).pages[0].map(x => x.y), [0, 1, 2]); }
   eq('a transition wraps after 16 characters, as in Final Draft', Lay('Action.\n\n.t smash cut toqwe: and then more', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['SMASH CUT TOQWE:', 'AND THEN MORE']);
+  eq('French: transitions as wide as the longest French one (20)', Lay('---\n\n//SETTINGS\nLanguage: Français\n\n---\n\nAction.\n\n.t fondu enchaîné sur : et encore', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['FONDU ENCHAÎNÉ SUR :', 'ET ENCORE']);
   eq('emphasis in a cue: italic name, markers not printed', segs(',*beamter*,\nHi.'), 'I[BEAMTER] / [Hi.]');
   eq('a marked name counts as the same speaker for (CONT\'D)', Lay(',*BEAMTER*,\nHi.\n\nShe nods.\n\n,BEAMTER,\nYes.', true).pages[0].map(x => x.s).filter(x => /BEAMTER/.test(x)), ['BEAMTER', "BEAMTER (CONT'D)"]);
 }

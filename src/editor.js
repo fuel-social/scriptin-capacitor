@@ -17,6 +17,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var W_CUE = 38;
   // A transition wraps after 16 characters, as in Final Draft, each line flush right
   var W_TRANS = 16;
+  // A language whose own transitions (the list for .t) are longer gets its longest one as the width: ABBLENDE ZU SCHWARZ. 20
+  function transW(L){ return Math.max(W_TRANS, Math.max.apply(null, ((L || LANGS[0]).trans || []).map(function(t){ return t.length; }))); }
   var PAD = 32; // 16px left + 16px right inside each line
   // Tab ring for empty elements: slug INT, slug EXT, action, dialogue, action
   var RING = ['.i ', '.e ', '', ',,', ''];
@@ -401,9 +403,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (el.shot) speaker = null;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
-          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, el.shot ? W_ACTION : W_TRANS));
+          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, el.shot ? W_ACTION : transW(L)));
         });
-        if (!el.runs.length) el.runs.push(piece('', s0, 0, el.shot ? W_ACTION : W_TRANS));
+        if (!el.runs.length) el.runs.push(piece('', s0, 0, el.shot ? W_ACTION : transW(L)));
       } else if ((m = h.match(/^,([^,]*),(.*)$/))){
         el.cue = true; el.split = true; el.kind = 'cue'; el.name = m[1];
         // The same character speaking again in the same scene (no other cue in between) is printed with (CONT'D)
@@ -654,9 +656,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // a cue: the leading comma takes one character in front of the name
     var css = '#sm-editor .cm-line.sm-t-cue' + w(W_CUE + 1) + '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
-    // Transition: text flush right at the page width, W_TRANS characters per row; the first row has room for the .t
+    // Transition: text flush right at the page width, transW characters per row (--sm-trans-w, set for the script's language); the first row has room for the .t
     // and its space as well (they are not printed). The block behind it is drawn by the editor (see blocks below)
-    css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - ' + W_TRANS + 'ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-inactive)}\n';
+    css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - var(--sm-trans-w,' + W_TRANS + ') * 1ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-inactive)}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
@@ -859,6 +861,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.refresh();
     cm.focus();
     host.smCM = cm;
+    // The width of transitions in the editor follows the script's language (see transW)
+    var transWidth = -1;
+    function setTransW(){
+      var w = transW(langIn(line, preEnd()));
+      if (w === transWidth) return;
+      transWidth = w; host.style.setProperty('--sm-trans-w', String(w)); cm.refresh();
+    }
+    setTransW();
+    cm.on('changes', function(_cm, list){ if (list.some(function(c){ return c.from.line <= preEnd() + 1; })) setTransW(); });
     var cyc = null, lastAuto = -1, saveTimer = null;
     // Active cue (or transition): plain Up/Down pick names, extensions or transitions only where the writer is working
     // (created with Tab or comma, clicked into, typed in); moving onto a cue with the arrow keys never changes it
