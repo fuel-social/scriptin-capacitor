@@ -13,6 +13,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   })();
   // Printed line lengths in characters (Cole & Haag, 10 cpi)
   var W_ACTION = 55, W_DIALOG = 35, W_PAREN = 19;
+  // A cue wraps after 38 characters, as in Final Draft (a longer name or extension goes on in the next line)
+  var W_CUE = 38;
   var PAD = 32; // 16px left + 16px right inside each line
   // Tab ring for empty elements: slug INT, slug EXT, action, dialogue, action
   var RING = ['.i ', '.e ', '', ',,', ''];
@@ -417,7 +419,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     return null;
     };
   }
-  function elLines(el){ return (el.cue ? 1 : 0) + runLines(el.runs); }
+  function elLines(el){ return cueLines(el) + runLines(el.runs); }
   // Allowed breaks of an action or dialogue element, from the smallest first part to the largest
   function breakOptions(el){
     var out = [], runs = el.runs;
@@ -438,14 +440,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     return out;
   }
   // Lines a break leaves at the bottom: the cue and (MORE) come with dialogue
-  function firstLines(el, o){ return runLines(o.first) + (el.cue ? 2 : 0); }
+  function firstLines(el, o){ return runLines(o.first) + (el.cue ? cueLines(el) + 1 : 0); }
   function minHead(el){
     var o = el.split ? breakOptions(el) : [];
     return o.length ? Math.min(firstLines(el, o[0]), elLines(el)) : elLines(el);
   }
   // Last resort for an element taller than a page: break after as many printed lines as fit
   function forceBreak(el, room){
-    var first = [], left = Math.max(1, room - (el.cue ? 2 : 0));
+    var first = [], left = Math.max(1, room - (el.cue ? cueLines(el) + 1 : 0));
     for (var j = 0; j < el.runs.length; j++){
       var r = el.runs[j], st = wrapStarts(r.s, r.w);
       if (st.length <= left){ first.push(r); left -= st.length; if (!left) return {first:first, rest:el.runs.slice(j + 1)}; continue; }
@@ -479,15 +481,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   }
   function upSegs(r){ return {t:r.t.toUpperCase(), segs:r.segs.map(function(g){ return {t:g.t.toUpperCase(), u:g.u, i:g.i}; })}; }
   // The printed cue: the name in capitals with its emphasis (*BEAMTER* in italics, markers left out), (CONT'D) added
-  function cueRow(name, cont, L){
-    var n = (name || '').trim().replace(/\s+/g, ' '), r = n ? upSegs(runRows(n, 1e6)[0]) : {t:'', segs:[]};
-    if (cont && !CONT_ANY.test(r.t)){
-      var add = (r.t ? ' ' : '') + (L || LANGS[0]).cont;
-      r = {t:r.t + add, segs:r.segs.concat([{t:add, u:false, i:false}])};
-    }
-    return r;
+  // (rows of W_CUE characters, see W_CUE)
+  function cueStr(name, cont, L){
+    var n = (name || '').trim().replace(/\s+/g, ' ');
+    return cont && !CONT_ANY.test(noMarks(n).toUpperCase()) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
   }
-  function cueText(name, cont, L){ return cueRow(name, cont, L).t; }
+  function cueRows(name, cont, L){ var c = cueStr(name, cont, L); return c ? runRows(c, W_CUE).map(upSegs) : [{t:'', segs:[]}]; }
+  function cueLines(el){ return el.cue ? wrapStarts(cueStr(el.name, el.contd), W_CUE).length : 0; }
   // The printed script: where each page begins (editor positions) and, with print, every printed line of every page as
   // {y: line on the page from the top margin, kind: act, slug, trans, cue, dlg or par, s: text}; the page numbers
   // beside the editor and the PDF both come from here, so they always agree
@@ -506,7 +506,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
-      if (el.cue){ var cr = cueRow(el.name, cont || el.contd, L); pg.push({y:at++, kind:'cue', s:cr.t, segs:cr.segs}); }
+      if (el.cue) cueRows(el.name, cont || el.contd, L).forEach(function(cr){ pg.push({y:at++, kind:'cue', s:cr.t, segs:cr.segs}); });
       runs.forEach(function(r){
         var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runRows(r.s, r.w);
         if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(upSegs);
@@ -537,7 +537,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (!best) best = forceBreak(el, room);
         if (!best || !best.rest.length){ emit(el, el.runs, y + sp, false, cont); y += sp + h; break; }
         emit(el, best.first, y + sp, el.cue, cont);
-        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest, kind:el.kind, name:el.name, slug:el.slug, shot:el.shot, contd:el.contd};
+        // the rest on the next page: a cue comes again with (CONT'D)
+        el = {pos:{line:best.rest[0].line, ch:best.rest[0].ch}, space:0, keep:false, split:true, cue:el.cue, runs:best.rest, kind:el.kind, name:el.name, slug:el.slug, shot:el.shot, contd:el.contd || !!el.cue};
         cont = true;
         newPage(el.pos);
       }
@@ -648,7 +649,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // A line is as wide as the editor (its bar or block may reach the frame lines); the text wraps at the printed line
     // length, so the right padding takes the rest
     function w(n){ return '{padding-right:calc(100% - ' + n + 'ch - ' + (PAD / 2) + 'px) !important}\n'; }
-    var css = '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
+    // a cue: the leading comma takes one character in front of the name
+    var css = '#sm-editor .cm-line.sm-t-cue' + w(W_CUE + 1) + '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
     // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
     // the line spans the whole editor and the text's own padding carries the block on to the right frame line,
@@ -1849,7 +1851,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         else if (isNoteLn(i)) want('text', 'sm-t-act sm-t-note');
         else if (isShotLn(i)) want('text', 'sm-t-act sm-t-shot');
         else if (isTransLn(i)) want('text', 'sm-t-trans');
-        else if (isCueLn(i)) {}
+        else if (isCueLn(i)) want('text', 'sm-t-cue');
         else if (blockCue(i) >= 0) want('text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
         else want('text', 'sm-t-act');
         return {w:W, x:X};
@@ -1897,7 +1899,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         else if (NOTE.test(hs)) want('text', 'sm-t-act sm-t-note');
         else if (SHOT.test(hs)) want('text', 'sm-t-act sm-t-shot');
         else if (TRANS.test(hs)) want('text', 'sm-t-trans');
-        else if (h0 === i && /^,([^,]*),(.*)$/.test(s) && isBlank(s.match(/^,([^,]*),(.*)$/)[2])) {}
+        else if (h0 === i && /^,([^,]*),(.*)$/.test(s) && isBlank(s.match(/^,([^,]*),(.*)$/)[2])) want('text', 'sm-t-cue');
         else if (h0 < i && /^,([^,]*),(\s*)$/.test(hs)) want('text', /^\(/.test(s) ? 'sm-t-par' : 'sm-t-dlg');
         else want('text', 'sm-t-act');
         return {w:W, x:X};

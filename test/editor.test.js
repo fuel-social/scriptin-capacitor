@@ -617,6 +617,7 @@ rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \
   start(T); type(',a'); check('a marked name completes from its first letter', '",ANNA," cursor 5:2 selected "NNA"');
   start(T); type(',*a'); check('a marker typed in front of a name stays in front', '",*ANNA," cursor 5:3 selected "NNA"');
   start(T); type(',*'); check('a marker alone completes no name', '",*," cursor 5:2'); }
+cm.setValue('Action.\n\n,ANNA,\nHi.'); cm.smClasses(); eq2('a cue line wraps at the cue width', /sm-t-cue/.test(cm.lineClass(2, 'text')), true);
 cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineTokens(0).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' '), 'smcue[,*BEAMTER*,] smmk smmk-o[*] smi[BEAMTER] smmk smmk-c[*]');
 
 console.log(fails ? fails + ' failed' : 'all passed');
