@@ -15,6 +15,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var W_ACTION = 55, W_DIALOG = 35, W_PAREN = 19;
   // A cue wraps after 38 characters, as in Final Draft (a longer name or extension goes on in the next line)
   var W_CUE = 38;
+  // A transition wraps after 16 characters, as in Final Draft, each line flush right
+  var W_TRANS = 16;
   var PAD = 32; // 16px left + 16px right inside each line
   // Tab ring for empty elements: slug INT, slug EXT, action, dialogue, action
   var RING = ['.i ', '.e ', '', ',,', ''];
@@ -399,9 +401,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (el.shot) speaker = null;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.[st]\s*/i)[0].length;
-          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
+          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, el.shot ? W_ACTION : W_TRANS));
         });
-        if (!el.runs.length) el.runs.push(piece('', s0, 0, W_ACTION));
+        if (!el.runs.length) el.runs.push(piece('', s0, 0, el.shot ? W_ACTION : W_TRANS));
       } else if ((m = h.match(/^,([^,]*),(.*)$/))){
         el.cue = true; el.split = true; el.kind = 'cue'; el.name = m[1];
         // The same character speaking again in the same scene (no other cue in between) is printed with (CONT'D)
@@ -652,10 +654,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // a cue: the leading comma takes one character in front of the name
     var css = '#sm-editor .cm-line.sm-t-cue' + w(W_CUE + 1) + '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
-    // Transition block: cue colour behind, shot colour for the letters, text right aligned at the page width;
-    // the line spans the whole editor and the text's own padding carries the block on to the right frame line,
-    // so the block is one piece with the same height as cue blocks (as shot blocks run to the left frame line)
-    css += '#sm-editor .cm-line.sm-t-trans{padding-right:0 !important;text-align:right}\n#sm-editor .cm-line.sm-t-trans > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-right:var(--sm-trans-tail,67px) !important;box-shadow:calc(-16px + var(--sm-under) / 2 - var(--sm-inset)) calc(var(--sm-under) / 2) 0 calc(var(--sm-under) / 2 - var(--sm-inset)) var(--sm-frame);-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
+    // Shot and transition blocks: the text's own box carries the colour band, and its padding (repeated on every row)
+    // reaches 16px to the left and right of the text, so a block is one piece in each row. The line gives up its left
+    // padding for it and the row still holds exactly the printed number of characters
+    css += '#sm-editor .cm-line.sm-t-shot{padding-left:0 !important;padding-right:calc(100% - ' + W_ACTION + 'ch - ' + PAD + 'px) !important}\n';
+    // Transition: text flush right at the page width, W_TRANS characters per row; the padding on the right carries the
+    // block on to the right frame line, the line cuts off a space hanging at the end of a row
+    css += '#sm-editor .cm-line.sm-t-trans{padding-right:0 !important;padding-left:calc(100% - ' + W_TRANS + 'ch - ' + (PAD / 2) + 'px - var(--sm-trans-tail,67px)) !important;text-align:right;overflow:hidden}\n' +
+      '#sm-editor .cm-line.sm-t-trans > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-left:' + (PAD / 2) + 'px;padding-right:var(--sm-trans-tail,67px) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
   // ---- Database sync, encrypted (AES-GCM, 256 bit key made in this browser) ----
