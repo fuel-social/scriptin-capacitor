@@ -403,7 +403,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       } else if ((m = h.match(/^,([^,]*),(.*)$/))){
         el.cue = true; el.split = true; el.kind = 'cue'; el.name = m[1];
         // The same character speaking again in the same scene (no other cue in between) is printed with (CONT'D)
-        var who = m[1].replace(/\([^)]*\)?/g, '').trim().toUpperCase();
+        var who = noMarks(m[1]).replace(/\([^)]*\)?/g, '').trim().toUpperCase();
         el.contd = !!who && who === speaker; speaker = who;
         var off = m[1].length + 2;
         if (m[2].trim()) dialogPieces(m[2], s0, off, el.runs);
@@ -478,10 +478,16 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     });
   }
   function upSegs(r){ return {t:r.t.toUpperCase(), segs:r.segs.map(function(g){ return {t:g.t.toUpperCase(), u:g.u, i:g.i}; })}; }
-  function cueText(name, cont, L){
-    var n = (name || '').trim().replace(/\s+/g, ' ').toUpperCase();
-    return cont && !CONT_ANY.test(n) ? (n ? n + ' ' : '') + (L || LANGS[0]).cont : n;
+  // The printed cue: the name in capitals with its emphasis (*BEAMTER* in italics, markers left out), (CONT'D) added
+  function cueRow(name, cont, L){
+    var n = (name || '').trim().replace(/\s+/g, ' '), r = n ? upSegs(runRows(n, 1e6)[0]) : {t:'', segs:[]};
+    if (cont && !CONT_ANY.test(r.t)){
+      var add = (r.t ? ' ' : '') + (L || LANGS[0]).cont;
+      r = {t:r.t + add, segs:r.segs.concat([{t:add, u:false, i:false}])};
+    }
+    return r;
   }
+  function cueText(name, cont, L){ return cueRow(name, cont, L).t; }
   // The printed script: where each page begins (editor positions) and, with print, every printed line of every page as
   // {y: line on the page from the top margin, kind: act, slug, trans, cue, dlg or par, s: text}; the page numbers
   // beside the editor and the PDF both come from here, so they always agree
@@ -500,7 +506,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
-      if (el.cue) pg.push({y:at++, kind:'cue', s:cueText(el.name, cont || el.contd, L)});
+      if (el.cue){ var cr = cueRow(el.name, cont || el.contd, L); pg.push({y:at++, kind:'cue', s:cr.t, segs:cr.segs}); }
       runs.forEach(function(r){
         var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runRows(r.s, r.w);
         if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(upSegs);
@@ -831,7 +837,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var e = s.indexOf(',', 1);
         e = e < 0 ? s.length : e + 1;
         out.push([0, e, 'cm-smcue']);
-        emphRuns(s, e, out);
+        emphRuns(s, 0, out);
         return out;
       }
       if (para && /^\.s(?=\s|$)/i.test(s)){ out.push([0, 2, 'cm-smshotcmd']); emphRuns(s, 2, out); return out; }

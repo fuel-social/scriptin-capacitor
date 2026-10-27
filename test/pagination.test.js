@@ -140,7 +140,9 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   { const base = act(26) + '\n\nShe walks ' + 'very slowly towards the door and stops '.repeat(2) + 'there.';
     const marked = base.replace('very slowly', '_*very*_ _*slowly*_').replace('towards', '*towards*');
     eq('page starts with markers are those of the same text without them', starts(marked).map(x => x.split(':')[0]), starts(base).map(x => x.split(':')[0])); }
-  eq('emphasis in dialogue', segs(',ANNA,\nI _said_ no.'), ' / [I ]U[said][ no.]');
+  eq('emphasis in dialogue', segs(',ANNA,\nI _said_ no.'), '[ANNA] / [I ]U[said][ no.]');
+  eq('emphasis in a cue: italic name, markers not printed', segs(',*beamter*,\nHi.'), 'I[BEAMTER] / [Hi.]');
+  eq('a marked name counts as the same speaker for (CONT\'D)', Lay(',*BEAMTER*,\nHi.\n\nShe nods.\n\n,BEAMTER,\nYes.', true).pages[0].map(x => x.s).filter(x => /BEAMTER/.test(x)), ['BEAMTER', "BEAMTER (CONT'D)"]);
 }
 
 console.log(fails ? fails + ' failed' : 'all passed');

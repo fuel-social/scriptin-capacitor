@@ -617,6 +617,7 @@ rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \
   start(T); type(',a'); check('a marked name completes from its first letter', '",ANNA," cursor 5:2 selected "NNA"');
   start(T); type(',*a'); check('a marker typed in front of a name stays in front', '",*ANNA," cursor 5:3 selected "NNA"');
   start(T); type(',*'); check('a marker alone completes no name', '",*," cursor 5:2'); }
+cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineTokens(0).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' '), 'smcue[,*BEAMTER*,] smmk smmk-o[*] smi[BEAMTER] smmk smmk-c[*]');
 
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
