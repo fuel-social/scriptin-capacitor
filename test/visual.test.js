@@ -140,6 +140,28 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
   ok(g.shot.length >= 2, 'shot block has a rectangle per row', '' + g.shot.length);
   ok(g.shot.every(r => Math.abs(r.left - (Math.min(...g.shotText) - 16)) < 0.6), 'shot block starts 16px before the text');
   ok(g.trans.length >= 2 && g.trans.every(r => Math.abs(r.right - r.lineRight) < 0.6), 'transition block reaches the frame');
+  // the stylesheet arriving after the editor started (Safari draws once before it is in): the bands follow
+  {
+    const p2 = await browser.newPage({ viewport: { width: 1000, height: 1400 }, deviceScaleFactor: 2 });
+    await p2.setContent('<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:GTPressuraMonoRegular;src:local("DejaVu Sans Mono"),local("Liberation Mono")}body{margin:0;background:#F9F9F9;font-size:12px;line-height:1.4}</style></head><body><div id="sm-editor"></div></body></html>');
+    await p2.evaluate(() => { try { localStorage.clear(); } catch (e){} });
+    await p2.addScriptTag({ path: path.join(root, 'capacitor.js') });
+    await p2.waitForFunction(() => document.getElementById('sm-editor').smCM);
+    await p2.evaluate(t => { const cm = document.getElementById('sm-editor').smCM; cm.setValue(t); cm.focus(); cm.setSelection({line: 14, ch: 0}, {line: 16, ch: 20}); }, SCRIPT);
+    await p2.waitForTimeout(300);
+    await p2.addStyleTag({ path: path.join(root, 'capacitor.css') });
+    await p2.waitForTimeout(600);
+    const m2 = await p2.evaluate(() => {
+      const cm = document.getElementById('sm-editor').smCM, v = cm.view, B = cm.smBand(), lh = v.defaultLineHeight;
+      const bands = [...document.querySelectorAll('.sm-bands > div')].map(e => { const r = e.getBoundingClientRect(); return { cls: e.className, top: r.top, h: r.height }; });
+      const tops = []; document.querySelectorAll('.cm-line').forEach(l => { const r = l.getBoundingClientRect(); for (let y = r.top; y < r.bottom - 1; y += lh) tops.push(y); });
+      return { B, lh, bands, tops };
+    });
+    ok(m2.lh > 20, 'late stylesheet: line height taken over', '' + m2.lh);
+    ok(m2.bands.length > 0 && m2.bands.every(b => Math.abs(b.h - m2.B.h) < 0.51 && m2.B.h >= m2.lh), 'late stylesheet: bands as high as a line and more', JSON.stringify(m2.bands.slice(0, 3)) + ' ' + JSON.stringify(m2.B));
+    ok(m2.bands.every(b => m2.tops.some(t => Math.abs(b.top - (t + m2.B.gap)) < 0.51)), 'late stylesheet: bands at row tops');
+    await p2.close();
+  }
   await browser.close();
   console.log((fails ? fails + ' failed' : 'all passed') + ' (' + checks + ' visual checks)');
   process.exit(fails ? 1 : 0);

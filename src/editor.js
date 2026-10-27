@@ -2191,6 +2191,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function togglePages(){ pagesOn = !pagesOn; paginatePages(); }
     // Lines move without a text change too (views, notes on and off, the spacing around a new paragraph):
     // place the numbers again after every redraw, once CodeMirror has measured the lines
+    // The stylesheet and the font can arrive after the editor started (Safari draws the first time before they are in):
+    // whenever the line height, the character width or the width of the text changes, the bands are measured again
+    var bandKey = '';
+    cm.on('update', function(){
+      var k = cm.defaultTextHeight() + '|' + cm.defaultCharWidth() + '|' + cm.contentWidth();
+      if (k === bandKey) return;
+      bandKey = k;
+      setTimeout(function(){ measureBand(); placePages(); }, 0);
+    });
     cm.on('update', placePages);
     // scrolling brings other numbers near the window: they are placed then (once per frame)
     var scrollPlace = false;

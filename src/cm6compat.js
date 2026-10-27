@@ -386,6 +386,8 @@ export function createEditor(host, opts){
     var out = [];
     var st = v.state, d = st.doc, sel = st.selection.main, box = (opts.bandBox && opts.bandBox()) || {gap: 0, h: v.defaultLineHeight};
     var lh = v.defaultLineHeight, dpr = (host.ownerDocument.defaultView || {}).devicePixelRatio || 1;
+    // never lower than a line (a measurement taken before the stylesheet arrived)
+    if (!(box.h >= lh)) box = {gap: Math.min(0, box.gap || 0), h: lh + Math.max(0, box.h - lh)};
     function snap(x){ return Math.round(x * dpr) / dpr; }
     var sr = v.scrollDOM.getBoundingClientRect(), base = {left: sr.left - v.scrollDOM.scrollLeft, top: sr.top - v.scrollDOM.scrollTop};
     var docTop = v.documentTop, seen = {}, list = [];
