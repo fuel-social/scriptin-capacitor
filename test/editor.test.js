@@ -608,6 +608,14 @@ start('Action.\n\n,ANNA,\nhi'); check('dialogue below a cue stays as typed', '"h
 start('Action.\n\n.i HOUSE\n'); type('garden'); check('second line of a slugline in capitals', '"GARDEN" cursor 3:6');
 rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \u2013 DAY');
 
+// Emphasis markers do not get in the way of completion
+{ const T = '.i _POLIZEIWACHE_ - TAG\n\n,_ANNA_,\nHi.\n\n';
+  start(T); type('.ip'); check('a marked location completes from its first letter', '".i POLIZEIWACHE" cursor 5:4 selected "OLIZEIWACHE"');
+  start(T); type('.i_'); check('a marker alone completes nothing', '".i _" cursor 5:4');
+  start(T); type('.i_p'); check('a marker typed in front stays in front', '".i _POLIZEIWACHE" cursor 5:5 selected "OLIZEIWACHE"');
+  start(T); type('.ipolizeiwache - t'); check('a marked time of day completes too', '".i POLIZEIWACHE - TAG" cursor 5:19 selected "AG"');
+  start(T); type(',a'); check('a marked name completes from its first letter', '",ANNA," cursor 5:2 selected "NNA"'); }
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

@@ -301,6 +301,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // printed page) stand where the print really begins a page, now and then a row earlier than the editor's wrapping
   // inside a word (snake_case, 2*3) a marker is a plain character
   var WORDCH = /[0-9A-Za-z\u00C0-\u024F]/;
+  // A text without its emphasis markers (_POLIZEI_ is POLIZEI): completion compares and offers names without them
+  function noMarks(s){
+    if (s.indexOf('_') < 0 && s.indexOf('*') < 0) return s;
+    var mk = emphOf(s).mk, out = '';
+    for (var k = 0; k < s.length; k++) if (!mk[k]) out += s.charAt(k);
+    return out;
+  }
+  // Markers typed at the start of a word stay in front of the completion: _p completes to _POLIZEIWACHE
+  function leadMarks(t){ return (t.match(/^[_*]+/) || [''])[0]; }
   function emphOf(s){
     var n = s.length, mk = [], u = [], it = [], pr = [];
     function pairs(c, arr){
@@ -1415,7 +1424,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (i === skipLn) continue;
         var c = cueParts(i);
         if (!c) continue;
-        var n = c.name.trim(), k = n.toUpperCase();
+        var n = noMarks(c.name.trim()).trim(), k = n.toUpperCase();
         if (n && !seen[k]){ seen[k] = 1; out.push(n); }
       }
       return out.sort(alpha);
@@ -1509,15 +1518,16 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (cm.somethingSelected()) return;
       var cur = cm.getCursor(), ln = cur.line, c = cueParts(ln);
       if (!c || cur.ch !== c.nameEnd) return;
-      var typed = line(ln).slice(1, c.nameEnd), up = typed.toUpperCase();
-      if (!typed.trim()) return;
+      // markers typed in front of the name stay there and do not count as letters
+      var all = line(ln).slice(1, c.nameEnd), lead = leadMarks(all), typed = all.slice(lead.length), up = typed.toUpperCase(), at = 1 + lead.length;
+      if (!typed.trim() || /[_*]/.test(typed)) return;
       var hits = allNames(ln).filter(function(n){ return n.toUpperCase().indexOf(up) === 0; });
       if (hits.length !== 1) return;
       // A completed name is always in capitals, also the letters already typed
       var full = hits[0].toUpperCase();
-      if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:1}, {line:ln, ch:c.nameEnd}); return; }
-      put(full, {line:ln, ch:1}, {line:ln, ch:c.nameEnd});
-      cm.setSelection({line:ln, ch:1 + full.length}, {line:ln, ch:1 + typed.length});
+      if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:at}, {line:ln, ch:c.nameEnd}); return; }
+      put(full, {line:ln, ch:at}, {line:ln, ch:c.nameEnd});
+      cm.setSelection({line:ln, ch:at + full.length}, {line:ln, ch:at + typed.length});
     }
     // ---- Slugline completion: one segment at a time (HOUSE, then LIVING ROOM, then DAY), never the whole chain ----
     // A segment is completed as soon as the typed letters match exactly one segment already used at the same place
@@ -1544,7 +1554,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var s = line(ln), p = slugSplit(s.slice(slugBody(s))), all = p.segs.concat([p.tail]), out = [];
       out.time = -1;
       for (var i = 0; i < all.length; i++){
-        var x = all[i].trim(), tm = i > 0 ? timeOf(x) : '';
+        var x = noMarks(all[i].trim()).trim(), tm = i > 0 ? timeOf(x) : '';
         if (tm){ out.push(tm); out.time = i; break; }
         out.push(x);
       }
@@ -1557,9 +1567,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (!isSlugHead(ln) || cur.ch !== s.length) return;
       var off = slugBody(s);
       if (cur.ch <= off) return;
-      var me = slugSplit(s.slice(off)), typed = me.tail.replace(/^\s+/, ''), up = typed.toUpperCase(), k = me.segs.length;
-      if (!typed) return;
-      var pre = me.segs.map(function(x){ return x.trim().toUpperCase(); });
+      var me = slugSplit(s.slice(off)), tail = me.tail.replace(/^\s+/, ''), lead = leadMarks(tail), typed = tail.slice(lead.length), up = typed.toUpperCase(), k = me.segs.length;
+      // markers typed in front of the word stay there and do not count as letters
+      if (!typed || /[_*]/.test(typed)) return;
+      var pre = me.segs.map(function(x){ return noMarks(x.trim()).trim().toUpperCase(); });
       // Nothing is completed after the time of day
       for (var q = 1; q < k; q++){ if (timeOf(pre[q])) return; }
       var seen = {}, cands = [];
