@@ -24,8 +24,8 @@
 /* CodeMirror 6 puts the cursor at the top of the text box, which reaches --sm-inset above the line: it starts at the line top as before */
 #sm-editor .cm-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:calc(var(--sm-gap) + var(--sm-inset));margin-left:0}
 #sm-editor .sm-on-bar .cm-cursor{border-left-color:var(--sm-blue-alt) !important}
-/* A selection on screen (completion, marked words): the cursor is a thin line */
-#sm-editor .sm-has-sel .cm-cursor{border-left-width:1px !important}
+/* A selection on screen (completion, marked words): no cursor, the blue band shows where it is */
+#sm-editor .sm-has-sel .cm-cursor{display:none !important}
 /* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
 #sm-editor[data-mode=night] .sm-on-slug .cm-cursor{border-left-color:var(--sm-blue-day) !important}
 #sm-editor[data-mode=night] .sm-on-trans .cm-cursor{border-left-color:var(--sm-blue-night) !important}
