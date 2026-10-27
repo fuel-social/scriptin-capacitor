@@ -324,8 +324,19 @@
     if (s.indexOf('*') >= 0) pairs('*', it);
     return {mk:mk, u:u, i:it, pr:pr};
   }
-  // Start offsets of the printed lines of s, wrapped word by word at width characters (emphasis markers take no width)
+  // Start offsets of the printed lines of s, wrapped word by word at width characters (emphasis markers take no width).
+  // The same lines are wrapped again and again when the pages are counted after each change, so results are kept
+  // (keyed by width and text; the store is emptied when it grows large)
+  var wrapMemo = {}, wrapCount = 0;
   function wrapStarts(s, width){
+    var m = wrapMemo[width] || (wrapMemo[width] = new Map()), hit = m.get(s);
+    if (hit) return hit;
+    if (++wrapCount > 60000){ wrapMemo = {}; wrapCount = 0; m = wrapMemo[width] = new Map(); }
+    var r = wrapStartsRaw(s, width);
+    m.set(s, r);
+    return r;
+  }
+  function wrapStartsRaw(s, width){
     var out = [], len = -1, re = /\S+/g, m, mk = emphOf(s).mk;
     while ((m = re.exec(s))){
       var w = m[0].length, at = m.index;
@@ -481,10 +492,10 @@
   }
   // The layout loop from line `from` on, as if a page began there; stop(pos), when given, is asked at every new page
   // and ends the run when it returns a number (the editor's incremental page count uses this to stop where the pages
-  // meet the ones it already knows); r.stop is that number, or -1 when the run went to the end
+  // meet the ones it already knows); r.stop is that number, -1 when the run went to the end, -2 when stop cut it short
   function layoutFrom(get, n, te, L, PAGE_LINES, from, print, stop){
     var next = elemReader(get, n, te, L, from), y = 0, starts = [], pages = [[]], halt = -1;
-    function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); if (stop && halt < 0){ var h = stop(pos); if (typeof h === 'number') halt = h; } }
+    function newPage(pos){ starts.push(pos); y = 0; if (print) pages.push([]); if (stop && halt === -1){ var h = stop(pos); if (typeof h === 'number') halt = h; } }
     function emit(el, runs, at, more, cont){
       if (!print) return;
       var pg = pages[pages.length - 1];
@@ -502,10 +513,10 @@
       if (more) pg.push({y:at, kind:'cue', s:L.more});
     }
     var cur = next(), ahead = cur ? next() : null;
-    for (; cur && halt < 0; cur = ahead, ahead = ahead ? next() : null){
+    for (; cur && halt === -1; cur = ahead, ahead = ahead ? next() : null){
       var el = cur, guard = 0, cont = false;
       if (el.brk && y > 0) newPage(el.pos);
-      while (guard++ < 1000 && halt < 0){
+      while (guard++ < 1000 && halt === -1){
         var sp = y === 0 ? 0 : el.space, h = elLines(el);
         if (el.keep){
           var nx = ahead, need = sp + h + (nx && !nx.keep ? nx.space + minHead(nx) : 0);
@@ -1791,9 +1802,12 @@
       var was = layer.smLabels || [];
       if (was.length === labels.length && was.every(function(x, k){ return x === labels[k]; })) return;
       while (layer.children.length > labels.length) layer.removeChild(layer.lastChild);
-      while (layer.children.length < labels.length){ var n = document.createElement('div'); n.className = cls; layer.appendChild(n); }
+      var tops = layer.smTops || (layer.smTops = []);
+      tops.length = Math.min(tops.length, labels.length);
+      // a new number waits out of sight until it is placed
+      while (layer.children.length < labels.length){ var n = document.createElement('div'); n.className = cls; n.style.top = '-9999px'; tops.push(-9999); layer.appendChild(n); }
       for (var k = 0; k < labels.length; k++) if (was[k] !== labels[k]) layer.children[k].textContent = labels[k];
-      layer.smLabels = labels.slice(); layer.smTops = [];
+      layer.smLabels = labels.slice();
     }
     // The editor has no inner scrolling, so each number keeps its place next to its line: positions are worked out
     // in document coordinates whenever the text or the layout changes, and the page scrolls numbers and text together
@@ -1819,13 +1833,24 @@
         }
         return cm.heightAtLine(p.line, 'local') + m.dy;
       }
+      // Only the numbers in and near the window are placed (one window height above and below), plus those that were
+      // there before and have to leave; the others follow once scrolling brings them near. So a new line at the top of
+      // 500 pages moves a handful of numbers, not all of them
+      var M = window.innerHeight || 1000;
+      function firstAt(starts, ln){ var lo = 0, hi = starts.length; while (lo < hi){ var mid = (lo + hi) >> 1; if (starts[mid].line < ln) lo = mid + 1; else hi = mid; } return lo; }
       function place(layer, starts){
         var t0 = wrap.offsetTop + 'px', tops = layer.smTops || (layer.smTops = []);
         if (layer.smTop !== t0){ layer.style.top = t0; layer.smTop = t0; }
-        for (var k = 0; k < starts.length; k++){
+        if (!starts.length) return;
+        var top = layer.getBoundingClientRect().top, y0 = -top - M, y1 = -top + window.innerHeight + M;
+        function put(k){
           var p = starts[k], y = (p.ch === 0 ? cm.heightAtLine(p.line, 'local') + off : inLine(p)) + lead;
           if (tops[k] !== y){ layer.children[k].style.top = y + 'px'; tops[k] = y; }
         }
+        var la = cm.lineAtHeight(y0 - lead, 'local'), lb = cm.lineAtHeight(y1 - lead, 'local');
+        for (var k = Math.max(0, firstAt(starts, la) - 1); k < starts.length && starts[k].line <= lb + 1; k++) put(k);
+        // numbers still standing in the window from before (a quick look at the kept positions, no reading of the page)
+        for (var q = 0; q < tops.length && q < starts.length; q++) if (tops[q] >= y0 && tops[q] <= y1) put(q);
       }
       if (showPages) place(pageLayer, pageStarts);
       if (scenesOn) place(sceneLayer, sceneStarts);
@@ -1847,7 +1872,7 @@
     function pgSettings(get, te){ return {size:sizeOf(preValue(get, te, 'size')), lang:(langOf(preValue(get, te, 'lang') || '') || LANGS[0]).code}; }
     function pgHead(get, te, ln){ return ln === te + 1 || isBlank(get(ln - 1)) || isMark(get(ln - 1)); }
     // Page starts for the text given by get(k) and n lines, from the known starts and the changes since (d)
-    function pgCompute(get, n, d){
+    function pgCompute(get, n, d, budget){
       var te = titleEnd(get, n), st = pgSettings(get, te), L = langIn(get, te), lines = st.size === 'US Letter' ? LETTER_LINES : A4_LINES;
       function full(){ PG.fulls++; return layoutFrom(get, n, te, L, lines, te + 1, false, null).starts; }
       var old = PG.starts;
@@ -1868,24 +1893,50 @@
       for (var k = 0; k < old.length && old[k].line < e0; k++) if (old[k].ch === 0 && pgHead(get, te, old[k].line)) cand.push(k);
       // too close to the start for two: from the first line of the script on, still stopping where the pages meet again
       var j = cand.length < 2 ? -1 : cand[cand.length - 2], from = j < 0 ? te + 1 : old[j].line, oldB = d.b - d.delta;
+      // budget: how many pages past the change are laid out now; a change that moves every page after it (a line more
+      // on a full page) stops there at the start of an element, the pages further down keep their old places for the
+      // moment and are laid out a little later in small steps (see pagesLater), so no keystroke waits for them
+      var past = 0, cut = -1;
       var r = layoutFrom(get, n, te, L, lines, from, false, function(pos){
-        if (pos.ch !== 0 || pos.line <= d.b || !pgHead(get, te, pos.line)) return;
+        if (pos.line <= d.b) return;
+        past++;
+        var head = pos.ch === 0 && pgHead(get, te, pos.line);
+        if (!head) return;
         var o = pos.line - d.delta, lo = 0, hi = old.length - 1;
-        if (o <= oldB) return;
-        while (lo <= hi){ var mid = (lo + hi) >> 1; if (old[mid].line < o) lo = mid + 1; else hi = mid - 1; }
-        for (var m = lo; m < old.length && old[m].line === o; m++) if (old[m].ch === 0) return m;
+        if (o > oldB){
+          while (lo <= hi){ var mid = (lo + hi) >> 1; if (old[mid].line < o) lo = mid + 1; else hi = mid - 1; }
+          for (var m = lo; m < old.length && old[m].line === o; m++) if (old[m].ch === 0) return m;
+        }
+        if (budget !== undefined && past >= budget){ cut = pos.line; return -2; }
       });
       var out = old.slice(0, j + 1).concat(r.starts);
       if (r.stop >= 0) for (var m = r.stop + 1; m < old.length; m++) out.push({line:old[m].line + d.delta, ch:old[m].ch});
+      if (r.stop === -2) for (var m2 = 0; m2 < old.length; m2++){ var nl = old[m2].line > oldB ? old[m2].line + d.delta : -1; if (nl > cut) out.push({line:nl, ch:old[m2].ch}); }
       res.starts = out;
+      if (cut >= 0) res.pend = cut;
       return res;
     }
-    function pgAdopt(r){ PG.starts = r.starts; PG.size = r.size; PG.lang = r.lang; PG.te = r.te; PG.dirty = null; }
+    function pgAdopt(r){ PG.starts = r.starts; PG.size = r.size; PG.lang = r.lang; PG.te = r.te; PG.dirty = r.pend >= 0 ? {a:r.pend, b:r.pend, delta:0} : null; PG.pend = r.pend >= 0; }
+    // pages laid out at once past a change, and per later step
+    var PG_NOW = 4, PG_STEP = 25;
     // Today's page starts (with any changes since the last count worked in)
-    function pagesNow(){
+    function pagesNow(budget){
       if (PG.starts && !PG.dirty) return PG.starts;
-      pgAdopt(pgCompute(line, cm.lineCount(), PG.dirty));
+      pgAdopt(pgCompute(line, cm.lineCount(), PG.dirty, budget));
       return PG.starts;
+    }
+    // The pages a change moved further down than PG_NOW pages are laid out in steps between keystrokes; each step
+    // shows its numbers at once
+    var laterTimer = null;
+    function pagesLater(){
+      if (laterTimer || !PG.pend) return;
+      laterTimer = setTimeout(function(){
+        laterTimer = null;
+        if (!PG.pend) return;
+        pagesNow(PG_STEP);
+        paginatePages({a:0, b:-1, delta:0});
+        pagesLater();
+      }, 0);
     }
     cm.on('changes', function(_cm, list){
       var ah = PG.ahead; PG.ahead = null;
@@ -1897,6 +1948,7 @@
     });
     // for the tests: the incremental page starts next to a full count
     cm.smPages = function(){ return {inc:pagesNow(), full:paginate(cm.getValue()), fulls:PG.fulls}; };
+    cm.smPagesStep = function(b){ return pagesNow(b); };
     // for the tests: the classes after the incremental update next to a full one
     cm.smClasses = function(){
       function snap(){ var o = []; for (var i = 0; i < cm.lineCount(); i++){ var h = cm.getLineHandle(i); o.push((h.wrapClass || '') + '|' + (h.textClass || '')); } return o; }
@@ -1905,7 +1957,8 @@
     // rng: after typing, the lines that changed ({a, b, delta} as for the line classes), so the export commands are only
     // looked for there; without it the whole script is read
     function paginatePages(rng){
-      pageStarts = pagesNow();
+      pageStarts = pagesNow(PG_NOW);
+      pagesLater();
       fill(pageLayer, pageStarts.map(function(_, k){ return (k + 2) + '.'; }), 'sm-pagenum');
       // Scenes are counted over the whole script, so a number stays the same in every view (only read while shown)
       var labels = [], scene = 0;
@@ -1937,6 +1990,13 @@
     // Lines move without a text change too (views, notes on and off, the spacing around a new paragraph):
     // place the numbers again after every redraw, once CodeMirror has measured the lines
     cm.on('update', placePages);
+    // scrolling brings other numbers near the window: they are placed then (once per frame)
+    var scrollPlace = false;
+    window.addEventListener('scroll', function(){
+      if (scrollPlace) return;
+      scrollPlace = true;
+      (window.requestAnimationFrame || setTimeout)(function(){ scrollPlace = false; placePages(); });
+    }, {passive:true});
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
     // The title page always has an empty line right after the opening --- and right before the closing ---
     // Undo and redo leave the title page as they find it: the automatic fixes (empty lines, names, a script line below)
@@ -2248,7 +2308,10 @@
       var F = ch.from.line, T = ch.to.line, A = ch.text.length - 1, dl = A - (T - F), nl = ch.text.slice();
       nl[0] = line(F).slice(0, ch.from.ch) + nl[0]; nl[A] = nl[A] + line(T).slice(ch.to.ch);
       var get = function(k){ return k < F ? line(k) : k <= F + A ? nl[k - F] : line(k - dl); };
-      var now = pagesNow(), r = pgCompute(get, cm.lineCount() + dl, pgDirty(null, ch.from, ch.to, A)), pages = r.starts.length + 1;
+      // exact in a script of up to one page more than the limit; in a longer one (only an opened script can be longer)
+      // the pages far below are counted a moment later, like the page numbers
+      var longer = !!PG.starts && PG.starts.length + 1 > MAX_PAGES + 1, now = pagesNow(longer ? PG_NOW : undefined);
+      var r = pgCompute(get, cm.lineCount() + dl, pgDirty(PG.dirty, ch.from, ch.to, A), longer ? PG_NOW : undefined), pages = r.starts.length + 1;
       if (pages > MAX_PAGES && pages > now.length + 1){ ch.cancel(); return; }
       // kept, so the count after the change needs no second run when the change goes in exactly like this
       PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};

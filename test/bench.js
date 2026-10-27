@@ -1,4 +1,5 @@
-// Performance check: a 500+ page script in a jsdom CodeMirror; time per keystroke for our own code.
+// Performance check: a 500+ page script in a jsdom CodeMirror; per keystroke the longest blocking piece of work
+// (the key handling, or the longest task after it), in ms, jsdom and CodeMirror included (BENCH_PLAIN: CodeMirror alone).
 // Run with: node test/bench.js   (BENCH_SCENES to change the size)
 const fs = require('fs');
 const path = require('path');
@@ -19,6 +20,11 @@ w.CodeMirror = Object.assign(function(){ cm = Orig.apply(this, arguments); retur
 w.CodeMirror.prototype = Orig.prototype;
 if (process.env.BENCH_PLAIN) { w.CodeMirror(w.document.getElementById('sm-editor'), {lineWrapping:true, viewportMargin:Infinity}); } else w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Every task the page runs is timed: what blocks a keystroke is the key handling itself and the longest task after it
+// (the deferred redraw or one step of the page count), not the sum of all small steps between keystrokes
+let longest = 0;
+const wst = w.setTimeout.bind(w);
+w.setTimeout = function(f, ms){ const a = [].slice.call(arguments, 2); return wst(function(){ const t0 = process.hrtime.bigint(); try { f.apply(null, a); } finally { const d = Number(process.hrtime.bigint() - t0) / 1e6; if (d > longest) longest = d; } }, ms); };
 function script(n){
   const out = ['---\n\n//TITLE PAGE\nTitle: Bench\nAuthor: Test\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---'];
   for (let s = 0; s < n; s++) out.push('.i HOUSE ' + s + ' - DAY\n\nShe waits for the call number ' + s + ' and looks out of the window for a long while, thinking about _nothing_ at all.\n\n,ANNA,\nWhere is it? I left it here this morning, I am *sure* of it.\n\n,BEN,\n(quietly)\nMaybe it fell behind the desk. Look again.\n\nShe kneels and searches.\n\n// a note');
@@ -38,14 +44,33 @@ setTimeout(async function(){
     cm.setCursor({line, ch:cm.getLine(line).length});
     const times = [];
     for (let k = 0; k < n; k++){
-      const c0 = process.cpuUsage(); type('x'); await sleep(45); const c1 = process.cpuUsage(c0);
-      times.push((c1.user + c1.system) / 1000);
+      longest = 0; const t0 = process.hrtime.bigint(); type('x'); const sync = Number(process.hrtime.bigint() - t0) / 1e6; await sleep(45);
+      times.push(Math.max(sync, longest));
     }
     times.sort((a, b) => a - b);
     return {median:+times[n >> 1].toFixed(1), max:+times[n - 1].toFixed(1)};
   }
   const mid = Math.floor(cm.lineCount() / 2); let ml = mid; while (!/^She waits/.test(cm.getLine(ml))) ml++;
   const K = +(process.env.BENCH_KEYS || 15), r1 = await keys(ml, K), r2 = await keys(cm.lineCount() - 1, K);
-  console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2}));
+  // other keystrokes in the middle of the script: Enter after action, a new cue with name completion, a slugline with
+  // location completion, Tab
+  function keyDown(name, code){ cm.triggerOnKeyDown({ type:'keydown', keyCode:code, key:name, preventDefault(){}, stopPropagation(){} }); }
+  async function op(label, setup, act, n){
+    const times = [];
+    for (let k = 0; k < n; k++){
+      setup(k); await sleep(45);
+      longest = 0; const t0 = process.hrtime.bigint(); act(k); const sync = Number(process.hrtime.bigint() - t0) / 1e6; await sleep(45);
+      times.push(Math.max(sync, longest));
+    }
+    times.sort((a, b) => a - b);
+    return {median:+times[n >> 1].toFixed(1), max:+times[n - 1].toFixed(1)};
+  }
+  const at = () => { let l = ml; while (!/^She kneels/.test(cm.getLine(l))) l++; return l; };
+  const ONLY = process.env.BENCH_ONLY || '', R = +(process.env.BENCH_REPS || 10), skip = {median:0, max:0};
+  const enter = ONLY && ONLY !== 'enter' ? skip : await op('enter', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); }, () => keyDown('Enter', 13), R);
+  const cue = ONLY && ONLY !== 'cue' ? skip : await op('cue', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); keyDown('Enter', 13); }, () => { type(','); type('a'); }, R);
+  const slug = ONLY && ONLY !== 'slug' ? skip : await op('slug', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); keyDown('Enter', 13); type('.'); type('i'); }, () => type('h'), R);
+  const tab = ONLY && ONLY !== 'tab' ? skip : await op('tab', () => { const l = at(); cm.setCursor({line:l, ch:cm.getLine(l).length}); }, () => keyDown('Tab', 9), R);
+  console.log(JSON.stringify({scenes:N, lines:cm.lineCount(), pages, loadMs:Math.round(load), middle:r1, end:r2, enter, cue, slug, tab}));
   process.exit(0);
 }, 150);

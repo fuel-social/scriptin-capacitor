@@ -40,7 +40,7 @@ const head = '---\n\n//TITLE PAGE\nTitle: Pages\nAuthor: Test\n\n//SETTINGS\nPag
 setTimeout(async function(){
   let fails = 0, steps = +(process.env.PAGES_STEPS || 600), checks = 0;
   const ps = [head]; for (let i = 0; i < 600; i++) ps.push(para());
-  cm.setValue(ps.join('\n\n')); await sleep(50);
+  cm.setValue(ps.join('\n\n')); cm.clearHistory(); await sleep(50);
   const pages0 = cm.smPages().full.length + 1;
   function same(label){
     const p = cm.smPages(), a = JSON.stringify(p.inc.map(x => [x.line, x.ch])), b = JSON.stringify(p.full.map(x => [x.line, x.ch]));
@@ -49,6 +49,7 @@ setTimeout(async function(){
   }
   same('start');
   for (let s = 0; s < steps; s++){
+    if (cm.lineCount() < 40) break; // the page limit lets a long script shrink but not grow again
     const n = cm.lineCount(), ln = 14 + Math.floor(rnd() * (n - 14)), L = cm.getLine(ln), ch = Math.floor(rnd() * (L.length + 1)), r = rnd();
     let label;
     if (r < 0.3){ cm.replaceRange(pick(['x', ' ', 'word ', '.', 'A longer phrase that wraps the line further. ']), {line:ln, ch}, null, '+input'); label = 'type'; }
@@ -59,6 +60,8 @@ setTimeout(async function(){
     else if (r < 0.9){ cm.operation(() => { cm.replaceRange('two ', {line:ln, ch}, null, '+input'); const l2 = 14 + Math.floor(rnd() * (cm.lineCount() - 14)); cm.replaceRange('\n', {line:l2, ch:0}, null, '+input'); }); label = 'two changes in one go'; }
     else if (r < 0.95){ cm.replaceRange('x', {line:3, ch:cm.getLine(3).length}, null, '+input'); label = 'title page'; }
     else { cm.execCommand(rnd() < 0.7 ? 'undo' : 'redo'); label = 'undo/redo'; }
+    // now and then only a small part is laid out, and the next edit comes before the rest: checked a few steps later
+    if (rnd() < 0.5){ cm.smPagesStep(1 + Math.floor(rnd() * 3)); if (rnd() < 0.6) continue; }
     same(label + ' #' + s);
     if (rnd() < 0.25) cm.setCursor({line:14 + Math.floor(rnd() * (cm.lineCount() - 14)), ch:0});
     { const c = cm.smClasses(); checks++;
