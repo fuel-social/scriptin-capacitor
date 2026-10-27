@@ -686,9 +686,10 @@
   //   bubble_fn_scriptSave('<token>|<cipher>') -> Bubble runs script-save, then calls window.smSaved('yes'|'no')
   //   bubble_fn_scriptLoad('<token>')          -> Bubble runs script-load, then calls window.smLoaded('yes'|'no', <cipher as JSON-safe text>)
   // Cipher format: v2.<iv>.<ciphertext>, both base64url; the ciphertext holds {"t": text, "at": save time} (v1: text only)
+  // in pieces of 32 KB: a long script is over a megabyte, and one character at a time takes long
   function b64u(bytes){
     var s = '', a = new Uint8Array(bytes);
-    for (var i = 0; i < a.length; i++) s += String.fromCharCode(a[i]);
+    for (var i = 0; i < a.length; i += 0x8000) s += String.fromCharCode.apply(null, a.subarray(i, i + 0x8000));
     return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   }
   function unb64u(str){
@@ -845,7 +846,10 @@
     // Active cue (or transition): plain Up/Down pick names, extensions or transitions only where the writer is working
     // (created with Tab or comma, clicked into, typed in); moving onto a cue with the arrow keys never changes it
     var activeCue = -1, clicked = false;
+    // The copy in this browser is written when the page is idle (a long script takes a moment to write), at the latest
+    // after a second; on leaving the page at once
     function save(){ try { window.localStorage.setItem(STORE_KEY, cm.getValue()); } catch (e){} }
+    function saveIdle(){ if (window.requestIdleCallback) window.requestIdleCallback(save, {timeout:1000}); else save(); }
     window.addEventListener('pagehide', save);
     var sync = makeSync(cm, saved);
     window.addEventListener('pagehide', function(){ sync.flush(); });
@@ -2039,13 +2043,22 @@
       if (cut >= 0) res.pend = cut;
       return res;
     }
+    // Should the incremental count ever fail, the pages are counted in full instead, so the editor goes on working
+    function pgSafe(get, n, d, budget){
+      try { return pgCompute(get, n, d, budget); }
+      catch (e){
+        if (window.console) console.error('scriptin: page count', e);
+        var te = titleEnd(get, n), st = pgSettings(get, te);
+        return {starts:layoutFrom(get, n, te, langIn(get, te), st.size === 'US Letter' ? LETTER_LINES : A4_LINES, te + 1, false, null).starts, size:st.size, lang:st.lang, te:te};
+      }
+    }
     function pgAdopt(r){ PG.starts = r.starts; PG.size = r.size; PG.lang = r.lang; PG.te = r.te; PG.dirty = r.pend >= 0 ? {a:r.pend, b:r.pend, delta:0} : null; PG.pend = r.pend >= 0; }
     // pages laid out at once past a change, and per later step
     var PG_NOW = 4, PG_STEP = 25;
     // Today's page starts (with any changes since the last count worked in)
     function pagesNow(budget){
       if (PG.starts && !PG.dirty) return PG.starts;
-      pgAdopt(pgCompute(line, cm.lineCount(), PG.dirty, budget));
+      pgAdopt(pgSafe(line, cm.lineCount(), PG.dirty, budget));
       return PG.starts;
     }
     // The pages a change moved further down than PG_NOW pages are laid out in steps between keystrokes; each step
@@ -2216,7 +2229,8 @@
           if (DEC.dirty) rs.push(decoRange(DEC.dirty.a, DEC.dirty.b));
           if (spacedFor >= 0) rs.push(decoRange(spacedFor, spacedFor));
           var sl = slotLine(); if (sl >= 0) rs.push(decoRange(sl, sl));
-          decorateLines(rs);
+          try { decorateLines(rs); }
+          catch (e){ if (window.console) console.error('scriptin: line classes', e); decorate(); }
         }
         DEC.rng = full || !DEC.dirty ? (full ? null : {a:0, b:-1, delta:0}) : (function(){ var r = decoRange(DEC.dirty.a, DEC.dirty.b); return {a:r.a, b:r.b, delta:DEC.dirty.delta}; })();
         DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang;
@@ -2308,7 +2322,7 @@
       for (var w = 0; w < list.length; w++){ if (list[w].origin === 'setValue' || list[w].origin === '+restore' || list[w].origin === ORIGIN || list[w].from.line <= te + 1) whole = true; }
       clearTimeout(timer);
       if (whole) refreshChanged(); else timer = setTimeout(refreshChanged, 30);
-      clearTimeout(saveTimer); saveTimer = setTimeout(save, SAVE_MS);
+      clearTimeout(saveTimer); saveTimer = setTimeout(saveIdle, SAVE_MS);
       sync.changed();
     });
     cm.on('cursorActivity', barCursor);
@@ -2457,7 +2471,7 @@
       // exact in a script of up to one page more than the limit; in a longer one (only an opened script can be longer)
       // the pages far below are counted a moment later, like the page numbers
       var longer = !!PG.starts && PG.starts.length + 1 > MAX_PAGES + 1, now = pagesNow(longer ? PG_NOW : undefined);
-      var r = pgCompute(get, cm.lineCount() + dl, pgDirty(PG.dirty, ch.from, ch.to, A), longer ? PG_NOW : undefined), pages = r.starts.length + 1;
+      var r = pgSafe(get, cm.lineCount() + dl, pgDirty(PG.dirty, ch.from, ch.to, A), longer ? PG_NOW : undefined), pages = r.starts.length + 1;
       if (pages > MAX_PAGES && pages > now.length + 1){ ch.cancel(); return; }
       // kept, so the count after the change needs no second run when the change goes in exactly like this
       PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};
