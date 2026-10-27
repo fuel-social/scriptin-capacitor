@@ -38,9 +38,9 @@
 #sm-editor .sm-bands > div{position:absolute}
 #sm-editor .sm-band-slug{background:var(--sm-fg)}
 #sm-editor .sm-band-cue{background:var(--sm-frame)}
-/* Transitions: colorType of the theme behind light text */
-#sm-editor .sm-band-trans{background:var(--sm-type,#61686E)}
-#sm-editor .sm-band-shot{background:var(--sm-inactive)}
+#sm-editor .sm-band-trans{background:var(--sm-frame)}
+/* Shots: colorType of the theme behind light text */
+#sm-editor .sm-band-shot{background:var(--sm-type,#61686E)}
 #sm-editor .sm-band-sel{background:var(--sm-blue)}
 #sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-frame)}
 #sm-editor .cm-selectionBackground,#sm-editor .cm-focused .cm-selectionBackground,#sm-editor .cm-content ::selection{background:transparent !important}
