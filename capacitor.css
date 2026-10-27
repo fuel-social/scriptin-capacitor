@@ -18,6 +18,8 @@
 #sm-editor .cm-editor.cm-focused{outline:none}
 #sm-editor .cm-scroller{font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:1;overflow:visible}
 #sm-editor .cm-content{padding:10px 0;caret-color:transparent}
+/* Lines wrap as in CodeMirror 5 and the page count: a space at the end of a row may hang past the right edge */
+#sm-editor .cm-lineWrapping{white-space:pre-wrap;overflow-wrap:break-word;word-break:normal}
 #sm-editor .cm-line{padding:0 16px;box-sizing:border-box}
 #sm-editor .cm-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail)) !important;margin-top:var(--sm-gap);margin-left:0}
 #sm-editor .sm-on-bar .cm-cursor{border-left-color:var(--sm-blue-alt) !important}
