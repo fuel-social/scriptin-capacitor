@@ -614,7 +614,9 @@ rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \
   start(T); type('.i_'); check('a marker alone completes nothing', '".i _" cursor 5:4');
   start(T); type('.i_p'); check('a marker typed in front stays in front', '".i _POLIZEIWACHE" cursor 5:5 selected "OLIZEIWACHE"');
   start(T); type('.ipolizeiwache - t'); check('a marked time of day completes too', '".i POLIZEIWACHE - TAG" cursor 5:19 selected "AG"');
-  start(T); type(',a'); check('a marked name completes from its first letter', '",ANNA," cursor 5:2 selected "NNA"'); }
+  start(T); type(',a'); check('a marked name completes from its first letter', '",ANNA," cursor 5:2 selected "NNA"');
+  start(T); type(',*a'); check('a marker typed in front of a name stays in front', '",*ANNA," cursor 5:3 selected "NNA"');
+  start(T); type(',*'); check('a marker alone completes no name', '",*," cursor 5:2'); }
 
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
