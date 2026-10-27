@@ -620,6 +620,14 @@ rf('a hyphen inside a word stays', '.i metro-station - day', '.i METRO-STATION \
 cm.setValue('Action.\n\n,ANNA,\nHi.'); cm.smClasses(); eq2('a cue line wraps at the cue width', /sm-t-cue/.test(cm.lineClass(2, 'text')), true);
 cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineTokens(0).filter(t => t.type).map(t => t.type + '[' + t.string + ']').join(' '), 'smcue[,*BEAMTER*,] smmk smmk-o[*] smi[BEAMTER] smmk smmk-c[*]');
 
+// A name that begins every other fitting name is offered first, the longer one after its next letter
+{ const T = '.i HAUS - TAG\n\n,ANNA,\nHi.\n\n,ANNADFG,\nYo.\n\n,ANDREA,\nNo.\n\n.i HAUSFLUR - NACHT\n\n';
+  start(T); type(',ann'); check('ANNA first when ANNADFG begins with it', '",ANNA," cursor 13:4 selected "A"');
+  start(T); type(',annad'); check('after ANNA a D offers ANNADFG', '",ANNADFG," cursor 13:6 selected "FG"');
+  start(T); type(',a'); check('ANNA and ANDREA differ: nothing yet', '",A," cursor 13:2');
+  start(T); type('.ih'); check('HAUS first when HAUSFLUR begins with it', '".i HAUS" cursor 13:4 selected "AUS"');
+  start(T); type('.ihausf'); check('after HAUS an F offers HAUSFLUR', '".i HAUSFLUR" cursor 13:8 selected "LUR"'); }
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

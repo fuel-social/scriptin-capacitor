@@ -1578,7 +1578,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     }
     // Autocomplete on the title page: names and sluglines are completed only when it is on (or there is no title page)
     function autoOn(){ return autoOf(preValue(line, preEnd(), 'auto')) === 0; }
-    // Typing inside a cue completes the name as soon as the typed letters match exactly one known name
+    // Of the names that fit the typed letters: the only one, or the shortest when all the others begin with it (ANNA
+    // for A when ANNADFG is there too; typing D after ANNA then offers ANNADFG); none when two differ (ANNA, ANDREA)
+    function pickHit(hits){
+      if (hits.length < 2) return hits[0] || null;
+      var short = hits.reduce(function(a, b){ return b.length < a.length ? b : a; }), u = short.toUpperCase();
+      return hits.every(function(h){ return h.toUpperCase().indexOf(u) === 0; }) ? short : null;
+    }
+    // Typing inside a cue completes the name as soon as the typed letters lead to one known name (see pickHit)
     function completeName(){
       if (cm.somethingSelected()) return;
       var cur = cm.getCursor(), ln = cur.line, c = cueParts(ln);
@@ -1586,10 +1593,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       // markers typed in front of the name stay there and do not count as letters
       var all = line(ln).slice(1, c.nameEnd), lead = leadMarks(all), typed = all.slice(lead.length), up = typed.toUpperCase(), at = 1 + lead.length;
       if (!typed.trim() || /[_*]/.test(typed)) return;
-      var hits = allNames(ln).filter(function(n){ return n.toUpperCase().indexOf(up) === 0; });
-      if (hits.length !== 1) return;
+      var hit = pickHit(allNames(ln).filter(function(n){ return n.toUpperCase().indexOf(up) === 0; }));
+      if (!hit) return;
       // A completed name is always in capitals, also the letters already typed
-      var full = hits[0].toUpperCase();
+      var full = hit.toUpperCase();
       if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:at}, {line:ln, ch:c.nameEnd}); return; }
       put(full, {line:ln, ch:at}, {line:ln, ch:c.nameEnd});
       cm.setSelection({line:ln, ch:at + full.length}, {line:ln, ch:at + typed.length});
@@ -1653,10 +1660,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           else if (!mine[parts[j].toUpperCase()]) add(parts[j]);
         }
       }
-      var hits = cands.filter(function(x){ return x.toUpperCase().indexOf(up) === 0; });
-      if (hits.length !== 1) return;
+      var hit = pickHit(cands.filter(function(x){ return x.toUpperCase().indexOf(up) === 0; }));
+      if (!hit) return;
       // A completed segment is always in capitals, also the letters already typed
-      var from = s.length - typed.length, full = hits[0].toUpperCase();
+      var from = s.length - typed.length, full = hit.toUpperCase();
       if (full.length === typed.length){ if (typed !== full) put(full, {line:ln, ch:from}, {line:ln, ch:s.length}); return; }
       put(full, {line:ln, ch:from}, {line:ln, ch:s.length});
       cm.setSelection({line:ln, ch:from + full.length}, {line:ln, ch:from + typed.length});
