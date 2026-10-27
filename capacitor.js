@@ -753,7 +753,8 @@
       token = ''; keyStr = ''; key = null;
       try { window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e){}
     }
-    function schedule(){ clearTimeout(timer); timer = setTimeout(flush, SYNC_MS); }
+    // the save runs when the page is idle (a long script takes a moment to pack and encrypt), at the latest a second later
+    function schedule(){ clearTimeout(timer); timer = setTimeout(function(){ if (window.requestIdleCallback) window.requestIdleCallback(flush, {timeout:1000}); else flush(); }, SYNC_MS); }
     function flush(){
       clearTimeout(timer);
       if (!subtle || !dirty || state !== 'idle') return;
@@ -1173,8 +1174,9 @@
       if (s === ',,') return 3;
       // An empty script (a title page above does not count) starts the ring at .i, existing text at ,,
       if (isBlank(s)){
-        var te = preEnd(), rest = te < 0 ? cm.getValue() : cm.getRange({line:te + 1, ch:0}, {line:cm.lastLine(), ch:line(cm.lastLine()).length});
-        return rest.trim() === '' ? -1 : 2;
+        var te = preEnd(), k = te + 1, last = cm.lastLine();
+        while (k <= last && isBlank(line(k))) k++;
+        return k > last ? -1 : 2;
       }
       return null;
     }
