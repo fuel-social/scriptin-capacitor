@@ -659,8 +659,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // padding for it and the row still holds exactly the printed number of characters
     css += '#sm-editor .cm-line.sm-t-shot{padding-left:0 !important;padding-right:calc(100% - ' + W_ACTION + 'ch - ' + PAD + 'px) !important}\n';
     // Transition: text flush right at the page width, W_TRANS characters per row; the padding on the right carries the
-    // block on to the right frame line, the line cuts off a space hanging at the end of a row
-    css += '#sm-editor .cm-line.sm-t-trans{padding-right:0 !important;padding-left:calc(100% - ' + W_TRANS + 'ch - ' + (PAD / 2) + 'px - var(--sm-trans-tail,67px)) !important;text-align:right;overflow:hidden}\n' +
+    // block on to the right frame line, the line cuts off a space hanging at the end of a row; the first row has room for the
+    // .t and its space as well (they are not printed)
+    css += '#sm-editor .cm-line.sm-t-trans{padding-right:0 !important;padding-left:calc(100% - ' + W_TRANS + 'ch - ' + (PAD / 2) + 'px - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;overflow:hidden}\n' +
       '#sm-editor .cm-line.sm-t-trans > .sm-in{background:linear-gradient(to bottom,transparent var(--sm-inset),var(--sm-frame) var(--sm-inset),var(--sm-frame) calc(100% - var(--sm-inset) + var(--sm-under)),transparent calc(100% - var(--sm-inset) + var(--sm-under)));color:var(--sm-inactive);padding-left:' + (PAD / 2) + 'px;padding-right:var(--sm-trans-tail,67px) !important;-webkit-box-decoration-break:clone;box-decoration-break:clone}\n';
     var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   }
