@@ -23,7 +23,6 @@
 #sm-editor .cm-line{padding:0 16px;box-sizing:border-box}
 /* CodeMirror 6 puts the cursor at the top of the text box, which reaches --sm-inset above the line: it starts at the line top as before */
 #sm-editor .cm-cursor{border-left:3px solid var(--sm-blue) !important;background:none;height:calc(var(--sm-band) + var(--sm-tail) + var(--sm-over,0px)) !important;margin-top:calc(var(--sm-gap) + var(--sm-inset) - var(--sm-over,0px));margin-left:0}
-#sm-editor .sm-on-bar .cm-cursor{border-left-color:var(--sm-blue-alt) !important}
 /* A selection on screen (completion, marked words): no cursor, the blue band shows where it is */
 #sm-editor .sm-has-sel .cm-cursor{display:none !important}
 /* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
@@ -33,13 +32,13 @@
 #sm-editor .sm-l-slug{color:var(--sm-bg)}
 /* Colour bands (slugline bars, cue boxes, shot and transition blocks, the selection): drawn by the editor in one layer
    behind the text, one rectangle per row, all the same height; the text itself never has a background */
-#sm-editor .cm-line.sm-t-shot{color:var(--sm-fg)}
+#sm-editor .cm-line.sm-t-shot{color:var(--sm-type,#61686E)}
 #sm-editor .sm-bands{pointer-events:none}
 #sm-editor .sm-bands > div{position:absolute}
 #sm-editor .sm-band-slug{background:var(--sm-fg)}
 #sm-editor .sm-band-cue{background:var(--sm-frame)}
 #sm-editor .sm-band-trans{background:var(--sm-frame)}
-/* Shots: the transitions' colour behind colorForeground text */
+/* Shots: the transitions' colour behind colorType text */
 #sm-editor .sm-band-shot{background:var(--sm-frame)}
 #sm-editor .sm-band-sel{background:var(--sm-blue)}
 #sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-inactive)}
