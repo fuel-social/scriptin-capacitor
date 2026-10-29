@@ -60,7 +60,9 @@
 #sm-editor .sm-pagenum,#sm-editor .sm-scenenum{position:absolute;font-family:'GTPressuraMonoRegular',monospace;font-size:21px;line-height:var(--sm-lh);height:var(--sm-lh);white-space:nowrap}
 /* Page number: plain colorForeground with its period, as in Final Draft */
 #sm-editor .sm-pagenum{left:0;color:var(--sm-fg)}
-#sm-editor .sm-scenenum{right:0;color:var(--sm-fg)}
+/* Scene number: on the baseline of its slugline's text (the line's text box reaches --sm-inset above the line, the
+   number's own box does not), so it is centred on the bar just like the slugline text */
+#sm-editor .sm-scenenum{right:0;color:var(--sm-fg);margin-top:var(--sm-inset)}
 /* Single spaced like Final Draft (line height = font size); the font's own text box is taller than a line, so
    cue, shot, transition and selection backgrounds are painted only on the line's height (--sm-inset trims them) */
 /* The editor grows with its text; the frame lines reach at least down to 80px above the bottom of the window */

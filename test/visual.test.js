@@ -165,6 +165,22 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     const fromRight = await at(-1), fromLeft = await at(1);
     ok(fromRight === fromLeft, 'cursor at the same place from the left and from the right', fromLeft + ' / ' + fromRight);
   }
+  // scene numbers (Option+Cmd+8): each number stands on the baseline of its slugline's text, so it is centred on the
+  // bar as the slugline text is
+  {
+    await page.evaluate(() => { const cm = document.getElementById('sm-editor').smCM; cm.focus(); cm.setCursor({ line: 0, ch: 0 }); });
+    await page.keyboard.press('Control+Shift+8');
+    await page.waitForTimeout(300);
+    const sn = await page.evaluate(() => {
+      const nums = [...document.querySelectorAll('.sm-scenenum:not(.sm-cmdmark)')];
+      const slugs = [...document.querySelectorAll('.cm-line.sm-l-slug')].filter(l => l.getBoundingClientRect().height);
+      const bottom = el => { const r = document.createRange(); r.selectNodeContents(el); return r.getClientRects()[0].bottom; };
+      return { n: nums.length, s: slugs.length, pairs: nums.map((e, i) => slugs[i] ? [bottom(e), bottom(slugs[i])] : null).filter(Boolean) };
+    });
+    ok(sn.n > 0 && sn.pairs.length === sn.n, 'scene numbers shown, one per slugline', sn.n + ' / ' + sn.s);
+    sn.pairs.forEach((p, i) => ok(Math.abs(p[0] - p[1]) < 0.51, 'scene number ' + (i + 1) + ' on its slugline text', p[0] + ' vs ' + p[1]));
+    await page.keyboard.press('Control+Shift+8');
+  }
   // the stylesheet arriving after the editor started (Safari draws once before it is in): the bands follow
   {
     const p2 = await browser.newPage({ viewport: { width: 1000, height: 1400 }, deviceScaleFactor: 2 });
