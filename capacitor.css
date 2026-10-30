@@ -46,7 +46,10 @@
 #sm-editor .cm-line.sm-t-shot .cm-smshotcmd{color:var(--sm-inactive)}
 /* Act line: the command .act_new / .act_end on its slugline bar, in the slugline's text colour; the title after it plain */
 #sm-editor .cm-smactcmd{color:var(--sm-bg)}
-#sm-editor .cm-smactus{position:relative;top:calc(-1 * var(--sm-us-lift, 0px))}
+/* its underscore: the glyph sits below the bar in most fonts, so it is hidden and drawn as a line just above the bottom
+   of the line (the text box reaches --sm-inset beyond the line), which every bar covers */
+#sm-editor .cm-smactus{position:relative;color:transparent}
+#sm-editor .cm-smactus::after{content:'';position:absolute;left:0.05em;right:0.05em;bottom:calc(var(--sm-inset, 0px) + 3px);height:max(1px, 0.075em);background:var(--sm-bg)}
 #sm-editor .cm-selectionBackground,#sm-editor .cm-focused .cm-selectionBackground,#sm-editor .cm-content ::selection{background:transparent !important}
 /* Selected text is light on the blue band, also inside cues and other coloured marks */
 #sm-editor .sm-selectedtext,#sm-editor .sm-selectedtext *{color:var(--sm-bg) !important}

@@ -904,7 +904,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         return out;
       }
       if (para && /^\.s(?=\s|$)/i.test(s)){ out.push([0, 2, 'cm-smshotcmd']); emphRuns(s, 2, out); return out; }
-      // the command's underscore is lifted into its bar (see measureBand): it reaches lower than the bar in most fonts
+      // the command's underscore is drawn inside its bar (see capacitor.css): the glyph reaches lower than the bar in most fonts
       if (para && ACT.test(s)){ out.push([0, 4, 'cm-smactcmd'], [4, 5, 'cm-smactcmd cm-smactus'], [5, ACT_CMD, 'cm-smactcmd']); emphRuns(s, ACT_CMD, out); return out; }
       emphRuns(s, 0, out);
       return out;
@@ -975,9 +975,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var over = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), Math.ceil((ma - base) * 2) / 2)) : 0;
         host.style.setProperty('--sm-over', over + 'px');
         var nb = {gap:Math.max(0, r.top - lr.top) - over, h:Math.min(r.height, lh) + Math.max(0, u + ib - it) + over};
-        // The underscore of an act command (.act_new) is lifted until it ends one pixel inside the bar
-        var us = cx.measureText('_'), usBottom = base + (us.actualBoundingBoxDescent || 0);
-        host.style.setProperty('--sm-us-lift', (mt.fontBoundingBoxAscent ? Math.max(0, Math.ceil(usBottom - (nb.gap + nb.h) + 1)) : 0) + 'px');
         nb.k = bandKeyNow();
         var changed = nb.gap !== BAND.gap || nb.h !== BAND.h;
         BAND = nb;
