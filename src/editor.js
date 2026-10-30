@@ -2,7 +2,7 @@
 // Built with esbuild into capacitor.js (npm run build); the editor is CodeMirror 6 behind a CodeMirror 5 style layer
 // (src/cm6compat.js), so only the lines in and near the window are drawn.
 import {createEditor, Pass, cmpPos, changeEnd} from './cm6compat.js';
-import {readFdx} from './fdx.js';
+import {readFdx, writeFdx} from './fdx.js';
 var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
 (function(){
   var T = window.SM_THEME || {};
@@ -590,9 +590,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // 0.5 inch from the top, with a period. Title page only when Title and Author are both filled in: the title in
   // capitals on line 25, the credit (Written by ...) on line 30, the author on line 32, all centred. Notes, section
   // marks and scene numbers are never printed.
-  // Export commands alone on a line: /pdf (the printed reading script) and /txt (the script as written, with its markup,
-  // UTF-8, nothing added or wrapped)
-  var CMD_EXPORT = /^\s*\/(pdf|txt)\s*$/i;
+  // Export commands alone on a line: /pdf (the printed reading script), /txt (the script as written, with its markup,
+  // UTF-8, nothing added or wrapped) and /fdx (a Final Draft file, see fdxDoc)
+  var CMD_EXPORT = /^\s*\/(pdf|txt|fdx)\s*$/i;
   var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
   var pdfKit = null;
   function fetchB64(url){
@@ -617,6 +617,52 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var lay = layout(text, false), a = document.createElement('a');
     var url = URL.createObjectURL(new Blob([text.replace(/\s+$/, '') + '\n'], {type:'text/plain;charset=utf-8'}));
     a.href = url; a.download = fileName(lay.title, 'txt'); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+  }
+  // A line's text with its emphasis, markers left out: [{t, u, i}]
+  function emphSegs(s, up){
+    var E = emphOf(s), out = [];
+    for (var k = 0; k < s.length; k++){
+      if (E.mk[k]) continue;
+      var c = up ? s.charAt(k).toUpperCase() : s.charAt(k), u = !!E.u[k], i = !!E.i[k], g = out[out.length - 1];
+      if (g && g.u === u && g.i === i) g.t += c; else out.push({t:c, u:u, i:i});
+    }
+    return out;
+  }
+  // The script as Final Draft elements (src/fdx.js writes the file): sluglines with the script language's INT./EXT.
+  // words, cues with their extension (empty ones get names as Reformat gives them), every parenthetical on its own,
+  // act lines as New Act and End of Act, // notes as Note, shots and transitions; each line of an action paragraph is
+  // an Action; a page break (===) starts the next element on a new page; section marks and export commands are left out
+  function fdxDoc(text){
+    text = fillCues(text).text;
+    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length), L = langIn(get, te);
+    var paras = [], brk = false, i = te + 1;
+    function add(type, s, up){ paras.push({type:type, segs:emphSegs(s.replace(/\s+/g, ' ').trim(), up), newPage:brk}); brk = false; }
+    while (i < lines.length){
+      if (lines[i].trim() === ''){ i++; continue; }
+      if (isMark(lines[i])){ if (BREAK.test(lines[i])) brk = true; i++; continue; }
+      var p = [];
+      while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) p.push(lines[i++]);
+      var h = p[0], rest = p.slice(1).join(' '), m;
+      if (CMD_EXPORT.test(h) && p.length === 1) continue;
+      if ((m = h.match(/^\.(IE|EI|I|E)(\s+|$)/i))) add('Scene Heading', L.slug[m[1].toUpperCase()] + ' ' + h.slice(m[0].length) + ' ' + rest, true);
+      else if ((m = h.match(/^\.act_(new|end)\s*/i))) add(/new/i.test(m[1]) ? 'New Act' : 'End of Act', h.slice(m[0].length) + ' ' + rest, true);
+      else if (SHOT.test(h)) add('Shot', h.replace(/^\.s\s*/i, '') + ' ' + rest, true);
+      else if (TRANS.test(h)) add('Transition', h.replace(/^\.t\s*/i, '') + ' ' + rest, true);
+      else if (NOTE.test(h)) add('Note', h.replace(/^\/\/\s*/, '') + ' ' + rest, false);
+      else if ((m = h.match(/^,([^,]*),(.*)$/))){
+        add('Character', m[1], true);
+        [m[2]].concat(p.slice(1)).forEach(function(l){ if (l.trim()) splitParens(l.trim()).forEach(function(x){ add(/^\(/.test(x) ? 'Parenthetical' : 'Dialogue', x, false); }); });
+      }
+      else p.forEach(function(l){ add('Action', l, false); });
+    }
+    var title = (preValue(get, te, 'title') || '').trim(), author = (preValue(get, te, 'author') || '').trim();
+    return {title:title, author:author, credit:L.credit, letter:sizeOf(preValue(get, te, 'size')) === 'US Letter', paras:paras};
+  }
+  function exportFdx(text){
+    var d = fdxDoc(text), a = document.createElement('a');
+    var url = URL.createObjectURL(new Blob([writeFdx(d)], {type:'application/xml;charset=utf-8'}));
+    a.href = url; a.download = fileName(d.title, 'fdx'); document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
   }
   function buildPdf(kit, lay){
@@ -1346,7 +1392,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       // commands start with a slash, as a dot or a comma at the start of a line always means formatting
       if (!cm.somethingSelected() && ln > preEnd() && isCmdLn(ln)){
         put('', {line:ln, ch:0}, {line:ln, ch:s.length});
-        if (/txt/i.test(s)) exportTxt(cm.getValue()); else exportPdf(cm.getValue());
+        if (/txt/i.test(s)) exportTxt(cm.getValue()); else if (/fdx/i.test(s)) exportFdx(cm.getValue()); else exportPdf(cm.getValue());
         return;
       }
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
@@ -2327,6 +2373,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       return {ok:true, lang:L.code, cut:cut};
     }
     cm.smImportFdx = importFdx;
+    // for the tests: the Final Draft file /fdx would download
+    cm.smFdx = function(){ return writeFdx(fdxDoc(cm.getValue())); };
     // While a file is dragged over the window the script steps aside: only the frame lines stay, in colorBlue, with
     // the invitation between them (and, when there is a script, that it will be replaced). Browsers only tell what kind
     // of file it is on the drop, so the invitation shows for any single file the browser does not name as something

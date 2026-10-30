@@ -667,6 +667,18 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   eq2('Final Draft 13 file: title (not the header\'s page number), author, US Letter', pre('Title') + ' / ' + pre('Author') + ' / ' + pre('Page size'), 'SCRIPT TITLE / Name of First Writer / US Letter');
   eq2('Final Draft 13 file: scene headings as typed in Final Draft go to capitals', body().split('\n').filter(l => /^\.[ie] /.test(l)).join(' | '), '.i HOUSE - DAY | .e STREET - NIGHT | .i HOUSE - BATHROOM - NIIGHTTTT');
   eq2('Final Draft 13 file: acts and cues', body().split('\n').filter(l => /^(\.act|,)/.test(l)).join(' | '), '.act_new ACT 1 | ,JOHN, | ,JANE, | ,JOHN (V.O.), | ,JANE, | .act_end END OF ACT 1');
+  // Export (/fdx): every element as Final Draft's, and back through the import unchanged
+  { const T = fs.readFileSync(path.join(__dirname, 'fdx', 'roundtrip.scriptin'), 'utf8');
+    cm.setValue(T); const x = cm.smFdx();
+    eq2('export: well-formed Final Draft file', !new w.DOMParser().parseFromString(x, 'application/xml').getElementsByTagName('parsererror').length && /^<\?xml[\s\S]*<FinalDraft[\s\S]*<\/FinalDraft>\s*$/.test(x), true);
+    eq2('export: element types in order', (x.match(/<Paragraph Type="([^"]+)"/g) || []).map(t => t.slice(17, -1)).join(','), 'New Act,Scene Heading,Action,Character,Parenthetical,Dialogue,Character,Dialogue,Note,Shot,Transition,Scene Heading,Action,Scene Heading,Action,Character,Dialogue,Character,Dialogue,Scene Heading,Action,End of Act');
+    eq2('export: scene heading words, emphasis and US Letter', /<Text>INT\. BAR – DAY<\/Text>/.test(x) && /<Text Style="Underline">complete<\/Text>/.test(x) && /<Text Style="Italic\+Underline">Fast\.<\/Text>/.test(x) && /<PageSize Height="11\.00" Width="8\.50"\/>/.test(x), true);
+    eq2('export: a note is a Note element', /<Paragraph Type="Note"[^>]*>\s*<Text>check the timing here<\/Text>/.test(x), true);
+    cm.setValue('.i OLD\n\nX.'); cm.smImportFdx(x);
+    // .ei prints as I/E. like .ie (the script language's slugline words), so it comes back as .ie
+    eq2('export then import gives the script back', body(), T.split('\n---\n')[1].trim().replace('.ei CAR', '.ie CAR'));
+    cm.setValue('.i A - DAY\n\nOne.\n\n===\n\nTwo.\n\n/fdx');
+    eq2('export: a page break starts the next element on a new page, the command is left out', (cm.smFdx().match(/<Paragraph Type="Action"[^>]*>/g) || []).map(t => /StartsNewPage="Yes"/.test(t)).join(','), 'false,true'); }
   r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
   eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
 
