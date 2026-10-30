@@ -13,7 +13,8 @@ function para(){
   if (r < 0.12) return '.i ' + pick(['HOUSE', 'GARDEN', 'CAR', 'OFFICE']) + ' - ' + pick(['DAY', 'NIGHT']);
   if (r < 0.18) return '.s ' + pick(['close on the letter', 'her hands', 'the door']);
   if (r < 0.22) return '.t CUT TO:';
-  if (r < 0.26) return '// ' + pick(['a note', 'check this', 'longer note about the scene']);
+  if (r < 0.245) return '// ' + pick(['a note', 'check this', 'longer note about the scene']);
+  if (r < 0.26) return pick(['.act_new ACT ONE', '.act_end END OF ACT ONE', '.act_new A LONGER ACT TITLE THAT WRAPS ONTO A SECOND LINE IN THE EDITOR']);
   if (r < 0.28) return '===';
   if (r < 0.30) return '/pdf';
   if (r < 0.55){ let d = ',' + pick(['ANNA', 'BEN', 'MARA']) + ',\n'; const k = 1 + Math.floor(rnd() * 6); for (let i = 0; i < k; i++) d += (rnd() < 0.2 ? '(' + pick(['quietly', 'beat', 'to Ben']) + ')' : pick(SENT) + ' ' + pick(SENT)) + (i < k - 1 ? '\n' : ''); return d; }

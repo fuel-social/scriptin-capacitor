@@ -27,6 +27,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var SHOT = /^\.s(\s|$)/i;
   // Transition: .t at the start of a paragraph, right aligned at the page edge; not part of the Tab ring
   var TRANS = /^\.t(\s|$)/i;
+  // Act lines (rare, so spelled out): .act_new ACT ONE and .act_end END OF ACT ONE, Final Draft's New Act and End of Act.
+  // In the editor the command stands on a slugline bar and the title follows in capitals; printed centred, underlined and
+  // in capitals, as long as a slugline, with two empty lines before it like a slugline. Typing .act gives .act_new,
+  // Up/Down switch between the two
+  var ACT = /^\.act_(new|end)(?=\s|$)/i, ACT_CMD = 8;
+  // the command's bar reaches this far (px) beyond its last letter, into the space before the title
+  var ACT_PAD = 6;
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
   // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
@@ -263,6 +270,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           return l;
         }).join('\n');
       }
+      if (ACT.test(h)){
+        // Act line: .act_new ACT ONE, the command stays lowercase, the title goes to capitals
+        return p.map(function(l, i){
+          if (i === 0){ var c = l.match(ACT)[0].toLowerCase(); return (c + ' ' + l.slice(c.length).toUpperCase().trim()).trim(); }
+          return l.toUpperCase();
+        }).join('\n');
+      }
       if (SHOT.test(h)){
         // Shot: .s CLOSE ON THE LETTER, the .s stays lowercase, the description goes to capitals
         return p.map(function(l, i){
@@ -402,6 +416,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         speaker = null;
         el.keep = true; el.space = SPACE_SLUG; el.kind = 'slug'; el.slug = L.slug[h.match(/^\.(IE|EI|I|E)/i)[1].toUpperCase()];
         ps.forEach(function(l, k){ el.runs.push(piece(l, s0 + k, 0, k ? W_ACTION : W_ACTION - d)); });
+      } else if (ACT.test(h)){
+        // An act line: printed like a slugline (two empty lines before it, as long), centred; New Act keeps with what follows
+        speaker = null;
+        el.kind = 'actl'; el.space = SPACE_SLUG; el.keep = /new/i.test(h.match(ACT)[1]);
+        ps.forEach(function(l, k){
+          var off = k ? 0 : l.match(/^\.act_(new|end)\s*/i)[0].length;
+          if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));
+        });
+        if (!el.runs.length) el.runs.push(piece('', s0, 0, W_ACTION));
       } else if (SHOT.test(h) || TRANS.test(h)){
         // A shot keeps with the element after it, but has one empty line before it like action
         el.keep = SHOT.test(h); el.kind = el.keep ? 'act' : 'trans'; el.shot = el.keep;
@@ -522,6 +545,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       runs.forEach(function(r){
         var kind = el.cue ? (r.par ? 'par' : 'dlg') : el.kind, out = runRows(r.s, r.w);
         if (kind === 'slug' || kind === 'trans' || el.shot) out = out.map(upSegs);
+        // act lines: capitals, underlined as a whole
+        if (kind === 'actl') out = out.map(upSegs).map(function(x){ return {t:x.t, segs:x.segs.map(function(g){ return {t:g.t, u:true, i:g.i}; })}; });
         // the typed .i .e .ie .ei becomes the slugline word of the script's language
         if (kind === 'slug' && !cont && r.line === el.pos.line && r.ch === 0 && out[0].segs.length){
           var SW = /^\.(IE|EI|I|E)(?=\s|$)/i;
@@ -633,7 +658,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (n > 0) flushRight((n + 1) + '.', PT / 2);
       items.forEach(function(it){
         var y = PT + it.y * LH;
-        if (it.kind === 'trans') segs(it, right - doc.getTextWidth(it.s), y); else segs(it, INDENT[it.kind] * PT, y);
+        if (it.kind === 'trans') segs(it, right - doc.getTextWidth(it.s), y);
+        else if (it.kind === 'actl') segs(it, (W - doc.getTextWidth(it.s)) / 2, y);
+        else segs(it, INDENT[it.kind] * PT, y);
       });
     });
     if (!used) page();
@@ -664,6 +691,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // a cue: the leading comma takes one character in front of the name
     var css = '#sm-editor .cm-line.sm-t-cue' + w(W_CUE + 1) + '#sm-editor .cm-line.sm-t-act' + w(W_ACTION) + '#sm-editor .cm-line.sm-t-dlg' + w(W_DIALOG) + '#sm-editor .cm-line.sm-t-par' + w(W_PAREN);
     for (var d = 0; d <= 12; d++) css += '#sm-editor .cm-line.sm-t-s' + d + w(W_ACTION - d);
+    // act line: the command and its space are not printed, so the first row has room for them as well
+    css += '#sm-editor .cm-line.sm-t-acth' + w(W_ACTION + ACT_CMD + 1);
     // Transition: text flush right at the page width, transW characters per row (--sm-trans-w, set for the script's language); the first row has room for the .t
     // and its space as well (they are not printed). The block behind it is drawn by the editor (see blocks below)
     css += '#sm-editor .cm-line.sm-t-trans{padding-right:var(--sm-trans-tail,67px) !important;padding-left:calc(100% - var(--sm-trans-w,' + W_TRANS + ') * 1ch - var(--sm-trans-tail,67px)) !important;text-indent:-3ch;text-align:right;color:var(--sm-inactive)}\n';
@@ -840,6 +869,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (!cm) return null;
         var out = [], w = cm.lineClass(n, 'wrap'), x = cm.lineClass(n, 'text');
         if (/\bsm-l-slug\b/.test(w)) out.push({from:0, to:s.length, cls:'sm-band-slug', z:0, l:'start', r:'end', spaces:true});
+        // act line: only the command stands on a slugline bar, from the frame line
+        if (/\bsm-t-acth\b/.test(x)) out.push({from:0, to:Math.min(ACT_CMD, s.length), cls:'sm-band-slug', z:0, l:'start', r:ACT_PAD});
         if (/\bsm-t-shot\b/.test(x)) out.push({from:0, to:s.length, cls:'sm-band-shot', z:1, l:16, r:16});
         else if (/\bsm-t-trans\b/.test(x)) out.push({from:0, to:s.length, cls:'sm-band-trans', z:1, l:16, r:'end'});
         else if (s.charAt(0) === ','){
@@ -872,6 +903,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         return out;
       }
       if (para && /^\.s(?=\s|$)/i.test(s)){ out.push([0, 2, 'cm-smshotcmd']); emphRuns(s, 2, out); return out; }
+      // the command's underscore is lifted into its bar (see measureBand): it reaches lower than the bar in most fonts
+      if (para && ACT.test(s)){ out.push([0, 4, 'cm-smactcmd'], [4, 5, 'cm-smactcmd cm-smactus'], [5, ACT_CMD, 'cm-smactcmd']); emphRuns(s, ACT_CMD, out); return out; }
       emphRuns(s, 0, out);
       return out;
     }
@@ -941,6 +974,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var over = mt.fontBoundingBoxAscent ? Math.max(0, Math.min(Math.max(0, lr.top - r.top), Math.ceil((ma - base) * 2) / 2)) : 0;
         host.style.setProperty('--sm-over', over + 'px');
         var nb = {gap:Math.max(0, r.top - lr.top) - over, h:Math.min(r.height, lh) + Math.max(0, u + ib - it) + over};
+        // The underscore of an act command (.act_new) is lifted until it ends one pixel inside the bar
+        var us = cx.measureText('_'), usBottom = base + (us.actualBoundingBoxDescent || 0);
+        host.style.setProperty('--sm-us-lift', (mt.fontBoundingBoxAscent ? Math.max(0, Math.ceil(usBottom - (nb.gap + nb.h) + 1)) : 0) + 'px');
         nb.k = bandKeyNow();
         var changed = nb.gap !== BAND.gap || nb.h !== BAND.h;
         BAND = nb;
@@ -960,6 +996,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function isSlugLn(ln){ return !isBlank(line(ln)) && isSlugHead(paraHead(ln)); }
     // Shot: paragraph starting with .s and a space; not part of the Tab ring
     function isShotHead(ln){ return paraStart(ln) && SHOT.test(line(ln)); }
+    function isActHead(ln){ return paraStart(ln) && ACT.test(line(ln)); }
+    function isActLn(ln){ return !isBlank(line(ln)) && isActHead(paraHead(ln)); }
     function isShotLn(ln){ return !isBlank(line(ln)) && isShotHead(paraHead(ln)); }
     function isTransHead(ln){ return paraStart(ln) && TRANS.test(line(ln)); }
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
@@ -992,7 +1030,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var cl = cm.getCursor().line, wr = cm.getWrapperElement();
       // Shots have the cursor colour of the other mode; cues and transitions share colours and cursor
       wr.classList.toggle('sm-on-bar', isShotLn(cl));
-      wr.classList.toggle('sm-on-slug', isSlugLn(cl));
+      wr.classList.toggle('sm-on-slug', isSlugLn(cl) || (isActHead(cl) && cm.getCursor().ch <= ACT_CMD));
       wr.classList.toggle('sm-on-trans', isCueLn(cl) || isTransLn(cl));
       chipCursor();
     }
@@ -1028,6 +1066,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       else if (isMark(h)) type = 'mark';
       else if (slugDelta(h) >= 0) type = 'slug';
       else if (NOTE.test(h)) type = 'note';
+      else if (ACT.test(h)) type = 'act';
       else if (SHOT.test(h)) type = 'shot';
       else if (TRANS.test(h)) type = 'trans';
       else if ((c = cueParts(s))){ type = 'dialog'; name = c.name.trim().toUpperCase(); }
@@ -1075,7 +1114,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       // The title page shows only with Cmd+Option+9, wherever the cursor is (a script opens with the cursor on line 0)
       if (p.type === 'pre') return preOn;
       if (cl >= p.s && cl <= p.e) return true;
-      if (p.type === 'mark') return view === 1;
+      if (p.type === 'mark' || p.type === 'act') return view === 1;
       // Notes: Cmd+Option+6 shows or hides them all; shown, a note appears only when its scene's slugline is visible
       // (before the first slugline only in view 1); the note holding the cursor always stays
       if (p.type === 'note') return !notesOff && p.keep;
@@ -1420,6 +1459,24 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         refresh(); // right align at once, so CUT TO: never shows on the left first
         return true;
       }
+      // .act becomes an active .act_new with its space; Up/Down switch to .act_end. An underscore typed right after it
+      // takes the completion back, so .act_end can be typed out in full
+      if (cur.ch === 4 && /^\.act$/i.test(s)){
+        put('.act_new ', {line:ln, ch:0}, {line:ln, ch:4}); caret(ln, ACT_CMD + 1);
+        activeCue = ln; lastAuto = ln;
+        return true;
+      }
+      // a space typed right after it is one too many: the command already has its space
+      if (lastAuto === ln && cur.ch === ACT_CMD + 2 && /^\.act_(new|end)  $/i.test(s)){
+        put('', {line:ln, ch:ACT_CMD + 1}, {line:ln, ch:ACT_CMD + 2}); caret(ln, ACT_CMD + 1);
+        lastAuto = -1;
+        return true;
+      }
+      if (lastAuto === ln && cur.ch === ACT_CMD + 2 && /^\.act_new _$/i.test(s)){
+        put('.act_', {line:ln, ch:0}, {line:ln, ch:ACT_CMD + 2}); caret(ln, 5);
+        lastAuto = -1;
+        return true;
+      }
       if (cur.ch === 2 && /^\.[ies]$/i.test(s)){
         put(' ', {line:ln, ch:2}, {line:ln, ch:2}); caret(ln, 3);
         lastAuto = ln;
@@ -1544,11 +1601,18 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         caret(ln, line(ln).length);
       });
     }
-    function isActiveLn(ln){ return !!(cueParts(ln) || isTransHead(ln) || settingOf(ln)); }
+    function isActiveLn(ln){ return !!(cueParts(ln) || isTransHead(ln) || settingOf(ln) || isActHead(ln)); }
+    // Up/Down on an active act line switch between .act_new and .act_end; the title stays
+    function actArrow(ln){
+      var s = line(ln), c = s.match(ACT)[0], to = /new/i.test(c) ? '.act_end' : '.act_new', at = cm.getCursor().ch;
+      put(to, {line:ln, ch:0}, {line:ln, ch:c.length});
+      caret(ln, at);
+    }
     function arrow(dir){
       var cur = cm.getCursor(), ln = cur.line;
       if (activeCue === ln && settingOf(ln) && !cm.somethingSelected()){ settingArrow(ln, dir); return; }
       if (activeCue === ln && isTransHead(ln) && !cm.somethingSelected()){ transArrow(ln, dir); return; }
+      if (activeCue === ln && isActHead(ln) && !cm.somethingSelected()){ actArrow(ln); return; }
       var c = cueParts(ln);
       if (!c || activeCue !== ln || cm.somethingSelected()) return CodeMirror.Pass;
       if (c.ext && cur.ch >= c.ext.s && cur.ch <= c.ext.e){
@@ -1897,7 +1961,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (empty(i) && !hid[i] && i > 0 && !empty(i - 1)){
           var nx = i + 1;
           while (nx < n && empty(nx)) nx++;
-          if (nx < n && nx !== curLn && (isSlugHead(nx) || isShotHead(nx)) && i - 1 > te) want('wrap', 'sm-sp2');
+          if (nx < n && nx !== curLn && (isSlugHead(nx) || isShotHead(nx) || isActHead(nx)) && i - 1 > te) want('wrap', 'sm-sp2');
         }
         if (hid[i] || isBlank(s)) return {w:W, x:X};
         // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
@@ -1914,6 +1978,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           want('text', head ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
         }
         else if (isNoteLn(i)) want('text', 'sm-t-act sm-t-note');
+        else if (isActLn(i)) want('text', isActHead(i) ? 'sm-t-acth' : 'sm-t-act');
         else if (isShotLn(i)) want('text', 'sm-t-act sm-t-shot');
         else if (isTransLn(i)) want('text', 'sm-t-trans');
         else if (isCueLn(i)) want('text', 'sm-t-cue');
@@ -1946,7 +2011,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (emptyF(i) && !hid[i] && i > 0 && !emptyF(i - 1)){
           var nx = i + 1;
           while (nx < n && emptyF(nx)) nx++;
-          if (nx < n && nx !== curLn && H[nx] === nx && (slugDelta(T[nx]) >= 0 || SHOT.test(T[nx])) && i - 1 > te) want('wrap', 'sm-sp2');
+          if (nx < n && nx !== curLn && H[nx] === nx && (slugDelta(T[nx]) >= 0 || SHOT.test(T[nx]) || ACT.test(T[nx])) && i - 1 > te) want('wrap', 'sm-sp2');
         }
         if (hid[i] || blank) return {w:W, x:X};
         var h0 = H[i], hs = T[h0];
@@ -1962,6 +2027,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           want('text', isHead ? 'sm-t-s' + Math.min(slugDelta(s, lang), 12) : 'sm-t-act');
         }
         else if (NOTE.test(hs)) want('text', 'sm-t-act sm-t-note');
+        else if (ACT.test(hs)) want('text', h0 === i ? 'sm-t-acth' : 'sm-t-act');
         else if (SHOT.test(hs)) want('text', 'sm-t-act sm-t-shot');
         else if (TRANS.test(hs)) want('text', 'sm-t-trans');
         else if (h0 === i && /^,([^,]*),(.*)$/.test(s) && isBlank(s.match(/^,([^,]*),(.*)$/)[2])) want('text', 'sm-t-cue');
@@ -2504,7 +2570,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // Capitals while typing, as Reformat writes them: sluglines, shots and transitions after .i .e .ie .ei .s .t and
     // a space (the short form itself stays lowercase, the lines below the first too), cues between the two commas,
     // extension included. Only typed letters; pasted text is left to Reformat
-    var CAPS_HEAD = /^\.(ie|ei|i|e|s|t)(\s+|$)/i;
+    var CAPS_HEAD = /^\.(ie|ei|i|e|s|t|act_new|act_end)(\s+|$)/i;
     cm.on('beforeChange', function(_cm, ch){
       if (!ch.update || ch.origin !== '+input' || ch.text.length !== 1 || ch.from.line !== ch.to.line) return;
       var t = ch.text[0];

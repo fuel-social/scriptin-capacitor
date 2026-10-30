@@ -19,7 +19,7 @@ const SCRIPT = [
   '.s DIE SCHALE AUF DER KOMMODE, LEER BIS AUF EINE BÜROKLAMMER UND EINEN ZETTEL', '',
   ',*BEAMTER*,', 'Kann ich Ihnen helfen?', '',
   '.t SMASH CUT TO: AND THEN SOME MORE WORDS', '',
-  '.ie AUTO / STRASSE - TAG', '', 'Rain.'
+  '.ie AUTO / STRASSE - TAG', '', 'Rain.', '', '.act_end END OF ACT ONE'
 ].join('\n');
 let fails = 0, checks = 0;
 function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAIL ' + label + (extra ? ' ' + extra : '')); } }

@@ -628,6 +628,20 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   start(T); type('.ih'); check('HAUS first when HAUSFLUR begins with it', '".i HAUS" cursor 13:4 selected "AUS"');
   start(T); type('.ihausf'); check('after HAUS an F offers HAUSFLUR', '".i HAUSFLUR" cursor 13:8 selected "LUR"'); }
 
+// Act lines: .act becomes .act_new with its space, Up/Down switch to .act_end, the title in capitals while typing
+{ const up = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:38, key:'ArrowUp', preventDefault(){}, stopPropagation(){} });
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const T = '.i HAUS - TAG\n\nAction.\n\n';
+  start(T); type('.act'); check('.act becomes .act_new with its space', '".act_new " cursor 4:9');
+  down(); check('Down switches to .act_end', '".act_end " cursor 4:9');
+  up(); check('Up switches back to .act_new', '".act_new " cursor 4:9');
+  type(' act one'); check('a space right after it is not doubled, the title in capitals', '".act_new ACT ONE" cursor 4:16');
+  down(); check('Down on the active act line keeps the title', '".act_end ACT ONE" cursor 4:16');
+  start(T); type('.act_end end'); check('an underscore takes the completion back, .act_end typed in full', '".act_end END" cursor 4:12');
+  start(T); type('.actx'); check('.act followed by another letter is .act_new then that letter', '".act_new X" cursor 4:10');
+  start(T); type('.a'); check('.a alone is left alone', '".a" cursor 4:2');
+  rf('Reformat: act command lowercase, title in capitals', '.ACT_NEW  act   one\n\n.act_end end\nof act one', '.act_new ACT ONE\n\n.act_end END\nOF ACT ONE'); }
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

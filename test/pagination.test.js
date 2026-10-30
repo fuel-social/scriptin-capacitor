@@ -149,6 +149,15 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   eq('French: transitions as wide as the longest French one (20)', Lay('---\n\n//SETTINGS\nLanguage: Français\n\n---\n\nAction.\n\n.t fondu enchaîné sur : et encore', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['FONDU ENCHAÎNÉ SUR :', 'ET ENCORE']);
   eq("a typed (CONT'D) with a typographic apostrophe is not doubled", Lay(",ANNA,\nHi.\n\n,ANNA (CONT\u2019D),\nYes.", true).pages[0].filter(x => x.kind === 'cue').map(x => x.s), ['ANNA', 'ANNA (CONT\u2019D)']);
   eq('emphasis in a cue: italic name, markers not printed', segs(',*beamter*,\nHi.'), 'I[BEAMTER] / [Hi.]');
+  // Act lines (Final Draft PDF of 30.10.): two empty lines before like a slugline, one after; capitals, underlined; as
+  // long as a slugline, the command not printed
+  { const pg = Lay('.act_new act one\n\n.i house - day\n\nAction.\n\n.act_end end of act one\n\nMore.', true).pages[0];
+    eq('act lines: kinds, lines and text', pg.map(x => x.kind + '@' + x.y + ':' + x.s), ['actl@0:ACT ONE', 'act@3:INT. HOUSE - DAY', 'act@5:Action.', 'actl@8:END OF ACT ONE', 'act@10:More.']);
+    eq('act lines are underlined as a whole', pg.filter(x => x.kind === 'actl').map(x => x.segs.every(g => g.u)), [true, true]); }
+  eq('an act line wraps like a slugline (55 characters, command not counted)', Lay('.act_new ' + 'word '.repeat(12) + 'last', true).pages[0].map(x => x.s.length), [54, 9]);
+  eq('New Act never stands alone at the bottom of a page', starts(act(26) + '\n\n.act_new act two\n\nAfter.'), ['52:0']);
+  eq('End of Act may close a page', starts(act(26) + '\n\n.act_end end of act one'), []);
+  eq('a scene after an act line does not get (CONT\'D)', Lay(',ANNA,\nHi.\n\n.act_end end\n\n,ANNA,\nYes.', true).pages[0].filter(x => x.kind === 'cue').map(x => x.s), ['ANNA', 'ANNA']);
   eq('a marked name counts as the same speaker for (CONT\'D)', Lay(',*BEAMTER*,\nHi.\n\nShe nods.\n\n,BEAMTER,\nYes.', true).pages[0].map(x => x.s).filter(x => /BEAMTER/.test(x)), ['BEAMTER', "BEAMTER (CONT'D)"]);
 }
 
