@@ -7,6 +7,7 @@ The Bubble element htmlCapacitor (app fuel-social, page scriptin) holds only a s
 - `capacitor.css`: editor styles
 - `capacitor.js`: editor script, built from `src/` with `npm run build` (one file, CodeMirror 6 included); commit it with the sources
 - `src/editor.js`: the editor logic; `src/cm6compat.js`: CodeMirror 6 with the CodeMirror 5 style calls and events the logic uses (only the lines near the window are drawn)
+- `src/fdx.js`: Final Draft (.fdx) import, read into scriptin's markup; a file dropped on the page replaces the script (first three pages, Cmd+Z undoes it). Test files in `test/fdx/`
 - `vendor/`, `fonts/`: jsPDF and Courier Prime for the PDF export, loaded on the first export
 - `_headers`: lets fuel.social load the fonts and scripts (CORS)
 

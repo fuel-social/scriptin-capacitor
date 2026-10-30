@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<FinalDraft DocumentType="Script" Template="No" Version="5">
+  <Content>
+    <Paragraph Type="New Act"><Text>Act One</Text></Paragraph>
+    <Paragraph Type="Scene Heading" Number="1"><SceneProperties Length="1" Page="1" Title=""/><Text>INT. BAR - DAY</Text></Paragraph>
+    <Paragraph Type="Action"><Text>Two men sip beers in </Text><Text Style="Italic">complete</Text><Text> silence. The </Text><Text Style="Bold+Underline">door</Text><Text> opens.</Text></Paragraph>
+    <Paragraph Type="Cast List"><Text>DAVID, SAM</Text></Paragraph>
+    <Paragraph Type="Character"><Text>DAVID (V.O.)</Text></Paragraph>
+    <Paragraph Type="Parenthetical"><Text>(quietly)</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Aren't you afraid of A.I. taking your job?</Text></Paragraph>
+    <Paragraph Type="Character"><Text>SAM (CONT'D)</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Yeah, but what can I do?</Text></Paragraph>
+    <Paragraph Type="Character"><Text>DAVID (ON PHONE)</Text></Paragraph>
+    <Paragraph Type="Dialogue"><Text>Learn to fly.</Text></Paragraph>
+    <Paragraph Type="Note"><Text>check the timing here</Text></Paragraph>
+    <Paragraph Type="Shot"><Text>close on the glass</Text></Paragraph>
+    <Paragraph Type="Transition"><Text>CUT TO:</Text></Paragraph>
+    <Paragraph Type="Scene Heading"><Text>EXT./INT. CAR - NIGHT</Text></Paragraph>
+    <Paragraph Type="General"><Text>It is raining and the wipers are slow.</Text></Paragraph>
+    <Paragraph><DualDialogue>
+      <Paragraph Type="Character"><Text>DAVID</Text></Paragraph>
+      <Paragraph Type="Dialogue"><Text>Left.</Text></Paragraph>
+      <Paragraph Type="Character"><Text>SAM</Text></Paragraph>
+      <Paragraph Type="Dialogue"><Text>Right.</Text></Paragraph>
+    </DualDialogue></Paragraph>
+    <Paragraph Type="Summary"><Text>They argue.</Text></Paragraph>
+    <Paragraph Type="End of Act"><Text>End of Act One</Text></Paragraph>
+    <Paragraph Type="Action"><Text></Text></Paragraph>
+  </Content>
+  <TitlePage>
+    <Content>
+      <Paragraph Alignment="Center"><Text>Learn To Fly</Text></Paragraph>
+      <Paragraph Alignment="Center"><Text>Written by</Text></Paragraph>
+      <Paragraph Alignment="Center"><Text>Fabrizio Test</Text></Paragraph>
+    </Content>
+  </TitlePage>
+  <PageLayout><PaperSize Height="11.00" Width="8.50"/></PageLayout>
+</FinalDraft>

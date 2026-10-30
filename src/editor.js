@@ -2,6 +2,7 @@
 // Built with esbuild into capacitor.js (npm run build); the editor is CodeMirror 6 behind a CodeMirror 5 style layer
 // (src/cm6compat.js), so only the lines in and near the window are drawn.
 import {createEditor, Pass, cmpPos, changeEnd} from './cm6compat.js';
+import {readFdx} from './fdx.js';
 var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
 (function(){
   var T = window.SM_THEME || {};
@@ -2295,6 +2296,104 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       (window.requestAnimationFrame || setTimeout)(function(){ scrollPlace = false; cm.afterLayout(placePages); });
     }, {passive:true});
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
+    // ---- Final Draft import: an .fdx file dropped anywhere on the page replaces the script ----
+    // The script's language decides the title page's words; Mode and Autocomplete stay as they were, the page size comes
+    // from the file (the current one when it does not say). Only the first MAX_PAGES pages are taken: the text is cut
+    // where page MAX_PAGES + 1 would begin. One change, so Cmd+Z brings the old script back.
+    // Returns {ok, reason, lang, cut}; reason 'notfdx' (not a Final Draft script), 'language' (not English, German,
+    // French or Italian) or 'readonly' (a script is still loading)
+    function importFdx(xml){
+      if (cm.view && cm.view.state.readOnly) return {ok:false, reason:'readonly'};
+      var r = readFdx(xml, window.DOMParser, LANGS, extIndex);
+      if (!r.ok) return r;
+      var L = r.lang, te = preEnd(), size = r.size || sizeOf(preValue(line, te, 'size'));
+      var mode = modeOf(preValue(line, te, 'mode') || ''), auto = autoOf(preValue(line, te, 'auto') || '');
+      var one = function(v){ return (v || '').replace(/\s+/g, ' ').trim(); };
+      var pre = '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': ' + one(r.title) + '\n' + L.cmd.author + ': ' + one(r.author) + '\n\n//' + L.head.settings +
+        '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[auto] + '\n' + L.cmd.mode + ': ' + L.modes[mode] + '\n\n---';
+      var text = pre + (r.body ? '\n\n' + r.body : '') + '\n', cut = false;
+      for (var guard = 0; guard < 5; guard++){
+        var st = layout(text, false).starts;
+        if (st.length < MAX_PAGES) break;
+        var p = st[MAX_PAGES - 1], lines = text.split('\n'), off = 0;
+        for (var k = 0; k < p.line; k++) off += lines[k].length + 1;
+        text = text.slice(0, off + p.ch).replace(/\s+$/, '') + '\n';
+        cut = true;
+      }
+      cm.operation(function(){
+        cm.replaceRange(text, {line:0, ch:0}, {line:cm.lastLine(), ch:line(cm.lastLine()).length}, '+restore');
+        var first = preEnd() + 1;
+        while (first < cm.lastLine() && isBlank(line(first))) first++;
+        cm.setCursor({line:first, ch:0});
+      });
+      cm.focus();
+      return {ok:true, lang:L.code, cut:cut};
+    }
+    cm.smImportFdx = importFdx;
+    // While a file is dragged over the window the script steps aside: only the frame lines stay, in colorBlue, with
+    // the invitation between them (and, when there is a script, that it will be replaced). Browsers only tell what kind
+    // of file it is on the drop, so the invitation shows for any single file the browser does not name as something
+    // else; on the drop only an .fdx with Final Draft's XML is taken, anything else is ignored (and never opens in the tab)
+    var dropBox = document.createElement('div'), dropDepth = 0, dropMsgTimer = null;
+    dropBox.className = 'sm-drop';
+    var DROP_TEXT = 'Drop Final Draft file (.fdx) to import<br>(three pages maximum)';
+    dropBox.innerHTML = '<div class="sm-drop-main">' + DROP_TEXT + '</div><div class="sm-drop-sub">Replaces the current script</div>';
+    host.appendChild(dropBox);
+    function dragFiles(e){
+      var dt = e.dataTransfer;
+      if (!dt || !dt.types || Array.prototype.indexOf.call(dt.types, 'Files') < 0) return null;
+      var items = dt.items;
+      if (items && items.length){
+        if (items.length !== 1 || items[0].kind !== 'file') return false;
+        var t = items[0].type || '';
+        if (t && !/xml|fdx|finaldraft|octet-stream/i.test(t)) return false;
+      }
+      return !(cm.view && cm.view.state.readOnly);
+    }
+    function dropShow(on, msg){
+      clearTimeout(dropMsgTimer);
+      host.classList.toggle('sm-dropping', !!on);
+      host.classList.toggle('sm-drop-has', !!on && cm.getValue().slice(preEnd() + 1).trim() !== '');
+      if (on){
+        var r = host.getBoundingClientRect(), vh = window.innerHeight || 800;
+        // centred between the frame lines, in the middle of the part of the editor in the window
+        var top = Math.max(r.top, 0), bottom = Math.min(r.bottom, vh);
+        dropBox.style.top = ((bottom > top ? (top + bottom) / 2 : vh / 2) - r.top) + 'px';
+      }
+      dropBox.firstChild.innerHTML = msg || DROP_TEXT;
+      host.classList.toggle('sm-drop-msg', !!msg);
+      if (msg) dropMsgTimer = setTimeout(function(){ dropShow(false); }, 2600);
+    }
+    window.addEventListener('dragenter', function(e){
+      var ok = dragFiles(e);
+      if (ok === null) return;
+      e.preventDefault();
+      dropDepth++;
+      if (ok) dropShow(true);
+    }, true);
+    window.addEventListener('dragover', function(e){
+      var ok = dragFiles(e);
+      if (ok === null) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = ok ? 'copy' : 'none';
+    }, true);
+    window.addEventListener('dragleave', function(e){
+      if (dragFiles(e) === null) return;
+      dropDepth = Math.max(0, dropDepth - 1);
+      if (!dropDepth) dropShow(false);
+    }, true);
+    window.addEventListener('drop', function(e){
+      if (dragFiles(e) === null) return;
+      e.preventDefault(); e.stopPropagation();
+      dropDepth = 0;
+      var f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (!f || e.dataTransfer.files.length !== 1 || !/\.fdx$/i.test(f.name || '') || (cm.view && cm.view.state.readOnly)){ dropShow(false); return; }
+      dropShow(false);
+      (f.text ? f.text() : new Promise(function(res){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.readAsText(f); })).then(function(xml){
+        var r = importFdx(xml);
+        if (!r.ok && r.reason === 'language') dropShow(true, 'Only English, German, French and Italian<br>scripts can be imported');
+      }, function(){});
+    }, true);
     // The title page always has an empty line right after the opening --- and right before the closing ---
     // Undo and redo leave the title page as they find it: the automatic fixes (empty lines, names, a script line below)
     // would otherwise be redone at once after every Cmd+Z, and Cmd+Z could never get past them

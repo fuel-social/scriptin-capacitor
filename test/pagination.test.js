@@ -1,11 +1,11 @@
 // Pagination tests: loads capacitor.js with paginate exposed
 const fs = require('fs');
-let src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'editor.js'), 'utf8').replace(/^import .*$/m, '');
+let src = fs.readFileSync(require('path').join(__dirname, '..', 'src', 'editor.js'), 'utf8').replace(/^import .*$/gm, '');
 src = src.replace('var PAGE_LINES = 58,', 'var PAGE_LINES = (global.__LINES || 58),');
 src = src.replace('  function widthStyles(){', '  globalThis.__pg = {layout:layout, paginate:paginate, els:pageElements, lines:elLines};\n  function widthStyles(){');
 global.window = { SM_THEME:{}, location:{hash:''}, addEventListener(){} };
 global.document = { readyState:'complete', getElementById(){ return null; }, addEventListener(){}, createElement(){ return {}; }, head:{ appendChild(){} } };
-global.Pass = {}; global.cmpPos = () => 0; global.changeEnd = () => null;
+global.Pass = {}; global.cmpPos = () => 0; global.changeEnd = () => null; global.readFdx = () => ({ok:false});
 global.__LINES = +(process.env.LINES || 54);
 eval(src);
 const P = globalThis.__pg.paginate;

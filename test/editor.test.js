@@ -642,6 +642,30 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   start(T); type('.a'); check('.a alone is left alone', '".a" cursor 4:2');
   rf('Reformat: act command lowercase, title in capitals', '.ACT_NEW  act   one\n\n.act_end end\nof act one', '.act_new ACT ONE\n\n.act_end END\nOF ACT ONE'); }
 
+// Final Draft import (test/fdx/*.fdx): elements, extensions, language, page size, the page limit, undo
+{ const fs = require('fs'), path = require('path');
+  const fdx = n => fs.readFileSync(path.join(__dirname, 'fdx', n + '.fdx'), 'utf8');
+  const imp = n => { cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nMode: Night\n\n---\n\n.i OLD - DAY\n\nOld script.'); cm.clearHistory(); return cm.smImportFdx(fdx(n)); };
+  const body = () => cm.getValue().split('\n---\n')[1].trim();
+  const pre = k => (cm.getValue().match(new RegExp('^' + k + ': ?(.*)$', 'm')) || [])[1];
+  let r = imp('en');
+  eq2('English file imported', JSON.stringify(r), '{"ok":true,"lang":"en","cut":false}');
+  eq2('every Final Draft element mapped', body(), '.act_new ACT ONE\n\n.i BAR - DAY\n\nTwo men sip beers in *complete* silence. The _door_ opens.\n\n,DAVID (V.O.),\n(quietly)\nAren\'t you afraid of A.I. taking your job?\n\n,SAM,\nYeah, but what can I do?\n\n,DAVID (ON PHONE),\nLearn to fly.\n\n// check the timing here\n\n.s CLOSE ON THE GLASS\n\n.t CUT TO:\n\n.ei CAR - NIGHT\n\nIt is raining and the wipers are slow.\n\n,DAVID,\nLeft.\n\n,SAM,\nRight.\n\n// They argue.\n\n.act_end END OF ACT ONE');
+  eq2('title and author from the title page', pre('Title') + ' / ' + pre('Author'), 'Learn To Fly / Fabrizio Test');
+  eq2('page size from the file', pre('Page size'), 'US Letter');
+  eq2('Mode and Autocomplete stay as they were', pre('Mode') + ' / ' + pre('Autocomplete'), 'Night / Off');
+  cm.execCommand('undo');
+  eq2('one Cmd+Z brings the old script back', /\.i OLD - DAY\n\nOld script\./.test(cm.getValue()) && !/BAR/.test(cm.getValue()), true);
+  r = imp('de');
+  eq2('German recognised, title page in German, V.O. and O.S. become OFF', r.lang + ' | ' + pre('Sprache') + ' | ' + body().split('\n').filter(l => /^,/.test(l)).join(' '), 'de | Deutsch | ,TOM (OFF), ,ANNA (OFF),');
+  eq2('INNEN. becomes .i', body().split('\n')[0], '.i KÜCHE - TAG');
+  r = imp('fr'); eq2('French recognised although INT. is used, O.C. becomes H.C.', r.lang + ' ' + body().split('\n').find(l => /^,/.test(l)), 'fr ,TOM (H.C.),');
+  r = imp('it'); eq2('Italian recognised, INT./EST. becomes .ie, O.S. becomes F.C.', r.lang + ' ' + body().split('\n')[0] + ' ' + body().split('\n').find(l => /^,/.test(l)), 'it .ie CUCINA - GIORNO ,TOM (F.C.),');
+  r = imp('es'); eq2('Spanish refused, the script stays', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"language"} true');
+  r = imp('notfdx'); eq2('not a Final Draft file: ignored', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"notfdx"} true');
+  r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
+  eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }
