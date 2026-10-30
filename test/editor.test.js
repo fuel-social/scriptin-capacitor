@@ -663,6 +663,10 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   r = imp('it'); eq2('Italian recognised, INT./EST. becomes .ie, O.S. becomes F.C.', r.lang + ' ' + body().split('\n')[0] + ' ' + body().split('\n').find(l => /^,/.test(l)), 'it .ie CUCINA - GIORNO ,TOM (F.C.),');
   r = imp('es'); eq2('Spanish refused, the script stays', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"language"} true');
   r = imp('notfdx'); eq2('not a Final Draft file: ignored', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"notfdx"} true');
+  r = imp('finaldraft13');
+  eq2('Final Draft 13 file: title (not the header\'s page number), author, US Letter', pre('Title') + ' / ' + pre('Author') + ' / ' + pre('Page size'), 'SCRIPT TITLE / Name of First Writer / US Letter');
+  eq2('Final Draft 13 file: scene headings as typed in Final Draft go to capitals', body().split('\n').filter(l => /^\.[ie] /.test(l)).join(' | '), '.i HOUSE - DAY | .e STREET - NIGHT | .i HOUSE - BATHROOM - NIIGHTTTT');
+  eq2('Final Draft 13 file: acts and cues', body().split('\n').filter(l => /^(\.act|,)/.test(l)).join(' | '), '.act_new ACT 1 | ,JOHN, | ,JANE, | ,JOHN (V.O.), | ,JANE, | .act_end END OF ACT 1');
   r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
   eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
 

@@ -2353,7 +2353,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function dropShow(on, msg){
       clearTimeout(dropMsgTimer);
       host.classList.toggle('sm-dropping', !!on);
-      var has = !!on && cm.getValue().slice(preEnd() + 1).trim() !== '';
+      // a script below the title page (lines, not characters, after its closing ---)
+      var has = false;
+      if (on) for (var hl = preEnd() + 1, hn = cm.lineCount(); hl < hn && !has; hl++) has = !isBlank(line(hl));
       host.classList.toggle('sm-drop-has', has);
       // the conditions in one smaller line: the page limit, and that a script there will be replaced
       dropBox.lastChild.textContent = '3 pages max' + (has ? ' \u00b7 replaces the current script' : '');

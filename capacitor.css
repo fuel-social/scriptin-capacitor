@@ -101,7 +101,7 @@
 @font-face{font-family:'GTPressuraRegular';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013373951x392494120763925600/GT-Pressura-Standard-Regular.woff')}
 #sm-editor .sm-drop{display:none;position:absolute;left:0;right:0;transform:translateY(-50%);z-index:5;pointer-events:none;text-align:center;color:var(--sm-blue);font-family:'GTPressuraRegular',sans-serif}
 #sm-editor .sm-drop-main{font-size:23px;line-height:35px;max-width:560px;margin:0 auto}
-#sm-editor .sm-drop-sub{display:none;font-size:16px;line-height:22px;margin-top:12px}
+#sm-editor .sm-drop-sub{display:none;font-size:16px;line-height:22px;margin-top:32px}
 #sm-editor.sm-dropping .sm-drop{display:block}
 #sm-editor.sm-dropping:not(.sm-drop-msg) .sm-drop-sub{display:block}
 #sm-editor.sm-dropping .cm-content,#sm-editor.sm-dropping .sm-bands,#sm-editor.sm-dropping .sm-carets,#sm-editor.sm-dropping .sm-pages,#sm-editor.sm-dropping .sm-scenes{visibility:hidden}

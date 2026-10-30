@@ -142,20 +142,27 @@ function slugOf(text){
 
 // Title and author from the title page: the first line is the title, the author follows a "Written by" line
 function titlePageOf(doc){
-  var tp = doc.getElementsByTagName('TitlePage')[0], title = '', author = '';
-  if (!tp) return {title:title, author:author};
-  var lines = Array.prototype.map.call(tp.getElementsByTagName('Paragraph'), paraText).map(function(s){ return s.replace(/[_*]/g, '').trim(); }).filter(Boolean);
+  var tp = doc.getElementsByTagName('TitlePage')[0], title = '', author = '', content = null;
+  // only the page itself (its Content), not its header and footer (the page number there is a lone period)
+  if (tp) Array.prototype.forEach.call(tp.childNodes, function(n){ if (n.nodeType === 1 && n.nodeName === 'Content' && !content) content = n; });
+  if (!content) return {title:title, author:author};
+  var lines = Array.prototype.filter.call(content.childNodes, function(n){ return n.nodeType === 1 && n.nodeName === 'Paragraph'; }).map(paraText).map(function(s){ return s.replace(/[_*]/g, '').trim(); }).filter(Boolean);
   if (lines.length) title = lines[0];
-  for (var i = 1; i < lines.length - 1; i++){
-    if (/^((written|screenplay|story)\s+)?by$|^(drehbuch|geschrieben)?\s*(von|by)$|^(écrit|scénario)\s+(par|de)$|^(scritto|sceneggiatura|soggetto)\s+(da|di)$/i.test(lines[i])){ author = lines[i + 1]; break; }
+  // the credit line alone (Written by) with the name on the next line, or with the name after it on the same line
+  var CREDIT = /^((written|screenplay|story|teleplay)\s+by|by|(drehbuch|geschrieben|buch)(\s+von)?|von|(écrit|scénario)\s+(par|de)|par|(scritto|sceneggiatura|soggetto)\s+(da|di)|di)\b\s*:?\s*/i;
+  for (var i = 1; i < lines.length; i++){
+    var m = lines[i].match(CREDIT);
+    if (!m) continue;
+    author = lines[i].slice(m[0].length).trim() || lines[i + 1] || '';
+    break;
   }
   return {title:title, author:author};
 }
 
 // US Letter or A4 from the page layout (11 inch high is US Letter); null when the file does not say
 function sizeOfDoc(doc){
-  var nodes = doc.getElementsByTagName('PaperSize'), pl = doc.getElementsByTagName('PageLayout')[0], h = NaN;
-  if (nodes.length) h = parseFloat(nodes[0].getAttribute('Height'));
+  var pl = doc.getElementsByTagName('PageLayout')[0], h = NaN;
+  ['PageSize', 'PaperSize'].forEach(function(n){ var e = doc.getElementsByTagName(n)[0]; if (e && isNaN(h)) h = parseFloat(e.getAttribute('Height')); });
   if (isNaN(h) && pl) h = parseFloat(pl.getAttribute('PageHeight') || pl.getAttribute('Height'));
   if (isNaN(h)) return null;
   return Math.abs(h - 11) < 0.2 ? 'US Letter' : 'A4';
@@ -185,7 +192,7 @@ export function readFdx(xml, DOMParserCtor, LANGS, extIndex){
     dlg = null;
     if (!t || ty === 'cast list') return;
     if (ty === 'character'){ dlg = [cueOf(t, L, LANGS, extIndex)]; blocks.push(dlg); return; }
-    if (ty === 'scene heading'){ blocks.push([slugOf(t) || t]); return; }
+    if (ty === 'scene heading'){ var sl = slugOf(t); blocks.push([sl ? sl.replace(/^(\.\w+ )(.*)$/, function(_, a, b){ return a + b.toUpperCase(); }) : t.toUpperCase()]); return; }
     if (ty === 'transition'){ blocks.push(['.t ' + t.toUpperCase()]); return; }
     if (ty === 'shot'){ blocks.push(['.s ' + t.toUpperCase()]); return; }
     if (ty === 'new act'){ blocks.push(['.act_new ' + t.toUpperCase()]); return; }
