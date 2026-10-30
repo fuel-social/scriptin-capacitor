@@ -2336,8 +2336,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // else; on the drop only an .fdx with Final Draft's XML is taken, anything else is ignored (and never opens in the tab)
     var dropBox = document.createElement('div'), dropDepth = 0, dropMsgTimer = null;
     dropBox.className = 'sm-drop';
-    var DROP_TEXT = 'Drop Final Draft file (.fdx) to import<br>(three pages maximum)';
-    dropBox.innerHTML = '<div class="sm-drop-main">' + DROP_TEXT + '</div><div class="sm-drop-sub">Replaces the current script</div>';
+    var DROP_TEXT = 'Drop Final Draft file (.fdx) to import';
+    dropBox.innerHTML = '<div class="sm-drop-main"></div><div class="sm-drop-sub"></div>';
     host.appendChild(dropBox);
     function dragFiles(e){
       var dt = e.dataTransfer;
@@ -2353,7 +2353,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function dropShow(on, msg){
       clearTimeout(dropMsgTimer);
       host.classList.toggle('sm-dropping', !!on);
-      host.classList.toggle('sm-drop-has', !!on && cm.getValue().slice(preEnd() + 1).trim() !== '');
+      var has = !!on && cm.getValue().slice(preEnd() + 1).trim() !== '';
+      host.classList.toggle('sm-drop-has', has);
+      // the conditions in one smaller line: the page limit, and that a script there will be replaced
+      dropBox.lastChild.textContent = '3 pages max' + (has ? ' \u00b7 replaces the current script' : '');
       if (on){
         var r = host.getBoundingClientRect(), vh = window.innerHeight || 800;
         // centred between the frame lines, in the middle of the part of the editor in the window
