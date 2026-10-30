@@ -30,7 +30,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var TRANS = /^\.t(\s|$)/i;
   // Act lines (rare, so spelled out): .act_new ACT ONE and .act_end END OF ACT ONE, Final Draft's New Act and End of Act.
   // In the editor the command stands on a slugline bar and the title follows in capitals; printed centred, underlined and
-  // in capitals, as long as a slugline, with two empty lines before it like a slugline. Typing .act gives .act_new,
+  // in capitals, as long as a slugline, with two empty lines before it like a slugline; a new act begins a new page. Typing .act gives .act_new,
   // Up/Down switch between the two
   var ACT = /^\.act_(new|end)(?=\s|$)/i, ACT_CMD = 8;
   // the command's bar reaches this far (px) beyond its last letter, into the space before the title
@@ -421,6 +421,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         // An act line: printed like a slugline (two empty lines before it, as long), centred; New Act keeps with what follows
         speaker = null;
         el.kind = 'actl'; el.space = SPACE_SLUG; el.keep = /new/i.test(h.match(ACT)[1]);
+        // a new act always begins a page (as Final Draft's New Act does); End of Act does not
+        if (el.keep) el.brk = true;
         ps.forEach(function(l, k){
           var off = k ? 0 : l.match(/^\.act_(new|end)\s*/i)[0].length;
           if (l.slice(off).trim()) el.runs.push(piece(l.slice(off), s0 + k, off, W_ACTION));

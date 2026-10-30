@@ -155,7 +155,9 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
     eq('act lines: kinds, lines and text', pg.map(x => x.kind + '@' + x.y + ':' + x.s), ['actl@0:ACT ONE', 'act@3:INT. HOUSE - DAY', 'act@5:Action.', 'actl@8:END OF ACT ONE', 'act@10:More.']);
     eq('act lines are underlined as a whole', pg.filter(x => x.kind === 'actl').map(x => x.segs.every(g => g.u)), [true, true]); }
   eq('an act line wraps like a slugline (55 characters, command not counted)', Lay('.act_new ' + 'word '.repeat(12) + 'last', true).pages[0].map(x => x.s.length), [54, 9]);
-  eq('New Act never stands alone at the bottom of a page', starts(act(26) + '\n\n.act_new act two\n\nAfter.'), ['52:0']);
+  eq('New Act begins a new page', starts(act(3) + '\n\n.act_new act two\n\nAfter.'), ['6:0']);
+  eq('New Act at the very start: no empty page before it', starts('.act_new act one\n\n.i house - day\n\nAction.'), []);
+  eq('End of Act does not begin a new page', starts(act(3) + '\n\n.act_end end of act one\n\nAfter.'), []);
   eq('End of Act may close a page', starts(act(26) + '\n\n.act_end end of act one'), []);
   eq('a scene after an act line does not get (CONT\'D)', Lay(',ANNA,\nHi.\n\n.act_end end\n\n,ANNA,\nYes.', true).pages[0].filter(x => x.kind === 'cue').map(x => x.s), ['ANNA', 'ANNA']);
   eq('a marked name counts as the same speaker for (CONT\'D)', Lay(',*BEAMTER*,\nHi.\n\nShe nods.\n\n,BEAMTER,\nYes.', true).pages[0].map(x => x.s).filter(x => /BEAMTER/.test(x)), ['BEAMTER', "BEAMTER (CONT'D)"]);
