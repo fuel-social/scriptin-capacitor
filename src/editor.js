@@ -595,6 +595,25 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // Export commands alone on a line: /pdf (the printed reading script), /txt (the script as written, with its markup,
   // UTF-8, nothing added or wrapped) and /fdx (a Final Draft file, see fdxDoc)
   var CMD_EXPORT = /^\s*\/(pdf|txt|fdx)\s*$/i;
+  // An export command only works when there is something to export below the title page: /pdf needs a printed element
+  // (notes, section marks and page breaks are never printed), /txt and /fdx need any text, notes included (marks and the
+  // export commands themselves do not count). Paragraphs are read as the exports read them: split at empty lines and marks
+  function exportContent(get, n, te){
+    var any = false, i = te + 1;
+    while (i < n){
+      var s = get(i);
+      if (s.trim() === '' || isMark(s)){ i++; continue; }
+      var j = i;
+      while (j < n && get(j).trim() !== '' && !isMark(get(j))) j++;
+      if (!(j === i + 1 && CMD_EXPORT.test(s))){
+        any = true;
+        if (!NOTE.test(s)) return {pdf:true, txt:true};
+      }
+      i = j;
+    }
+    return {pdf:false, txt:any};
+  }
+  function exportKind(s){ return /pdf/i.test(s) ? 'pdf' : 'txt'; }
   var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
   var pdfKit = null;
   function fetchB64(url){
@@ -1049,7 +1068,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function isTransLn(ln){ return !isBlank(line(ln)) && isTransHead(paraHead(ln)); }
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
-    function isCmdLn(ln){ return CMD_EXPORT.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))); }
+    function isCmdLn(ln){ return CMD_EXPORT.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))) && exportReady(line(ln)); }
+    // Whether /pdf and /txt or /fdx have something to export, kept until the text changes
+    var readyMemo = null;
+    function exportReadyAll(){
+      var v = cm.version();
+      if (!readyMemo || readyMemo.v !== v) readyMemo = {v:v, r:exportContent(line, cm.lineCount(), preEnd())};
+      return readyMemo.r;
+    }
+    function exportReady(s){ return exportReadyAll()[exportKind(s)]; }
     // The closing --- is looked up very often (every paragraph test asks for it), so the answer is kept until the text
     // changes
     var teMemo = null;
@@ -2061,7 +2088,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         }
         if (hid[i] || blank) return {w:W, x:X};
         var h0 = H[i], hs = T[h0];
-        if (i > te && CMD_EXPORT.test(s) && h0 === i && (i + 1 >= n || T[i + 1].trim() === '')){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
+        if (i > te && CMD_EXPORT.test(s) && h0 === i && (i + 1 >= n || T[i + 1].trim() === '') && exportReady(s)){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
         if (i <= te || isMark(s)){
           want('text', 'sm-t-act sm-t-note');
           if (i < te && headOf(s)) want('wrap', 'sm-head');
@@ -2504,7 +2531,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // refresh(): everything again (after a command: a view, notes, the title page, a setting). refreshChanged(): after
     // typing, only the lines around the changes since the last time get their classes again; it falls back to the whole
     // script when the hidden text, the title page or the language changed
-    var DEC = {dirty:null, full:true, te:-2, lang:''};
+    var DEC = {dirty:null, full:true, te:-2, lang:'', ready:''};
     function refresh(){ DEC.full = true; refreshChanged(); }
     function refreshChanged(){
       preGaps();
@@ -2524,7 +2551,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var inner = !keep && markRanges.some(function(r){ return !r.top; });
         // a change over many lines (Reformat, a long paste) is quicker as one pass over the whole script
         var big = !!d && d.b - d.a > 1500;
-        var full = DEC.full || rebuilt || inner || big || te !== DEC.te || lang !== DEC.lang;
+        // export commands light up or go dark everywhere when the script gains its first content or loses its last
+        var rd = exportReadyAll(), ready = (rd.pdf ? 'p' : '') + (rd.txt ? 't' : '');
+        var full = DEC.full || rebuilt || inner || big || te !== DEC.te || lang !== DEC.lang || ready !== DEC.ready;
         if (full) decorate();
         else {
           var rs = [];
@@ -2535,7 +2564,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           catch (e){ if (window.console) console.error('scriptin: line classes', e); decorate(); }
         }
         DEC.rng = full || !DEC.dirty ? (full ? null : {a:0, b:-1, delta:0}) : (function(){ var r = decoRange(DEC.dirty.a, DEC.dirty.b); return {a:r.a, b:r.b, delta:DEC.dirty.delta}; })();
-        DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang;
+        DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang; DEC.ready = ready;
       });
       belowPre(); paginatePages(DEC.rng); applyTheme(); undoing = false;
     }

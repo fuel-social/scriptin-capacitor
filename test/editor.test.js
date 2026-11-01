@@ -486,6 +486,31 @@ cm.setValue('Action.\n\n/pd'); eq2('/pd not yet', /sm-t-cmd/.test(cm.getLineHand
 eq2('/pd: no ↵', w.document.querySelectorAll('.sm-cmdmark').length, 0);
 cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-t-cmd/.test(cm.getLineHandle(1).textClass || ''), false);
 
+// Nothing below the title page: no export command lights up, Enter exports nothing. /pdf needs a printed element,
+// /txt and /fdx count notes as content
+{
+  const cmd = i => /sm-t-cmd/.test(cm.getLineHandle(i).textClass || ''), marks = () => w.document.querySelectorAll('.sm-cmdmark').length;
+  const tp = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n---\n\n';
+  cm.setValue('/pdf'); eq2('empty script: /pdf not a command', cmd(0), false); eq2('empty script: no ↵', marks(), 0);
+  cm.setValue('/txt\n\n/fdx'); eq2('empty script: /txt and /fdx not commands', cmd(0) + ' ' + cmd(2), 'false false');
+  cm.setValue(tp + '/pdf'); eq2('title page only: /pdf not a command', cmd(8), false); eq2('title page only: no ↵', marks(), 0);
+  cm.setValue(tp + '// a note\n\n/pdf\n\n/txt\n\n/fdx'); eq2('only a note: /pdf no, /txt and /fdx yes', [10, 12, 14].map(cmd).join(' '), 'false true true');
+  eq2('only a note: ↵ for /txt and /fdx', marks(), 2);
+  cm.setValue(tp + '===\n\n/txt'); eq2('only a page break: /txt not a command', cmd(10), false);
+  cm.setValue(tp + 'Action.\n\n/pdf'); eq2('with action: /pdf is a command', cmd(10), true);
+  // the first text lights up a command further down, removing it turns the command off again
+  cm.setValue(tp + '\n\n/pdf'); eq2('before typing: off', cmd(10), false);
+  cm.replaceRange('Action.', {line:8, ch:0}, null, '+input'); cm.smView(); eq2('typed above: on', cmd(10), true); eq2('typed above: ↵', marks(), 1);
+  cm.replaceRange('', {line:8, ch:0}, {line:8, ch:7}, '+delete'); cm.smView(); eq2('deleted again: off', cmd(10), false); eq2('deleted again: no ↵', marks(), 0);
+  // Enter on an inactive command downloads nothing and keeps the line
+  const made = []; const orig = w.URL.createObjectURL; w.URL.createObjectURL = b => { made.push(b); return 'blob:x'; };
+  cm.setValue('/txt'); cm.setCursor({line:0, ch:4}); enter();
+  eq2('empty script: Enter on /txt exports nothing', made.length + ' ' + JSON.stringify(cm.getLine(0)), '0 "/txt"');
+  cm.setValue('// a note\n\n/txt'); cm.setCursor({line:2, ch:4}); enter();
+  eq2('only a note: Enter on /txt exports', made.length + ' ' + JSON.stringify(cm.getLine(2)), '1 ""');
+  w.URL.createObjectURL = orig;
+}
+
 // Mode: Day or Night on the title page, Up/Down; the editor takes the colours of OptS_theme_ui light or dark at once
 {
   w.app = { option_sets:{ _theme_ui:{ values:{ a:{db_value:'light', colorbackground:'#F9F9F9', colorforeground:'#1C2F42', colorblue:'#009ECE', colorframe:'#E2E2E2', colorinactive:'#929BA4', colorred:'#F2505D'},
