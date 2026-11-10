@@ -2585,8 +2585,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (nc) host.style.setProperty('--sm-blue-night', nc.colorblue);
       var page = document.querySelector('.main-page');
       if (page) page.style.setProperty('background-color', t.colorbackground, 'important');
-      // The footer (reusable ♻️ Footer) follows the script's mode too: text and lines in colorForeground, icons light or dark
+      // The footer (reusable ♻️ Footer) follows the script's mode too: text and lines in colorForeground, icons light or dark.
+      // The menu above the editor (G_Nav, buttonLibrary_Nav) also takes the mode's background and frame colours
       document.documentElement.style.setProperty('--sm-page-fg', t.colorforeground);
+      document.documentElement.style.setProperty('--sm-page-bg', t.colorbackground);
+      document.documentElement.style.setProperty('--sm-page-frame', t.colorframe);
       footerIcons();
       tellMode();
     }
