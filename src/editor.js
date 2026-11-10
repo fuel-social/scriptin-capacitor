@@ -2588,7 +2588,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var page = document.querySelector('.main-page');
       if (page) page.style.setProperty('background-color', t.colorbackground, 'important');
       // The footer (reusable ♻️ Footer) follows the script's mode too: text and lines in colorForeground, icons light or dark.
-      // The menu above the editor (G_Nav, buttonLibrary_Nav) also takes the mode's background and frame colours
+      // The menu above the editor (G_Nav, buttonLibrary_Nav) also takes the mode's background and frame colours.
+      // The page reads these three in Bubble, in the reusable ♻️ capacitor CSS on the page scriptin
       document.documentElement.style.setProperty('--sm-page-fg', t.colorforeground);
       document.documentElement.style.setProperty('--sm-page-bg', t.colorbackground);
       document.documentElement.style.setProperty('--sm-page-frame', t.colorframe);

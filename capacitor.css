@@ -89,40 +89,12 @@
 #sm-editor .sm-head{padding-bottom:calc(var(--sm-lh) / 2)}
 /* Bars reach down to the bottom of g, j, p, q, y (--sm-under, measured from the font), not only to the line's bottom */
 
-/* Footer (reusable ♻️ Footer) on this page: text and top lines in the script mode's colorForeground */
-.colorForeground{color:var(--sm-page-fg,#1C2F42) !important}
-.colorForeground a{color:inherit !important}
-.a1731945775167x870722393325770900,.a1731945775132x124084055742705760{border-top-color:var(--sm-page-fg,#1C2F42) !important}
-/* The footer is as wide as the editor (720px) and centred like it */
-.main-page > .bubble-element:has(.a1731945775167x870722393325770900){width:720px !important;min-width:720px !important;max-width:720px !important;align-self:center !important;margin-left:auto !important;margin-right:auto !important}
-/* Footer font as on the other pages (♻️ CSS, which this page does not load): GT Pressura Light 16/22; the footer's
-   margins come from Bubble */
-@font-face{font-family:'GTPressuraLight';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013826617x895646006020087300/GT-Pressura-Standard-Light.woff')}
-.GTPressuraLight_16{font-family:'GTPressuraLight';text-decoration:none !important;margin-right:0;margin-left:0;font-size:16px;padding-top:8px !important;line-height:22px}
-/* The page's HTML header hides the menu and the texts (smWait) until this file is here, so they never show in a
-   fallback font first; this rule shows them */
-#smNav,#smAbout,#smGuide{visibility:visible !important}
-/* Menu above the editor (group G_Nav, ID Attribute smNav): Editor · About · Guide as the buttons of fuel-education
-   (buttonLibrary_Nav, the active one buttonLibrary_Nav_Selected), each 40px high in the middle of the 48px bar, without
-   lines around the bar. Colours follow the script's mode (--sm-page-*, set by the editor) */
-.buttonLibrary_Nav,.buttonLibrary_Nav_Selected{float:left;position:relative;top:50%;transform:translateY(-50%);box-sizing:border-box;font-family:'GTPressuraRegular',sans-serif;font-size:21px;line-height:22px;white-space:nowrap;border-radius:7px;-webkit-appearance:none}
-.buttonLibrary_Nav{padding:7px 13px;border:2px solid var(--sm-page-frame,#E2E2E2);background-color:var(--sm-page-bg,#F9F9F9);color:var(--sm-page-fg,#1C2F42)}
-.buttonLibrary_Nav_Selected{padding:9px 15px;border:0;background-color:var(--sm-page-fg,#1C2F42);color:var(--sm-page-bg,#F9F9F9)}
-/* About and Guide (their texts are the App texts scriptin_about ...): the text classes of fuel-education with the same
-   names, in the script's mode. Title GTPressuraBold_24_Main_Title_Left, section titles GTPressuraBold_21_Article (with
-   the line below, as long as the title), text GTPressuraRegular_21_Index_Body; <slanted> inside it for italics, .markup-code for short codes */
-@font-face{font-family:'GTPressuraBold';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713014076869x139103847696363090/GT-Pressura-Standard-Bold.woff')}
-@font-face{font-family:'GTPressuraRegularItalic';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013646811x657053650698396400/GT-Pressura-Standard-Regular-Italic.woff')}
-.GTPressuraBold_24_Main_Title_Left{font-family:'GTPressuraBold',sans-serif;font-weight:normal;font-size:24px;line-height:32px;text-align:left;margin:0 0 24px;color:var(--sm-page-fg,#1C2F42)}
-.GTPressuraBold_21_Article{width:fit-content;max-width:100%;font-family:'GTPressuraBold',sans-serif;font-weight:normal;font-size:21px;line-height:34px;text-align:left;margin:48px 0 21px;padding-bottom:4px;border-bottom:2px solid var(--sm-page-fg,#1C2F42);color:var(--sm-page-fg,#1C2F42)}
-.GTPressuraBold_21_Article:first-child{margin-top:0}
-.GTPressuraRegular_21_Index_Body{font-family:'GTPressuraRegular',sans-serif;font-weight:normal;font-size:21px;line-height:32px;text-align:left;margin:0 0 16px;color:var(--sm-page-fg,#1C2F42)}
-.GTPressuraRegular_21_Index_Body slanted{font-family:'GTPressuraRegularItalic',sans-serif;font-style:normal}
-.GTPressuraRegular_21_Index_Body .markup-code{font-family:'GTPressuraMonoRegular',monospace;padding:0 6px;border-radius:3px;background-color:var(--sm-page-frame,#E2E2E2)}
+/* The page around the editor (fonts GT Pressura Light, Regular, Regular-Italic and Bold; the menu Editor · About · Guide;
+   the About and Guide texts; the footer) is styled in Bubble, in the reusable ♻️ capacitor CSS on the page scriptin, which
+   reads the colours of the script's mode from --sm-page-fg, --sm-page-bg and --sm-page-frame (set by the editor) */
 /* Final Draft import: while a file is dragged over the page the script steps aside; the frame lines and the invitation
    between them in colorBlue (GT Pressura Regular, larger than the build line); below it, smaller, the conditions:
    3 pages max, and with a script that it will be replaced */
-@font-face{font-family:'GTPressuraRegular';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013373951x392494120763925600/GT-Pressura-Standard-Regular.woff')}
 #sm-editor .sm-drop{display:none;position:absolute;left:0;right:0;transform:translateY(-50%);z-index:5;pointer-events:none;text-align:center;color:var(--sm-blue);font-family:'GTPressuraRegular',sans-serif}
 #sm-editor .sm-drop-main{font-size:23px;line-height:35px;max-width:560px;margin:0 auto}
 /* 32px from the large line's baseline to the small line's (the 6px gap plus each line's own room below and above its baseline) */
