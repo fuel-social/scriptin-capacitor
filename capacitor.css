@@ -107,11 +107,11 @@
 .buttonLibrary_Nav_Selected{padding:9px 15px;border:0;background-color:var(--sm-page-fg,#1C2F42);color:var(--sm-page-bg,#F9F9F9)}
 /* About and Guide (their texts are the App texts scriptin_about ...): the text classes of fuel-education with the same
    names, in the script's mode. Title GTPressuraBold_24_Main_Title_Left, section titles GTPressuraBold_21_Article (with
-   the line below), text GTPressuraRegular_21_Index_Body; <slanted> inside it for italics, .markup-code for short codes */
+   the line below, as long as the title), text GTPressuraRegular_21_Index_Body; <slanted> inside it for italics, .markup-code for short codes */
 @font-face{font-family:'GTPressuraBold';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713014076869x139103847696363090/GT-Pressura-Standard-Bold.woff')}
 @font-face{font-family:'GTPressuraRegularItalic';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013646811x657053650698396400/GT-Pressura-Standard-Regular-Italic.woff')}
 .GTPressuraBold_24_Main_Title_Left{font-family:'GTPressuraBold',sans-serif;font-weight:normal;font-size:24px;line-height:32px;text-align:left;margin:0 0 24px;color:var(--sm-page-fg,#1C2F42)}
-.GTPressuraBold_21_Article{font-family:'GTPressuraBold',sans-serif;font-weight:normal;font-size:21px;line-height:34px;text-align:left;margin:48px 0 16px;padding-bottom:4px;border-bottom:2px solid var(--sm-page-fg,#1C2F42);color:var(--sm-page-fg,#1C2F42)}
+.GTPressuraBold_21_Article{width:fit-content;max-width:100%;font-family:'GTPressuraBold',sans-serif;font-weight:normal;font-size:21px;line-height:34px;text-align:left;margin:48px 0 16px;padding-bottom:4px;border-bottom:2px solid var(--sm-page-fg,#1C2F42);color:var(--sm-page-fg,#1C2F42)}
 .GTPressuraBold_21_Article:first-child{margin-top:0}
 .GTPressuraRegular_21_Index_Body{font-family:'GTPressuraRegular',sans-serif;font-weight:normal;font-size:21px;line-height:32px;text-align:left;margin:0 0 16px;color:var(--sm-page-fg,#1C2F42)}
 .GTPressuraRegular_21_Index_Body slanted{font-family:'GTPressuraRegularItalic',sans-serif;font-style:normal}
