@@ -106,8 +106,8 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   const head = (lang) => '---\n\n//X\nTitle: A\nAuthor: \n\nPage size: A4\nLanguage: ' + lang + '\n\n---\n\n';
   const t = '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe waits.\n\n,VALERIA,\nGoodbye.';
   const cues = (lang) => Lay(head(lang) + t, true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | ');
-  eq("layout: (CONT'D) in the script's language", ['English', 'Deutsch', 'Français', 'Italiano'].map(cues).join(' / '),
-    "VALERIA | VALERIA (CONT'D) / VALERIA | VALERIA (WEITER) / VALERIA | VALERIA (SUITE) / VALERIA | VALERIA (CONT.)");
+  eq("layout: (CONT'D) in the script's language", ['English', 'Deutsch', 'Italiano'].map(cues).join(' / '),
+    "VALERIA | VALERIA (CONT'D) / VALERIA | VALERIA (WEITER) / VALERIA | VALERIA (CONT.)");
   eq('layout: a typed (WEITER) is not doubled', Lay(head('Deutsch') + '.i ROOM - DAY\n\n,VALERIA,\nOkay.\n\nShe waits.\n\n,VALERIA (WEITER),\nGoodbye.', true).pages[0].filter(x => x.kind === 'cue').map(x => x.s).join(' | '), 'VALERIA | VALERIA (WEITER)');
 }
 
@@ -116,8 +116,8 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
   const head = (lang) => '---\n\n//X\nTitle: A\nAuthor: \n\nPage size: A4\nLanguage: ' + lang + '\n\n---\n\n';
   const big = act(24) + '\n\n,ANNA,\n' + Array.from({length:12}, (_, i) => 'Sentence ' + i + ' is said here.').join('\n');
   const more = (lang) => { const p = Lay(head(lang) + big, true).pages; const a = p[0][p[0].length - 1], b = p[1][0]; return a.s + ' ' + b.s; };
-  eq('layout: (MORE) and (CONT\'D) in the script\'s language', ['English', 'Deutsch', 'Français', 'Italiano'].map(more).join(' / '),
-    "(MORE) ANNA (CONT'D) / (MEHR) ANNA (WEITER) / (À SUIVRE) ANNA (SUITE) / (CONTINUA) ANNA (CONT.)");
+  eq('layout: (MORE) and (CONT\'D) in the script\'s language', ['English', 'Deutsch', 'Italiano'].map(more).join(' / '),
+    "(MORE) ANNA (CONT'D) / (MEHR) ANNA (WEITER) / (CONTINUA) ANNA (CONT.)");
 }
 
 {
@@ -146,7 +146,7 @@ eq('Final Draft A4: three pages', P58(text).length, 2);
     eq('a long cue wraps after 38 characters, as in Final Draft', pg, ['FÖALSKD FALÖSKDJ FAÖLS AÖSLKDJ FAÖSLDK', 'ASD']);
     eq('a cue of two rows takes two lines on the page', Lay(',' + name + ',\nHi.', true).pages[0].map(x => x.y), [0, 1, 2]); }
   eq('a transition wraps after 16 characters, as in Final Draft', Lay('Action.\n\n.t smash cut toqwe: and then more', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['SMASH CUT TOQWE:', 'AND THEN MORE']);
-  eq('French: transitions as wide as the longest French one (20)', Lay('---\n\n//SETTINGS\nLanguage: Français\n\n---\n\nAction.\n\n.t fondu enchaîné sur : et encore', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['FONDU ENCHAÎNÉ SUR :', 'ET ENCORE']);
+  eq('Italian: transitions as wide as the longest Italian one (23)', Lay('---\n\n//SETTINGS\nLanguage: Italiano\n\n---\n\nAction.\n\n.t dissolvenza in entrata: e ancora', true).pages[0].filter(x => x.kind === 'trans').map(x => x.s), ['DISSOLVENZA IN ENTRATA:', 'E ANCORA']);
   eq("a typed (CONT'D) with a typographic apostrophe is not doubled", Lay(",ANNA,\nHi.\n\n,ANNA (CONT\u2019D),\nYes.", true).pages[0].filter(x => x.kind === 'cue').map(x => x.s), ['ANNA', 'ANNA (CONT\u2019D)']);
   eq('emphasis in a cue: italic name, markers not printed', segs(',*beamter*,\nHi.'), 'I[BEAMTER] / [Hi.]');
   // Act lines (Final Draft PDF of 30.10.): two empty lines before like a slugline, one after; capitals, underlined; as

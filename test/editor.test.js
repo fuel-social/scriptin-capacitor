@@ -160,9 +160,8 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   down(); doc('again: back to A4', TP('Night', '', 'A4') + ' @7:13');
   tab(); down();
   doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nModus: Tag\n\n--- @8:16');
-  down(); doc('Français', '---\n\n//PAGE DE TITRE\nTitre: Night\nAuteur: \n\n//PARAMÈTRES\nFormat: A4\nLangue: Français\nAutocomplétion: Activée\nMode: Jour\n\n--- @8:16');
   down(); doc('Italiano', '---\n\n//FRONTESPIZIO\nTitolo: Night\nAutore: \n\n//IMPOSTAZIONI\nFormato: A4\nLingua: Italiano\nAutocompletamento: Attivo\nModalità: Giorno\n\n--- @8:16');
-  up(); up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nModus: Tag\n\n--- @8:16');
+  up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nModus: Tag\n\n--- @8:16');
   up(); doc('and to English', TP('Night', '') + ' @8:17');
   cm.setCursor({line:6, ch:0}); cm.setCursor({line:7, ch:3}); up();
   { const ok = cm.getValue() === TP('Night', ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with the arrow keys the setting stays as it is'); }
@@ -440,8 +439,7 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   const toLang = () => { const ln = cm.getValue().split('\n').findIndex(l => /^(Seitenformat|Format|Formato|Page size):/.test(l)); cm.setCursor({line:ln, ch:3}); tab(); };
   const last = () => cm.getLine(cm.lastLine());
   k9(); toLang(); down();
-  eq2('Language to Français translates the transition', last(), ".t FONDU D'OUVERTURE :");
-  down(); eq2('Italiano', last(), '.t DISSOLVENZA IN ENTRATA:');
+  eq2('Language to Italiano translates the transition', last(), '.t DISSOLVENZA IN ENTRATA:');
   cm.changeGeneration(true); down(); eq2('English', last(), '.t FADE IN:');
   cm.execCommand('undo'); eq2('one Cmd+Z takes the language and the transition back', last() + ' / ' + cm.getValue().split('\n').find(l => /^(Lingua|Language|Sprache):/.test(l)), '.t DISSOLVENZA IN ENTRATA: / Lingua: Italiano');
   k9(); cm.setValue(DE + '.t MY OWN TRANSITION:'); k9(); toLang(); down();
@@ -461,8 +459,7 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   down(); eq2('then OFF', cue(), ',ANNA (OFF),');
   down(); eq2('and WEITER again', cue(), ',ANNA (WEITER),');
   const ln = cm.getValue().split('\n').findIndex(l => /^Seitenformat:/.test(l)); cm.setCursor({line:ln, ch:3}); if (cm.getCursor().line !== ln){ k9(); cm.setCursor({line:ln, ch:3}); } tab(); down();
-  eq2('Language to Français: WEITER becomes SUITE', cue(), ',ANNA (SUITE),');
-  down(); eq2('Italiano: CONT.', cue(), ',ANNA (CONT.),');
+  eq2('Language to Italiano: WEITER becomes CONT.', cue(), ',ANNA (CONT.),');
   down(); eq2("English: CONT'D", cue(), ",ANNA (CONT'D),");
 }
 
@@ -474,8 +471,7 @@ check('/pdf inside a paragraph stays text', '"" cursor 3:0');
   const ln = cm.getValue().split('\n').findIndex(l => /^Seitenformat:/.test(l));
   cm.setCursor({line:ln, ch:3}); if (cm.getCursor().line !== ln){ k9(); cm.setCursor({line:ln, ch:3}); } tab(); down();
   const slugs = () => cm.getValue().split('\n').filter(l => /^\.[ie] /.test(l)).join(' | ');
-  eq2('Français: NUIT, LE LENDEMAIN, a word that only starts like a time stays', slugs(), '.i KÜCHE - NUIT | .e GARTEN - LE LENDEMAIN - REGEN | .i FLUR - TAGEBUCH');
-  down(); eq2('Italiano', slugs(), '.i KÜCHE - NOTTE | .e GARTEN - IL GIORNO DOPO - REGEN | .i FLUR - TAGEBUCH');
+  eq2('Italiano: NOTTE, IL GIORNO DOPO, a word that only starts like a time stays', slugs(), '.i KÜCHE - NOTTE | .e GARTEN - IL GIORNO DOPO - REGEN | .i FLUR - TAGEBUCH');
   down(); eq2('English', slugs(), '.i KÜCHE - NIGHT | .e GARTEN - THE NEXT DAY - REGEN | .i FLUR - TAGEBUCH');
 }
 
@@ -529,7 +525,7 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   down(); down(); eq2('logo: Bubble gets light, then dark', sent.join(' '), 'light dark');
   down(); eq2('again: Tag', cm.getLine(ln + 1) + ' ' + bg(), 'Modus: Tag #F9F9F9 #81C7E3');
   down(); cm.setCursor({line:ln, ch:3}); tab(); cm.setCursor({line:ln - 1, ch:3}); tab(); down();
-  eq2('Language to Français: Nacht becomes Nuit', cm.getValue().split('\n').find(l => /^Mode:/.test(l)), 'Mode: Nuit');
+  eq2('Language to Italiano: Nacht becomes Notte', cm.getValue().split('\n').find(l => /^Modalità:/.test(l)), 'Modalità: Notte');
   cm.setValue('---\n\nTitle: A\n\n---\n\nAction.'); eq2('no Mode line: Day', bg(), '#F9F9F9 #81C7E3');
   delete w.app;
 }
@@ -555,7 +551,6 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   down(); eq2('again: On', cm.getLine(9), 'Autocomplete: On');
   down(); cm.setCursor({line:7, ch:3}); tab(); down();
   eq2('Language to Deutsch: Off becomes Aus', cm.getLine(9), 'Autovervollständigung: Aus');
-  down(); eq2('Français: Désactivée', cm.getLine(9), 'Autocomplétion: Désactivée');
   down(); eq2('Italiano: Disattivo', cm.getLine(9), 'Autocompletamento: Disattivo');
   k9();
   // A title page from before Autocomplete gets it, on, right above Mode
@@ -684,7 +679,7 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   r = imp('de');
   eq2('German recognised, title page in German, V.O. and O.S. become OFF', r.lang + ' | ' + pre('Sprache') + ' | ' + body().split('\n').filter(l => /^,/.test(l)).join(' '), 'de | Deutsch | ,TOM (OFF), ,ANNA (OFF),');
   eq2('INNEN. becomes .i', body().split('\n')[0], '.i KÜCHE - TAG');
-  r = imp('fr'); eq2('French recognised although INT. is used, O.C. becomes H.C.', r.lang + ' ' + body().split('\n').find(l => /^,/.test(l)), 'fr ,TOM (H.C.),');
+  r = imp('fr'); eq2('French refused, the script stays', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"language"} true');
   r = imp('it'); eq2('Italian recognised, INT./EST. becomes .ie, O.S. becomes F.C.', r.lang + ' ' + body().split('\n')[0] + ' ' + body().split('\n').find(l => /^,/.test(l)), 'it .ie CUCINA - GIORNO ,TOM (F.C.),');
   r = imp('es'); eq2('Spanish refused, the script stays', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"language"} true');
   r = imp('notfdx'); eq2('not a Final Draft file: ignored', JSON.stringify(r) + ' ' + /Old script/.test(cm.getValue()), '{"ok":false,"reason":"notfdx"} true');

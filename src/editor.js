@@ -52,9 +52,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', auto:'Autovervollständigung', mode:'Modus'}, modes:['Tag', 'Nacht'], autos:['Ein', 'Aus'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
      time:['TAG', 'NACHT', 'MORGEN', 'NACHMITTAG', 'ABEND', 'MORGENDÄMMERUNG', 'ABENDDÄMMERUNG', 'MAGIC HOUR', 'CONTINUOUS', 'SPÄTER', 'MOMENTE SPÄTER', 'GLEICH', 'GLEICHE ZEIT', 'AM NÄCHSTEN TAG'], ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Français', code:'fr', head:{title:'PAGE DE TITRE', settings:'PARAMÈTRES'}, cmd:{title:'Titre', author:'Auteur', size:'Format', lang:'Langue', auto:'Autocomplétion', mode:'Mode'}, modes:['Jour', 'Nuit'], autos:['Activée', 'Désactivée'], slug:{I:'INT.', E:'EXT.', IE:'INT./EXT.', EI:'INT./EXT.'}, credit:'Scénario de', more:'(À SUIVRE)',
-     time:['JOUR', 'NUIT', 'MATIN', 'APRÈS-MIDI', 'SOIR', 'AUBE', 'CRÉPUSCULE', "L'HEURE BLEUE", 'CONTINU', 'PLUS TARD', 'QUELQUES INSTANTS PLUS TARD', 'MÊME', 'EN MÊME TEMPS', 'LE LENDEMAIN'], ext:['VOIX OFF', 'H.C.', 'H.C.', 'SUITE'],
-     trans:['COUPE SUR :', "FONDU D'OUVERTURE :", 'FONDU DE FERMETURE.', 'FONDU SUR :', 'FONDU ENCHAÎNÉ SUR :', 'RETOUR À :', 'MATCH CUT SUR :', 'JUMP CUT SUR :', 'FONDU AU NOIR.', 'COUPE FRANCHE SUR :', 'COUPE AU NOIR.', 'COUPE TEMPORELLE :']},
     {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', auto:'Autocompletamento', mode:'Modalità'}, modes:['Giorno', 'Notte'], autos:['Attivo', 'Disattivo'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
      time:['GIORNO', 'NOTTE', 'MATTINA', 'POMERIGGIO', 'SERA', 'ALBA', 'TRAMONTO', 'ORA MAGICA', 'CONTINUO', 'PIÙ TARDI', 'POCO DOPO', 'STESSO', 'STESSO MOMENTO', 'IL GIORNO DOPO'], ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
@@ -116,7 +113,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       for (var k in LANGS[i].head){ if (bare(LANGS[i].head[k]) === bare(m[1])) return k; }
     }
     // earlier names are still read (and renamed)
-    if (['skripteinstellungen', 'script settings', 'parametres du scenario'].indexOf(bare(m[1])) >= 0) return 'settings';
+    if (['skripteinstellungen', 'script settings'].indexOf(bare(m[1])) >= 0) return 'settings';
     return null;
   }
   // Value of a setting ('size' or 'lang') on the title page; te is the line of the closing ---
@@ -2372,8 +2369,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // The script's language decides the title page's words; Mode and Autocomplete stay as they were, the page size comes
     // from the file (the current one when it does not say). Only the first MAX_PAGES pages are taken: the text is cut
     // where page MAX_PAGES + 1 would begin. One change, so Cmd+Z brings the old script back.
-    // Returns {ok, reason, lang, cut}; reason 'notfdx' (not a Final Draft script), 'language' (not English, German,
-    // French or Italian) or 'readonly' (a script is still loading)
+    // Returns {ok, reason, lang, cut}; reason 'notfdx' (not a Final Draft script), 'language' (not English, German
+    // or Italian) or 'readonly' (a script is still loading)
     function importFdx(xml){
       if (cm.view && cm.view.state.readOnly) return {ok:false, reason:'readonly'};
       var r = readFdx(xml, window.DOMParser, LANGS, extIndex);
@@ -2470,7 +2467,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       dropShow(false);
       (f.text ? f.text() : new Promise(function(res){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.readAsText(f); })).then(function(xml){
         var r = importFdx(xml);
-        if (!r.ok && r.reason === 'language') dropShow(true, 'Only English, German, French and Italian<br>scripts can be imported');
+        if (!r.ok && r.reason === 'language') dropShow(true, 'Only English, German and Italian<br>scripts can be imported');
       }, function(){});
     }, true);
     // The title page always has an empty line right after the opening --- and right before the closing ---

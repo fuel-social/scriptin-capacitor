@@ -2,7 +2,7 @@
 // so the tests can call them; the editor (src/editor.js) adds the title page, cuts to the page limit and puts it in.
 //
 // Final Draft's elements and what they become (as agreed for scriptin Machine):
-//   Scene Heading            .i .e .ie .ei (from INT. EXT. INT./EXT. and the German, French and Italian words);
+//   Scene Heading            .i .e .ie .ei (from INT. EXT. INT./EXT. and the German and Italian words);
 //                            a heading without one of them stays as action
 //   Action, General          action
 //   Character                ,NAME (EXT),  V.O., O.S. and O.C. in the script's language, (CONT'D) dropped
@@ -17,7 +17,8 @@
 // two dialogues one after the other.
 
 // Words that only one language uses often: the language with the most of them in the script wins. Languages scriptin
-// does not support are counted too, so a Spanish script is recognised as Spanish and refused, not taken for French
+// does not support are counted too, so a French or Spanish script is recognised as such and refused, not taken for
+// Italian
 var STOP = {
   en:'the and you is to of it that he she his her with what this are was for have at be not',
   de:'der die das und ist nicht ich sie er ein eine zu mit den dem auf du es was wir sich auch',
@@ -124,7 +125,7 @@ function cueOf(text, L, LANGS, extIndex){
     var e = x.replace(/^\(|\)$/g, '').trim().toUpperCase().replace(/[’‘ʼ`´]/g, "'");
     if (!e) return;
     // (CONT'D) in any language or spelling: scriptin prints its own
-    if (/^CONT'?D\.?$|^CONT\.?$|^CONTINUED$|^WEITER$|^SUITE$|^CONT'D$/.test(e) || LANGS.some(function(M){ return M.ext[3] === e; })) return;
+    if (/^CONT'?D\.?$|^CONT\.?$|^CONTINUED$|^WEITER$|^CONT'D$/.test(e) || LANGS.some(function(M){ return M.ext[3] === e; })) return;
     var i = extIndex(e);
     exts.push(i >= 0 && i < 3 ? L.ext[i] : e);
   });
@@ -149,7 +150,7 @@ function titlePageOf(doc){
   var lines = Array.prototype.filter.call(content.childNodes, function(n){ return n.nodeType === 1 && n.nodeName === 'Paragraph'; }).map(paraText).map(function(s){ return s.replace(/[_*]/g, '').trim(); }).filter(Boolean);
   if (lines.length) title = lines[0];
   // the credit line alone (Written by) with the name on the next line, or with the name after it on the same line
-  var CREDIT = /^((written|screenplay|story|teleplay)\s+by|by|(drehbuch|geschrieben|buch)(\s+von)?|von|(écrit|scénario)\s+(par|de)|par|(scritto|sceneggiatura|soggetto)\s+(da|di)|di)\b\s*:?\s*/i;
+  var CREDIT = /^((written|screenplay|story|teleplay)\s+by|by|(drehbuch|geschrieben|buch)(\s+von)?|von|(scritto|sceneggiatura|soggetto)\s+(da|di)|di)\b\s*:?\s*/i;
   for (var i = 1; i < lines.length; i++){
     var m = lines[i].match(CREDIT);
     if (!m) continue;
