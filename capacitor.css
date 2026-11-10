@@ -99,6 +99,9 @@
    margins come from Bubble */
 @font-face{font-family:'GTPressuraLight';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013826617x895646006020087300/GT-Pressura-Standard-Light.woff')}
 .GTPressuraLight_16{font-family:'GTPressuraLight';text-decoration:none !important;margin-right:0;margin-left:0;font-size:16px;padding-top:8px !important;line-height:22px}
+/* The page's HTML header hides the menu and the texts (smWait) until this file is here, so they never show in a
+   fallback font first; this rule shows them */
+#smNav,#smAbout,#smGuide{visibility:visible !important}
 /* Menu above the editor (group G_Nav, ID Attribute smNav): Editor · About · Guide as the buttons of fuel-education
    (buttonLibrary_Nav, the active one buttonLibrary_Nav_Selected), each 40px high in the middle of the 48px bar, without
    lines around the bar. Colours follow the script's mode (--sm-page-*, set by the editor) */

@@ -2849,6 +2849,16 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // and measure again, or lines with *italic* would wrap differently from the printed page
     if (document.fonts && document.fonts.load) document.fonts.load("italic 21px 'GTPressuraMonoRegular'").then(function(){ cm.refresh(); measureBand(); placePages(); }, function(){});
     window.addEventListener('resize', function(){ measureBand(); placePages(); });
+    // About and Guide hide the editor (Bubble hides its element htmlCapacitor). When it is shown again it is measured anew
+    // and takes the focus, so the cursor shows at once, where it was, without a click
+    if (window.ResizeObserver){
+      var shown = host.offsetWidth > 0;
+      new window.ResizeObserver(function(){
+        var now = host.offsetWidth > 0;
+        if (now && !shown){ cm.refresh(); measureBand(); placePages(); cm.focus(); }
+        shown = now;
+      }).observe(host);
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
