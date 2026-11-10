@@ -1878,22 +1878,24 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // Find the cursor (Cmd+Option+. or Ctrl+Shift+.): focus, center it in view, grow to the right from 3px to FIND_PX and back
     function findCursor(){
       cm.focus();
-      var pos = cm.getCursor();
       centerCursor();
-      requestAnimationFrame(function(){
-        // The grown cursor is a copy of the real one inside the editor, so it has exactly its size and place and moves
-        // with the text while the page scrolls (Safari scrolls smoothly)
-        var cur = cm.cursorElement();
-        if (!cur) return;
-        var cs = getComputedStyle(cur), el = document.createElement('div');
-        var cw = cur.style.width || '2px';
-        el.style.cssText = 'position:absolute;z-index:5;pointer-events:none;left:' + cur.style.left + ';top:' + cur.style.top + ';height:' + cs.height + ';width:' + cw + ';background:' + cs.backgroundColor;
-        cur.parentNode.appendChild(el);
-        if (el.animate){
-          var a = el.animate([{width:cw}, {width:FIND_PX + 'px'}, {width:cw}], {duration:FIND_MS, easing:'ease-in-out'});
-          a.onfinish = function(){ el.remove(); };
-        } else setTimeout(function(){ el.remove(); }, FIND_MS);
-      });
+      requestAnimationFrame(function(){ pulseCursor(false); });
+    }
+    // The cursor grows to the right to FIND_PX and back. The grown cursor is a copy of the real one inside the editor, so it
+    // has exactly its size and place and moves with the text while the page scrolls (Safari scrolls smoothly). With
+    // inView, nothing happens while the cursor is outside the window (the page is not scrolled to it)
+    function pulseCursor(inView){
+      var cur = cm.cursorElement();
+      if (!cur) return;
+      if (inView){ var r = cur.getBoundingClientRect(); if (!r.height || r.bottom <= 0 || r.top >= (window.innerHeight || 0)) return; }
+      var cs = getComputedStyle(cur), el = document.createElement('div');
+      var cw = cur.style.width || '2px';
+      el.style.cssText = 'position:absolute;z-index:5;pointer-events:none;left:' + cur.style.left + ';top:' + cur.style.top + ';height:' + cs.height + ';width:' + cw + ';background:' + cs.backgroundColor;
+      cur.parentNode.appendChild(el);
+      if (el.animate){
+        var a = el.animate([{width:cw}, {width:FIND_PX + 'px'}, {width:cw}], {duration:FIND_MS, easing:'ease-in-out'});
+        a.onfinish = function(){ el.remove(); };
+      } else setTimeout(function(){ el.remove(); }, FIND_MS);
     }
     cm.setOption('extraKeys', {
       'Tab': function(){ tab(); },
@@ -2850,12 +2852,18 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     if (document.fonts && document.fonts.load) document.fonts.load("italic 21px 'GTPressuraMonoRegular'").then(function(){ cm.refresh(); measureBand(); placePages(); }, function(){});
     window.addEventListener('resize', function(){ measureBand(); placePages(); });
     // About and Guide hide the editor (Bubble hides its element htmlCapacitor). When it is shown again it is measured anew
-    // and takes the focus, so the cursor shows at once, where it was, without a click
+    // and takes the focus, so the cursor shows at once, where it was, without a click; if the cursor is in the window it
+    // grows once as with Cmd+Option+. (the page is not scrolled to it)
     if (window.ResizeObserver){
       var shown = host.offsetWidth > 0;
+      // the cursor gets its place a few frames after the editor shows; wait for it (at most 20 frames)
+      var backPulse = function(n){
+        var cur = cm.cursorElement(), r = cur && cur.getBoundingClientRect();
+        if (r && r.height) pulseCursor(true); else if (n < 20) requestAnimationFrame(function(){ backPulse(n + 1); });
+      };
       new window.ResizeObserver(function(){
         var now = host.offsetWidth > 0;
-        if (now && !shown){ cm.refresh(); measureBand(); placePages(); cm.focus(); }
+        if (now && !shown){ cm.refresh(); measureBand(); placePages(); cm.focus(); requestAnimationFrame(function(){ backPulse(0); }); }
         shown = now;
       }).observe(host);
     }
