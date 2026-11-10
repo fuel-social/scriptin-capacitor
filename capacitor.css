@@ -99,9 +99,8 @@
 @font-face{font-family:'GTPressuraLight';src:url('https://02cafe17b771dfdb65b9d0cdf016aaf9.cdn.bubble.io/f1713013826617x895646006020087300/GT-Pressura-Standard-Light.woff')}
 .GTPressuraLight_16{font-family:'GTPressuraLight';text-decoration:none !important;margin-right:0;margin-left:0;font-size:16px;padding-top:8px !important;line-height:22px}
 /* Menu above the editor (group G_Nav, ID Attribute smNav): Editor · About · Guide as the buttons of fuel-education
-   (buttonLibrary_Nav, the active one buttonLibrary_Nav_Selected), each 40px high in the middle of the 48px bar; a line
-   above and below the bar that takes no space. Colours follow the script's mode (--sm-page-*, set by the editor) */
-#smNav{box-shadow:inset 0 1px 0 var(--sm-page-fg,#1C2F42),inset 0 -1px 0 var(--sm-page-fg,#1C2F42)}
+   (buttonLibrary_Nav, the active one buttonLibrary_Nav_Selected), each 40px high in the middle of the 48px bar, without
+   lines around the bar. Colours follow the script's mode (--sm-page-*, set by the editor) */
 .buttonLibrary_Nav,.buttonLibrary_Nav_Selected{float:left;position:relative;top:50%;transform:translateY(-50%);box-sizing:border-box;font-family:'GTPressuraRegular',sans-serif;font-size:21px;line-height:22px;white-space:nowrap;border-radius:7px;-webkit-appearance:none}
 .buttonLibrary_Nav{padding:7px 13px;border:2px solid var(--sm-page-frame,#E2E2E2);background-color:var(--sm-page-bg,#F9F9F9);color:var(--sm-page-fg,#1C2F42)}
 .buttonLibrary_Nav_Selected{padding:9px 15px;border:0;background-color:var(--sm-page-fg,#1C2F42);color:var(--sm-page-bg,#F9F9F9)}
