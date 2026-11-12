@@ -37,8 +37,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var ACT_PAD = 6;
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
-  // An export command (/pdf, /txt, /fdx) while it is typed: / and every beginning of one
-  var CMD_TYPING = /^\s*\/(p(df?)?|t(xt?)?|f(dx?)?)?\s*$/i;
+  // A note holds at most this many characters after its // (line breaks not counted)
+  var NOTE_MAX = 400;
   // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
   // two is title page, everything after the closing --- is script. One line per command: a line that starts with a word
   // and a colon (Title:, Author:) is a command, a line without one continues the command above (a second address line).
@@ -595,7 +595,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // marks and scene numbers are never printed.
   // Export commands alone on a line: /pdf (the printed reading script), /txt (the script as written, with its markup,
   // UTF-8, nothing added or wrapped) and /fdx (a Final Draft file, see fdxDoc)
-  var CMD_EXPORT = /^\s*\/(pdf|txt|fdx)\s*$/i;
+  // The commands, written after a / alone in a paragraph. A new command is added here (and where it is carried out):
+  // the patterns below and the number of characters that can be typed after a / follow from this list
+  var COMMANDS = ['pdf', 'txt', 'fdx'];
+  var CMD_EXPORT = new RegExp('^\\s*\\/(' + COMMANDS.join('|') + ')\\s*$', 'i');
+  // A command while it is typed: / and every beginning of one (/p, /pd, /pdf ...)
+  var CMD_TYPING = new RegExp('^\\s*\\/(' + COMMANDS.reduce(function(a, c){ for (var k = 1; k <= c.length; k++) if (a.indexOf(c.slice(0, k)) < 0) a.push(c.slice(0, k)); return a; }, []).join('|') + ')?\\s*$', 'i');
+  // After a / that begins a paragraph no more characters can be typed than the longest command has
+  var CMD_MAX = Math.max.apply(null, COMMANDS.map(function(c){ return c.length; }));
   // An export command only works when there is something to export below the title page: /pdf needs a printed element
   // (notes, section marks and page breaks are never printed), /txt and /fdx need any text, notes included (marks and the
   // export commands themselves do not count). Paragraphs are read as the exports read them: split at empty lines and marks
@@ -2862,6 +2869,25 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var F = ch.from.line, T = ch.to.line, A = ch.text.length - 1, dl = A - (T - F), nl = ch.text.slice();
       nl[0] = line(F).slice(0, ch.from.ch) + nl[0]; nl[A] = nl[A] + line(T).slice(ch.to.ch);
       var get = function(k){ return k < F ? line(k) : k <= F + A ? nl[k - F] : line(k - dl); };
+      // Notes hold at most NOTE_MAX characters after their // (line breaks not counted), and after the / that begins a
+      // paragraph at most CMD_MAX characters go in (as many as the longest command has); typing the / itself in front of
+      // a paragraph's text still works (on the way to // for a note). Checked in every paragraph the change ends up in
+      var nN = cm.lineCount() + dl, teN = titleEnd(get, nN), pa = Math.max(F, teN + 1);
+      while (pa > teN + 1 && !isBlank(get(pa - 1))) pa--;
+      while (pa <= F + A && pa < nN){
+        if (isBlank(get(pa))){ pa++; continue; }
+        var pe = pa, h0 = get(pa), m0, len = 0, q;
+        while (pe + 1 < nN && !isBlank(get(pe + 1))) pe++;
+        if (NOTE.test(h0)){
+          len = h0.length - 2; for (q = pa + 1; q <= pe; q++) len += get(q).length;
+          if (len > NOTE_MAX){ ch.cancel(); return; }
+        } else if ((m0 = /^\s*\/(?!\/)/.exec(h0))){
+          len = h0.length - m0[0].length; for (q = pa + 1; q <= pe; q++) len += 1 + get(q).length;
+          var front = F === pa && A === 0 && ch.from.ch + ch.text[0].length <= m0[0].length;
+          if (len > CMD_MAX && !front){ ch.cancel(); return; }
+        }
+        pa = pe + 1;
+      }
       // exact in a script of up to one page more than the limit; in a longer one (only an opened script can be longer)
       // the pages far below are counted a moment later, like the page numbers
       var longer = !!PG.starts && PG.starts.length + 1 > MAX_PAGES + 1, now = pagesNow(longer ? PG_NOW : undefined);

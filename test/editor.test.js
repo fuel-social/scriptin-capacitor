@@ -439,6 +439,22 @@ cm.setValue(full + '\n\nOne more.');
   typ('// check the clock', mid); same('a note between the lines goes in', full.replace('Line 1.', 'Line 1.\n\n// check the clock'));
   cm.setValue(full.replace('Line 1.', 'Line 1.\n\n')); typ('/txt', mid); same('an export command between the lines goes in', full.replace('Line 1.', 'Line 1.\n\n/txt'));
   { const ok = cm.smPages().full.length + 1 === 3; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'notes and commands take no room: still three pages'); }
+  // A note holds 400 characters after its // (line breaks not counted); after a / that begins a paragraph only as many
+  // characters go in as the longest command has (3: pdf, txt, fdx); a / typed in front of a paragraph's text still works
+  const N400 = 'n'.repeat(200) + ' ' + 'o'.repeat(199);
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('//' + N400 + 'xy'); same('a note takes 400 characters after its //, no more', '.i HOUSE - DAY\n\n//' + N400);
+  cm.setValue('.i HOUSE - DAY\n\n//' + 'a'.repeat(200) + '\n'); typ('b'.repeat(205)); same('line breaks in a note are not counted', '.i HOUSE - DAY\n\n//' + 'a'.repeat(200) + '\n' + 'b'.repeat(200));
+  cm.setValue('.i HOUSE - DAY\n\n'); cm.replaceRange('//' + N400 + '!', endPos(), endPos(), 'paste'); same('a pasted note over 400 characters is refused', '.i HOUSE - DAY\n\n');
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('/pdfx'); same('after the /: three characters (the longest command), no more', '.i HOUSE - DAY\n\n/pdf');
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('/abcd'); same('the same for something that is no command', '.i HOUSE - DAY\n\n/abc');
+  cm.setValue('.i HOUSE - DAY\n\nAnna waits at the window.'); typ('//', () => ({line:2, ch:cm.getLine(2).indexOf('A')}));
+  same('// typed in front of a paragraph turns it into a note', '.i HOUSE - DAY\n\n//Anna waits at the window.');
+  const longTitle = 'T'.repeat(450);
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\nAction.');
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); // show the title page (it starts hidden, read only)
+  cm.replaceRange(longTitle, {line:3, ch:7}, {line:3, ch:7}, '+input');
+  { const ok = cm.getLine(3) === 'Title: ' + longTitle; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page headings (//TITLE PAGE) are no notes: a long title goes in'); }
+  cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); // and hide it again
   cm.setValue(full);
   cm.replaceRange('\n\n\n\n', endPos(), endPos(), 'paste'); same('three full pages: pasted empty lines at the end are refused');
   cm.replaceRange('\n\n', {line:10, ch:4}, {line:10, ch:4}, '+input'); same('three full pages: Enter splitting a paragraph is refused');
