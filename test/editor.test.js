@@ -412,37 +412,37 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\nN'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A, Backspace, then typing: the letter starts the script' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
-// Page cap: five A4 pages hold 145 one line actions (29 per page); a 6th page is refused, typing within page 5 works
-const full = Array.from({length:145}, (_, i) => 'Line ' + i + '.').join('\n\n');
+// Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
+const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
 cm.replaceRange('\n\nOne more.', endPos(), endPos(), '+input');
-{ const ok = cm.getValue() === full; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a sixth page is refused'); }
+{ const ok = cm.getValue() === full; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a fourth page is refused'); }
 cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
-{ const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 5 works'); }
+{ const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 3 works'); }
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
-// Nothing below the last page: on five full pages (57 of 58 lines used on page 5) Enter and pasted empty lines at the
+// Nothing below the last page: on three full pages (57 of 58 lines used on page 3) Enter and pasted empty lines at the
 // end are refused, Option+Enter only once (the one line left), and so is Enter that splits a paragraph into two (one
 // more element); empty lines between paragraphs still go in
 {
   const same = (label, want) => { want = want || full; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + cm.lineCount() + ' lines, ' + JSON.stringify(cm.getValue().slice(-30)))); };
   const kd = (o) => cm.triggerOnKeyDown(Object.assign({ type:'keydown', keyCode:13, key:'Enter', preventDefault(){}, stopPropagation(){} }, o || {}));
-  cm.setValue(full); cm.setCursor(endPos()); kd(); kd(); kd(); same('five full pages: Enter at the end adds no lines');
-  cm.setCursor(endPos()); kd({ altKey:true }); kd({ altKey:true }); same('five full pages: Option+Enter at the end adds the one line left, no more', full + '\n');
+  cm.setValue(full); cm.setCursor(endPos()); kd(); kd(); kd(); same('three full pages: Enter at the end adds no lines');
+  cm.setCursor(endPos()); kd({ altKey:true }); kd({ altKey:true }); same('three full pages: Option+Enter at the end adds the one line left, no more', full + '\n');
   cm.replaceRange('Yes.', endPos(), endPos(), '+input'); same('and the line left takes text', full + '\nYes.');
   cm.setValue(full);
-  cm.replaceRange('\n\n\n\n', endPos(), endPos(), 'paste'); same('five full pages: pasted empty lines at the end are refused');
-  cm.replaceRange('\n\n', {line:10, ch:4}, {line:10, ch:4}, '+input'); same('five full pages: Enter splitting a paragraph is refused');
+  cm.replaceRange('\n\n\n\n', endPos(), endPos(), 'paste'); same('three full pages: pasted empty lines at the end are refused');
+  cm.replaceRange('\n\n', {line:10, ch:4}, {line:10, ch:4}, '+input'); same('three full pages: Enter splitting a paragraph is refused');
   cm.replaceRange('\n\n', {line:0, ch:7}, {line:0, ch:7}, '+input');
-  { const ok = cm.getValue() === full.replace('Line 0.', 'Line 0.\n\n') && cm.smPages().full.length + 1 === 5; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'five full pages: empty lines between paragraphs still go in'); }
-  // room left on page 5: Enter at the end works until the cursor line is the last line of page 5; what is typed there fits
-  const some = Array.from({length:140}, (_, i) => 'Line ' + i + '.').join('\n\n');
+  { const ok = cm.getValue() === full.replace('Line 0.', 'Line 0.\n\n') && cm.smPages().full.length + 1 === 3; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'three full pages: empty lines between paragraphs still go in'); }
+  // room left on page 3: Enter at the end works until the cursor line is the last line of page 3; what is typed there fits
+  const some = Array.from({length:82}, (_, i) => 'Line ' + i + '.').join('\n\n');
   cm.setValue(some); cm.setCursor(endPos());
   let n = 0; for (let i = 0; i < 40; i++){ const before = cm.lineCount(); kd(); if (cm.lineCount() === before) break; n++; }
   const room = cm.lineCount() - cm.getValue().replace(/\s+$/, '').split('\n').length;
   cm.replaceRange('Last.', endPos(), endPos(), '+input');
-  const ok = n > 0 && n < 40 && room >= 2 && cm.getValue().endsWith('Last.') && cm.smPages().full.length + 1 === 5;
-  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'room on page 5: Enter at the end stops at the last line of page 5, text typed there fits (' + n + ' Enter, ' + room + ' empty lines)');
+  const ok = n > 0 && n < 40 && room >= 2 && cm.getValue().endsWith('Last.') && cm.smPages().full.length + 1 === 3;
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'room on page 3: Enter at the end stops at the last line of page 3, text typed there fits (' + n + ' Enter, ' + room + ' empty lines)');
   // the empty lines a full script already has at the end stay, and can be deleted
   cm.setValue(full + '\n\n\n\n'); cm.replaceRange('', {line:cm.lastLine() - 1, ch:0}, endPos(), '+delete');
   { const ok2 = cm.getValue() === full + '\n\n\n'; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'empty lines already at the end can be deleted'); }
@@ -726,7 +726,7 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
     eq2('export then import gives the script back', body(), T.split('\n---\n')[1].trim().replace('.ei CAR', '.ie CAR'));
     cm.setValue('.i A - DAY\n\nOne.\n\n===\n\nTwo.\n\n/fdx');
     eq2('export: a page break starts the next element on a new page, the command is left out', (cm.smFdx().match(/<Paragraph Type="Action"[^>]*>/g) || []).map(t => /StartsNewPage="Yes"/.test(t)).join(','), 'false,true'); }
-  r = imp('long'); eq2('a long script: only the first five pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 5');
+  r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
   eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
 
 console.log(fails ? fails + ' failed' : 'all passed');
