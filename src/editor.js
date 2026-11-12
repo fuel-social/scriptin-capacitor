@@ -315,7 +315,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // Page size: DIN A4 (297 mm = 11.69 in), 1 inch top and bottom margin, 6 lines per inch (12 pt Courier) = 58 lines.
   // A4 is 210 mm wide: with 1.5 in left and 1 in right margin there is room for 57 characters, so the 55 character
   // line lengths stay as they are.
-  var MAX_PAGES = 3;
+  var MAX_PAGES = 5;
   var PAGE_LINES = 58, SPACE_SLUG = 2, SPACE_OTHER = 1;
   // US Letter (11 in) by the same rule: 1 inch top and bottom, 6 lines per inch = 54 lines; the line lengths stay
   var LETTER_LINES = 54, A4_LINES = PAGE_LINES;
@@ -2431,7 +2431,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (on) for (var hl = preEnd() + 1, hn = cm.lineCount(); hl < hn && !has; hl++) has = !isBlank(line(hl));
       host.classList.toggle('sm-drop-has', has);
       // the conditions in one smaller line: the page limit, and that a script there will be replaced
-      dropBox.lastChild.textContent = '3 pages max' + (has ? ' \u00b7 replaces the current script' : '');
+      dropBox.lastChild.textContent = MAX_PAGES + ' pages max' + (has ? ' \u00b7 replaces the current script' : '');
       if (on){
         var r = host.getBoundingClientRect(), vh = window.innerHeight || 800;
         // centred between the frame lines, in the middle of the part of the editor in the window

@@ -412,13 +412,13 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   { const ok = cm.getValue() === T.split('\n').slice(0, 11).join('\n') + '\n\nN'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Cmd+A, Backspace, then typing: the letter starts the script' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
-// Page cap: three A4 pages hold 87 one line actions (29 per page); a 4th page is refused, typing within page 3 works
-const full = Array.from({length:87}, (_, i) => 'Line ' + i + '.').join('\n\n');
+// Page cap: five A4 pages hold 145 one line actions (29 per page); a 6th page is refused, typing within page 5 works
+const full = Array.from({length:145}, (_, i) => 'Line ' + i + '.').join('\n\n');
 cm.setValue(full); const endPos = () => ({line: cm.lastLine(), ch: cm.getLine(cm.lastLine()).length});
 cm.replaceRange('\n\nOne more.', endPos(), endPos(), '+input');
-{ const ok = cm.getValue() === full; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a fourth page is refused'); }
+{ const ok = cm.getValue() === full; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a sixth page is refused'); }
 cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
-{ const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 3 works'); }
+{ const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 5 works'); }
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
 
@@ -700,7 +700,7 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
     eq2('export then import gives the script back', body(), T.split('\n---\n')[1].trim().replace('.ei CAR', '.ie CAR'));
     cm.setValue('.i A - DAY\n\nOne.\n\n===\n\nTwo.\n\n/fdx');
     eq2('export: a page break starts the next element on a new page, the command is left out', (cm.smFdx().match(/<Paragraph Type="Action"[^>]*>/g) || []).map(t => /StartsNewPage="Yes"/.test(t)).join(','), 'false,true'); }
-  r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
+  r = imp('long'); eq2('a long script: only the first five pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 5');
   eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
 
 console.log(fails ? fails + ' failed' : 'all passed');
