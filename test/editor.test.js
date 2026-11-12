@@ -421,15 +421,24 @@ cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
 { const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 3 works'); }
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
-// Nothing below the last page: on three full pages (57 of 58 lines used on page 3) Enter and pasted empty lines at the
-// end are refused, Option+Enter only once (the one line left), and so is Enter that splits a paragraph into two (one
-// more element); empty lines between paragraphs still go in
+// Nothing below the last page: on three full pages (57 of 58 lines used on page 3) Enter at the end makes one new
+// paragraph and no more (for a note or an export command, nothing printed goes in there), pasted empty lines are
+// refused, and so is Enter that splits a paragraph into two (one more element); empty lines between paragraphs still go in
 {
-  const same = (label, want) => { want = want || full; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + cm.lineCount() + ' lines, ' + JSON.stringify(cm.getValue().slice(-30)))); };
+  const same = (label, want) => { want = want || full; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + cm.lineCount() + ' lines, ' + JSON.stringify(cm.getValue().slice(-40)))); };
   const kd = (o) => cm.triggerOnKeyDown(Object.assign({ type:'keydown', keyCode:13, key:'Enter', preventDefault(){}, stopPropagation(){} }, o || {}));
-  cm.setValue(full); cm.setCursor(endPos()); kd(); kd(); kd(); same('three full pages: Enter at the end adds no lines');
-  cm.setCursor(endPos()); kd({ altKey:true }); kd({ altKey:true }); same('three full pages: Option+Enter at the end adds the one line left, no more', full + '\n');
-  cm.replaceRange('Yes.', endPos(), endPos(), '+input'); same('and the line left takes text', full + '\nYes.');
+  const typ = (s, at) => { for (const c of s){ const p = at ? at() : endPos(); cm.replaceRange(c, p, p, '+input'); } };
+  cm.setValue(full); cm.setCursor(endPos()); kd(); kd(); kd(); same('three full pages: Enter at the end makes one new paragraph, no more', full + '\n\n');
+  typ('Action.'); same('and nothing printed goes in there', full + '\n\n');
+  typ('// a note, longer than one row: the scene could also end at the window, with the light going out'); same('but a note does', full + '\n\n// a note, longer than one row: the scene could also end at the window, with the light going out');
+  cm.setValue(full + '\n\n'); typ('/pdf'); same('and so does an export command, letter by letter', full + '\n\n/pdf');
+  cm.setValue(full); cm.setCursor(endPos()); kd({ altKey:true }); cm.replaceRange('Yes.', endPos(), endPos(), '+input'); same('three full pages: Option+Enter at the end, and the one line left takes text', full + '\nYes.');
+  // between the lines: a new paragraph between two others takes a note or a command at any time, printed text not
+  const mid = () => ({line:4, ch:cm.getLine(4).length}); // the middle one of the three empty lines after Line 1.
+  cm.setValue(full.replace('Line 1.', 'Line 1.\n\n')); typ('Tom.', mid); same('three full pages: printed text between the lines is refused', full.replace('Line 1.', 'Line 1.\n\n'));
+  typ('// check the clock', mid); same('a note between the lines goes in', full.replace('Line 1.', 'Line 1.\n\n// check the clock'));
+  cm.setValue(full.replace('Line 1.', 'Line 1.\n\n')); typ('/txt', mid); same('an export command between the lines goes in', full.replace('Line 1.', 'Line 1.\n\n/txt'));
+  { const ok = cm.smPages().full.length + 1 === 3; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'notes and commands take no room: still three pages'); }
   cm.setValue(full);
   cm.replaceRange('\n\n\n\n', endPos(), endPos(), 'paste'); same('three full pages: pasted empty lines at the end are refused');
   cm.replaceRange('\n\n', {line:10, ch:4}, {line:10, ch:4}, '+input'); same('three full pages: Enter splitting a paragraph is refused');

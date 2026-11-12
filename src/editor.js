@@ -37,6 +37,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var ACT_PAD = 6;
   // Note: paragraph starting with //, belongs to the element above it; blue, hidden and shown with Cmd+Option+6 (Ctrl+Shift+6)
   var NOTE = /^\/\//;
+  // An export command (/pdf, /txt, /fdx) while it is typed: / and every beginning of one
+  var CMD_TYPING = /^\s*\/(p(df?)?|t(xt?)?|f(dx?)?)?\s*$/i;
   // Title page: a block that starts with --- on the very first line and ends with the next ---; everything between the
   // two is title page, everything after the closing --- is script. One line per command: a line that starts with a word
   // and a colon (Title:, Author:) is a command, a line without one continues the command above (a second address line).
@@ -408,7 +410,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var s0 = i, ps = [];
       while (i < n && get(i).trim() !== '' && !isMark(get(i))) ps.push(get(i++));
       var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[], kind:'act'}, d, m;
-      if (NOTE.test(h)) continue;
+      // notes are never printed, and neither is an export command alone in its paragraph, typed out or on its way
+      // (/, /p, /pd, /pdf ...): they take no room, so the page limit never keeps one from being written
+      if (NOTE.test(h) || (ps.length === 1 && CMD_TYPING.test(h))) continue;
       el.brk = brk; brk = false;
       if ((d = slugDelta(h, L)) >= 0){
         speaker = null;
@@ -2739,7 +2743,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // deleting, undo, redo, Reformat and loading a script always work.
     // Empty lines are not printed, but those at the end of the script count here like printed lines: the cursor line at
     // the end may lie at most on the last line of page MAX_PAGES (an empty line, then the cursor line, take the place of
-    // the space and the first line of the next paragraph), so Enter cannot add lines below the last page either
+    // the space and the first line of the next paragraph), so Enter cannot add lines below the last page either; one new
+    // paragraph is always possible, for a note or an export command (they take no room)
     // Spaces at the end of a line do not wrap in the editor (as in print): they hang out to the right of the text column,
     // and the cursor with them. Returns where the cursor stands at the end of line ln: col characters into the last row
     // (w characters wide) of the printed run the line ends with (action, dialogue, parenthetical, slugline, transition),
@@ -2764,7 +2769,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var te = r.te, lines = r.size === 'US Letter' ? LETTER_LINES : A4_LINES, from = te + 1, before = 0;
       for (var k = r.starts.length - 1; k >= 0; k--) if (r.starts[k].ch === 0 && pgHead(get, te, r.starts[k].line)){ from = r.starts[k].line; before = k + 1; break; }
       var run = layoutFrom(get, n, te, langIn(get, te), lines, from, false, null);
-      return (MAX_PAGES - (before + run.starts.length + 1)) * lines + (lines - run.y);
+      // always room for one new paragraph at the end (an empty line and the cursor line), even on full pages: a note or
+      // an export command can be started there, anything printed is refused by the page count
+      return Math.max(2, (MAX_PAGES - (before + run.starts.length + 1)) * lines + (lines - run.y));
     }
     // Page size, Language, Autocomplete and Mode lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
