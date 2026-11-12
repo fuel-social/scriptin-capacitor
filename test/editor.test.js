@@ -443,6 +443,24 @@ cm.setValue(full + '\n\nOne more.');
   cm.replaceRange('Last.', endPos(), endPos(), '+input');
   const ok = n > 0 && n < 40 && room >= 2 && cm.getValue().endsWith('Last.') && cm.smPages().full.length + 1 === 3;
   if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'room on page 3: Enter at the end stops at the last line of page 3, text typed there fits (' + n + ' Enter, ' + room + ' empty lines)');
+  // Spaces at the end of a line never carry the cursor past the text column: one space between words, as in print (a
+  // second one at the end of a line is not taken), and on full pages a space that would hang past a full row is refused
+  const sp = (k) => { let n = 0; for (let i = 0; i < k; i++){ const v = cm.getValue(); cm.replaceRange(' ', endPos(), endPos(), '+input'); if (cm.getValue() !== v) n++; } return n; };
+  const row = 'word '.repeat(10) + 'words';
+  { const ok = row.length === 55; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'test row is 55 characters'); }
+  const lastIs = (label, want) => { const got = cm.getLine(cm.lastLine()), ok = got === want && cm.smPages().full.length + 1 <= 3; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + JSON.stringify(got) + ', ' + (cm.smPages().full.length + 1) + ' pages')); };
+  let ns;
+  cm.setValue('.i HOUSE - DAY\n\nShe waits.'); ns = sp(6); lastIs('spaces at the end of a line: one is taken, no more (' + ns + ')', 'She waits. ');
+  cm.replaceRange('Then', endPos(), endPos(), '+input'); lastIs('and the next word goes on', 'She waits. Then');
+  cm.setValue('.i HOUSE - DAY\n\n' + row); ns = sp(5); lastIs('a full row: the one space hangs past it, no more (' + ns + ')', row + ' ');
+  cm.replaceRange('Next', endPos(), endPos(), '+input'); lastIs('and the next word starts a new row', row + ' Next');
+  cm.setValue('.i HOUSE - DAY\n\nAction.\n\n'); ns = sp(9); lastIs('an empty line: one space (' + ns + ')', ' ');
+  // three full pages, every line of page 3 used: a space after a short last line still lets a letter in on its row ...
+  cm.setValue(full + '\nYes.'); ns = sp(9); lastIs('page 3 full: one space after a short last line (' + ns + ')', 'Yes. ');
+  cm.replaceRange('x', endPos(), endPos(), '+input'); lastIs('and a letter on its row', 'Yes. x');
+  // ... but after a full row nothing more goes in, neither the space nor a letter
+  cm.setValue(full + '\n' + row); ns = sp(5); lastIs('page 3 full after a full row: no space (' + ns + ')', row);
+  cm.replaceRange('x', endPos(), endPos(), '+input'); lastIs('and no letter', row);
   // the empty lines a full script already has at the end stay, and can be deleted
   cm.setValue(full + '\n\n\n\n'); cm.replaceRange('', {line:cm.lastLine() - 1, ch:0}, endPos(), '+delete');
   { const ok2 = cm.getValue() === full + '\n\n\n'; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'empty lines already at the end can be deleted'); }

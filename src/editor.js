@@ -2740,6 +2740,24 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // Empty lines are not printed, but those at the end of the script count here like printed lines: the cursor line at
     // the end may lie at most on the last line of page MAX_PAGES (an empty line, then the cursor line, take the place of
     // the space and the first line of the next paragraph), so Enter cannot add lines below the last page either
+    // Spaces at the end of a line do not wrap in the editor (as in print): they hang out to the right of the text column,
+    // and the cursor with them. Returns where the cursor stands at the end of line ln: col characters into the last row
+    // (w characters wide) of the printed run the line ends with (action, dialogue, parenthetical, slugline, transition),
+    // and text, the line without its trailing spaces; null on the title page and for lines without a printed run (an
+    // empty line, a cue alone, a note)
+    function spaceRoom(get, n, ln, te){
+      if (ln <= te) return null;
+      var s = get(ln), text = s.replace(/\s+$/, ''), run = null;
+      if (!text) return null;
+      var p = ln;
+      while (p > te + 1 && !isBlank(get(p - 1)) && !isMark(get(p - 1))) p--;
+      var el = isMark(get(p)) ? null : elemReader(get, n, te, langIn(get, te), p)();
+      if (el && el.pos.line === p) el.runs.forEach(function(x){ if (x.line === ln) run = x; });
+      if (!run) return null;
+      var st = wrapStarts(run.s, run.w), a = st[st.length - 1], mk = emphOf(run.s).mk, len = 0;
+      for (var q = a; q < run.s.length; q++) if (!mk[q]) len++;
+      return {col: len + s.length - text.length, w: run.w, text: text};
+    }
     function tailLen(get, n){ var k = n - 1; while (k >= 0 && isBlank(get(k))) k--; return n - 1 - k; }
     function tailRoom(get, n, r){
       // the printed lines used on the last page, laid out from the last page start that begins with a whole element
@@ -2846,6 +2864,18 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (ch.origin !== '+pre'){
         var tail = tailLen(get, cm.lineCount() + dl);
         if (tail > tailLen(line, cm.lineCount()) && tail > tailRoom(get, cm.lineCount() + dl, r)){ ch.cancel(); return; }
+      }
+      // Spaces typed at the end of a line (see spaceRoom): one space between words, as in print, so a second space there
+      // is not taken; and at the page limit a space is only taken while a letter typed next still fits on the pages
+      if ((ch.origin === '+input' || ch.origin === 'paste') && A === 0 && ch.text[0] !== '' && isBlank(ch.text[0]) && isBlank(line(T).slice(ch.to.ch))){
+        if (ch.text[0].length > 1 || /\s$/.test(line(F).slice(0, ch.from.ch))){ ch.cancel(); return; }
+        var sr = spaceRoom(get, cm.lineCount() + dl, F, r.te);
+        if (sr && sr.col + 1 > sr.w){
+          // a letter now would begin a new row: the line as it would be with a word one row long after the spaces
+          var probe = function(k){ return k === F ? sr.text + ' ' + new Array(sr.w + 1).join('x') : get(k); };
+          var pp = pgSafe(probe, cm.lineCount() + dl, pgDirty(PG.dirty, ch.from, ch.to, A), longer ? PG_NOW : undefined).starts.length + 1;
+          if (pp > MAX_PAGES && pp > now.length + 1){ ch.cancel(); return; }
+        }
       }
       // kept, so the count after the change needs no second run when the change goes in exactly like this
       PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};
