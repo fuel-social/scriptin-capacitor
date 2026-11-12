@@ -421,6 +421,32 @@ cm.replaceRange(' Yes.', endPos(), endPos(), '+input');
 { const ok = cm.getValue() === full + ' Yes.'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'typing that stays on page 5 works'); }
 cm.setValue(full + '\n\nOne more.');
 { const ok = cm.getValue().endsWith('One more.'); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'a loaded longer script is kept'); }
+// Nothing below the last page: on five full pages (57 of 58 lines used on page 5) Enter and pasted empty lines at the
+// end are refused, Option+Enter only once (the one line left), and so is Enter that splits a paragraph into two (one
+// more element); empty lines between paragraphs still go in
+{
+  const same = (label, want) => { want = want || full; const ok = cm.getValue() === want; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + label + (ok ? '' : ' -> ' + cm.lineCount() + ' lines, ' + JSON.stringify(cm.getValue().slice(-30)))); };
+  const kd = (o) => cm.triggerOnKeyDown(Object.assign({ type:'keydown', keyCode:13, key:'Enter', preventDefault(){}, stopPropagation(){} }, o || {}));
+  cm.setValue(full); cm.setCursor(endPos()); kd(); kd(); kd(); same('five full pages: Enter at the end adds no lines');
+  cm.setCursor(endPos()); kd({ altKey:true }); kd({ altKey:true }); same('five full pages: Option+Enter at the end adds the one line left, no more', full + '\n');
+  cm.replaceRange('Yes.', endPos(), endPos(), '+input'); same('and the line left takes text', full + '\nYes.');
+  cm.setValue(full);
+  cm.replaceRange('\n\n\n\n', endPos(), endPos(), 'paste'); same('five full pages: pasted empty lines at the end are refused');
+  cm.replaceRange('\n\n', {line:10, ch:4}, {line:10, ch:4}, '+input'); same('five full pages: Enter splitting a paragraph is refused');
+  cm.replaceRange('\n\n', {line:0, ch:7}, {line:0, ch:7}, '+input');
+  { const ok = cm.getValue() === full.replace('Line 0.', 'Line 0.\n\n') && cm.smPages().full.length + 1 === 5; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'five full pages: empty lines between paragraphs still go in'); }
+  // room left on page 5: Enter at the end works until the cursor line is the last line of page 5; what is typed there fits
+  const some = Array.from({length:140}, (_, i) => 'Line ' + i + '.').join('\n\n');
+  cm.setValue(some); cm.setCursor(endPos());
+  let n = 0; for (let i = 0; i < 40; i++){ const before = cm.lineCount(); kd(); if (cm.lineCount() === before) break; n++; }
+  const room = cm.lineCount() - cm.getValue().replace(/\s+$/, '').split('\n').length;
+  cm.replaceRange('Last.', endPos(), endPos(), '+input');
+  const ok = n > 0 && n < 40 && room >= 2 && cm.getValue().endsWith('Last.') && cm.smPages().full.length + 1 === 5;
+  if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'room on page 5: Enter at the end stops at the last line of page 5, text typed there fits (' + n + ' Enter, ' + room + ' empty lines)');
+  // the empty lines a full script already has at the end stay, and can be deleted
+  cm.setValue(full + '\n\n\n\n'); cm.replaceRange('', {line:cm.lastLine() - 1, ch:0}, endPos(), '+delete');
+  { const ok2 = cm.getValue() === full + '\n\n\n'; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'empty lines already at the end can be deleted'); }
+}
 
 // /pdf + Enter on a line of its own: the line is emptied, nothing else changes
 start('.i HOUSE - DAY\n\nShe waits.\n\n'); type('/pdf'); enter();

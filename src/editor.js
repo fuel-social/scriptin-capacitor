@@ -580,7 +580,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         newPage(el.pos);
       }
     }
-    return {starts:starts, pages:pages, stop:halt};
+    return {starts:starts, pages:pages, stop:halt, y:y};
   }
   function paginate(text){ return layout(text, false).starts; }
   // ---- PDF export (/pdf + Enter on a line of its own): the reading script, Courier Prime 12 pt, page size from the
@@ -2735,8 +2735,19 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if ((notesOff || view !== 1) && noteCur >= 0 && inNote !== noteCur){ noteCur = inNote; refresh(); }
       else noteCur = inNote;
     });
-    // The text ends with page MAX_PAGES: typing, Tab and pasting that would start another page are refused;
-    // deleting, undo, redo, Reformat and loading a script always work
+    // The text ends with page MAX_PAGES: typing, Tab, Enter and pasting that would start another page are refused;
+    // deleting, undo, redo, Reformat and loading a script always work.
+    // Empty lines are not printed, but those at the end of the script count here like printed lines: the cursor line at
+    // the end may lie at most on the last line of page MAX_PAGES (an empty line, then the cursor line, take the place of
+    // the space and the first line of the next paragraph), so Enter cannot add lines below the last page either
+    function tailLen(get, n){ var k = n - 1; while (k >= 0 && isBlank(get(k))) k--; return n - 1 - k; }
+    function tailRoom(get, n, r){
+      // the printed lines used on the last page, laid out from the last page start that begins with a whole element
+      var te = r.te, lines = r.size === 'US Letter' ? LETTER_LINES : A4_LINES, from = te + 1, before = 0;
+      for (var k = r.starts.length - 1; k >= 0; k--) if (r.starts[k].ch === 0 && pgHead(get, te, r.starts[k].line)){ from = r.starts[k].line; before = k + 1; break; }
+      var run = layoutFrom(get, n, te, langIn(get, te), lines, from, false, null);
+      return (MAX_PAGES - (before + run.starts.length + 1)) * lines + (lines - run.y);
+    }
     // Page size, Language, Autocomplete and Mode lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
     // Invisible control characters (Ctrl+Option+Z on a Mac types one, CodeMirror shows them as red dots) never get in
@@ -2819,7 +2830,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     });
     cm.on('beforeChange', function(_cm, ch){
       if (ch.origin === 'setValue' || ch.origin === 'undo' || ch.origin === 'redo' || ch.origin === '+reformat' || ch.origin === '+restore') return;
-      if (ch.text.join('') === '') return;
+      // only deleting (new lines go through: a line break can split a paragraph, and empty lines at the end count)
+      if (ch.text.length === 1 && ch.text[0] === '') return;
       // the text as it would be after this change, read line by line without building it: only the pages around the
       // change are laid out again (see the incremental page count)
       var F = ch.from.line, T = ch.to.line, A = ch.text.length - 1, dl = A - (T - F), nl = ch.text.slice();
@@ -2830,6 +2842,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var longer = !!PG.starts && PG.starts.length + 1 > MAX_PAGES + 1, now = pagesNow(longer ? PG_NOW : undefined);
       var r = pgSafe(get, cm.lineCount() + dl, pgDirty(PG.dirty, ch.from, ch.to, A), longer ? PG_NOW : undefined), pages = r.starts.length + 1;
       if (pages > MAX_PAGES && pages > now.length + 1){ ch.cancel(); return; }
+      // more empty lines at the end than before: they must fit on the pages left (see tailRoom)
+      if (ch.origin !== '+pre'){
+        var tail = tailLen(get, cm.lineCount() + dl);
+        if (tail > tailLen(line, cm.lineCount()) && tail > tailRoom(get, cm.lineCount() + dl, r)){ ch.cancel(); return; }
+      }
       // kept, so the count after the change needs no second run when the change goes in exactly like this
       PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};
     });
