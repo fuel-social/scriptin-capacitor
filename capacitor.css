@@ -107,3 +107,4 @@
    About text (GTPressuraRegular_21_Index_Body: GT Pressura Regular 21/32), the half leading taken off the gap above;
    not text, not saved, not exported */
 #sm-editor .sm-fuel-note{padding:calc(var(--sm-lh,21px) - 5.5px) 16px 0;font-family:'GTPressuraRegular',sans-serif;font-size:21px;line-height:32px;text-wrap:pretty;color:var(--sm-blue);white-space:normal;user-select:none;cursor:default}
+#sm-editor .sm-fuel-note .sm-fuel-url{font-family:'GTPressuraRegular-Italic',sans-serif;font-style:normal;white-space:nowrap;-webkit-hyphens:none;hyphens:none}

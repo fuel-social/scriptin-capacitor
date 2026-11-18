@@ -1153,7 +1153,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var locked = false, fuelSt = 'idle', fuelLn = -1, fuelTimer = null, fuelBox = null, fuelOwn = false;
     function fuelNote(ln, text){
       if (!fuelBox){ fuelBox = document.createElement('div'); fuelBox.className = 'sm-fuel-note'; }
-      fuelBox.textContent = text;
+      // fuel.social slanted and never broken, as in About (<slanted class="url">)
+      fuelBox.textContent = '';
+      text.split('fuel.social').forEach(function(part, k){
+        if (k){ var u = document.createElement('span'); u.className = 'sm-fuel-url'; u.textContent = 'fuel.social'; fuelBox.appendChild(u); }
+        if (part) fuelBox.appendChild(document.createTextNode(part));
+      });
       cm.setBelow(ln, fuelBox);
     }
     function fuelHide(){ if (fuelSt === 'confirm' || fuelSt === 'error') fuelSt = 'idle'; cm.setBelow(-1, null); }
