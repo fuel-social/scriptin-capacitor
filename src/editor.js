@@ -727,23 +727,43 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     return {scene:out.join('\n'), language:FUEL_LANG[L.code] || 'en_us', title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
   }
   // The editor's own /fuel texts, in the language of the interface (the address's lang, read once on load; the language
-  // switch reloads the page), English without one. {title}, {author}, {role}, {keys} are filled in
+  // switch reloads the page), English without one. {title}, {author}, {keys} are filled in
   var FUEL_TEXT = {
     en:{
-      both:'Enter again publishes this scene on fuel.social, with the title “{title}” and your name, {author}. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels.',
-      title:'Enter again publishes this scene on fuel.social, with the title “{title}” but without your name. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add your name on the title page ({keys}).',
-      name:'Enter again publishes this scene on fuel.social, with your name, {author}, but without a title. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add a title on the title page ({keys}).',
-      none:'Enter again publishes this scene on fuel.social, without a title and without your name. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add both on the title page ({keys}).',
+      both:'Press Enter again to publish “{title}” with your name, {author}, on fuel.social and share it with your friends and followers. Only people with the link can see it. This script is then locked. Press any other key to cancel.',
+      title:'Press Enter again to publish “{title}” on fuel.social, without your name, and share it with your friends and followers. Only people with the link can see it. This script is then locked. Press any other key to cancel. To add your name, open the title page ({keys}).',
+      name:'Press Enter again to publish this scene with your name, {author}, but without a title, on fuel.social and share it with your friends and followers. Only people with the link can see it. This script is then locked. Press any other key to cancel. To add a title, open the title page ({keys}).',
+      none:'Press Enter again to publish this scene on fuel.social, without a title or your name, and share it with your friends and followers. Only people with the link can see it. This script is then locked. Press any other key to cancel. To add them, open the title page ({keys}).',
       error:'fuel.social could not be reached. Nothing was published, and the scene is not locked. Enter tries again.'
+    },
+    de:{
+      both:'Drück noch einmal Enter, um «{title}» mit deinem Namen, {author}, auf fuel.social zu veröffentlichen und mit deinen Freunden und Followern zu teilen. Nur wer den Link hat, kann die Szene sehen. Danach ist dieses Skript gesperrt. Drück eine andere Taste, um abzubrechen.',
+      title:'Drück noch einmal Enter, um «{title}» ohne deinen Namen auf fuel.social zu veröffentlichen und mit deinen Freunden und Followern zu teilen. Nur wer den Link hat, kann die Szene sehen. Danach ist dieses Skript gesperrt. Drück eine andere Taste, um abzubrechen. Deinen Namen trägst du auf der Titelseite ein ({keys}).',
+      name:'Drück noch einmal Enter, um diese Szene mit deinem Namen, {author}, aber ohne Titel auf fuel.social zu veröffentlichen und mit deinen Freunden und Followern zu teilen. Nur wer den Link hat, kann die Szene sehen. Danach ist dieses Skript gesperrt. Drück eine andere Taste, um abzubrechen. Den Titel trägst du auf der Titelseite ein ({keys}).',
+      none:'Drück noch einmal Enter, um diese Szene ohne Titel und ohne deinen Namen auf fuel.social zu veröffentlichen und mit deinen Freunden und Followern zu teilen. Nur wer den Link hat, kann die Szene sehen. Danach ist dieses Skript gesperrt. Drück eine andere Taste, um abzubrechen. Beides trägst du auf der Titelseite ein ({keys}).',
+      error:'fuel.social ist nicht erreichbar. Nichts wurde veröffentlicht, die Szene ist nicht gesperrt. Enter versucht es noch einmal.'
+    },
+    it:{
+      both:'Premi di nuovo Invio per pubblicare la scena «{title}» con il tuo nome, {author}, su fuel.social e condividerla con i tuoi amici e follower. Solo chi ha il link può vederla. Poi questo copione sarà bloccato. Premi un altro tasto per annullare.',
+      title:'Premi di nuovo Invio per pubblicare la scena «{title}» su fuel.social, senza il tuo nome, e condividerla con i tuoi amici e follower. Solo chi ha il link può vederla. Poi questo copione sarà bloccato. Premi un altro tasto per annullare. Per aggiungere il tuo nome, apri il frontespizio ({keys}).',
+      name:'Premi di nuovo Invio per pubblicare questa scena con il tuo nome, {author}, ma senza titolo, su fuel.social e condividerla con i tuoi amici e follower. Solo chi ha il link può vederla. Poi questo copione sarà bloccato. Premi un altro tasto per annullare. Per aggiungere un titolo, apri il frontespizio ({keys}).',
+      none:'Premi di nuovo Invio per pubblicare questa scena su fuel.social, senza titolo e senza il tuo nome, e condividerla con i tuoi amici e follower. Solo chi ha il link può vederla. Poi questo copione sarà bloccato. Premi un altro tasto per annullare. Per aggiungerli, apri il frontespizio ({keys}).',
+      error:'fuel.social non è raggiungibile. Non è stato pubblicato nulla e la scena non è bloccata. Invio riprova.'
     }
   };
   function uiLang(){
     var m = /[?&]lang=([a-z]{2})/i.exec(window.location.search || '');
     return m && FUEL_TEXT[m[1].toLowerCase()] ? m[1].toLowerCase() : 'en';
   }
-  function fuelSay(key, vals){
-    var T = FUEL_TEXT[uiLang()] || FUEL_TEXT.en, t = T[key] || FUEL_TEXT.en[key];
-    return t.replace(/\{(title|author|role|keys)\}/g, function(_, k){ return vals && vals[k] !== undefined ? vals[k] : ''; });
+  // Cmd+Option on a Mac (an iPad with a keyboard too), Ctrl+Shift everywhere else (Windows, Linux, ChromeOS); the editor
+  // takes both everywhere
+  function isMac(){
+    var nav = window.navigator || {}, p = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || nav.userAgent || '';
+    return /Mac|iPhone|iPad|iPod/i.test(p);
+  }
+  function fuelSay(key, vals, lang){
+    var T = FUEL_TEXT[lang || uiLang()] || FUEL_TEXT.en, t = T[key] || FUEL_TEXT.en[key];
+    return t.replace(/\{(title|author|keys)\}/g, function(_, k){ return vals && vals[k] !== undefined ? vals[k] : ''; });
   }
   // The script as Final Draft elements (src/fdx.js writes the file): sluglines with the script language's INT./EXT.
   // words, cues with their extension (empty ones get names as Reformat gives them), every parenthetical on its own,
@@ -1138,11 +1158,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     }
     function fuelHide(){ if (fuelSt === 'confirm' || fuelSt === 'error') fuelSt = 'idle'; cm.setBelow(-1, null); }
     function fuelConfirm(ln){
-      var sc = fuelScene(cm.getValue()), role = CMD_FUEL.exec(line(ln))[1].trim();
-      var keys = /Win/i.test(navigator.platform || navigator.userAgent || '') ? 'Ctrl+Shift+9' : 'Cmd+Option+9';
+      var sc = fuelScene(cm.getValue());
+      var keys = isMac() ? 'Cmd+Option+9' : 'Ctrl+Shift+9';
       var key = sc.title && sc.author ? 'both' : sc.title ? 'title' : sc.author ? 'name' : 'none';
       fuelSt = 'confirm'; fuelLn = ln;
-      fuelNote(ln, fuelSay(key, {title:sc.title, author:sc.author, role:role, keys:keys}));
+      fuelNote(ln, fuelSay(key, {title:sc.title, author:sc.author, keys:keys}));
     }
     function fuelEnter(ln){
       if (locked || fuelSt === 'sending') return;
@@ -1191,6 +1211,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     };
     cm.smLocked = function(){ return locked; };
     cm.smFuelScene = fuelScene;
+    cm.smFuelSay = fuelSay;
     // While publishing nothing changes the text; once locked only the Mode line and the title page's own additions do
     cm.on('beforeChange', function(_cm, ch){
       if (fuelOwn || (!locked && fuelSt !== 'sending')) return;

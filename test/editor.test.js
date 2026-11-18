@@ -816,7 +816,10 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   cm.smSync.ready = cb => cb('t'.repeat(32));
   const script = '.i HOUSE - DAY\n\nShe waits.\n\n/fuel MARA';
   cm.setValue(script); cm.setCursor({line:4, ch:10}); enter();
-  eq2('first Enter: the confirmation below the line (no title, no name)', /^Enter again publishes this scene on fuel\.social, without a title and without your name\. .*write the next line for MARA\. .*\(Cmd\+Option\+9\)\.$/.test(note()), true);
+  const keys = /Mac|iPhone|iPad|iPod/i.test(w.navigator.platform || w.navigator.userAgent || '') ? 'Cmd+Option+9' : 'Ctrl+Shift+9';
+  eq2('first Enter: the confirmation below the line (no title, no name)', note(), 'Press Enter again to publish this scene on fuel.social, without a title or your name, and share it with your friends and followers. Only people with the link can see it. This script is then locked. Press any other key to cancel. To add them, open the title page (' + keys + ').');
+  eq2('confirmation in German, title and name', cm.smFuelSay('both', {title:'Bottleneck', author:'Fabrizio'}, 'de'), 'Dr\u00fcck noch einmal Enter, um \u00abBottleneck\u00bb mit deinem Namen, Fabrizio, auf fuel.social zu ver\u00f6ffentlichen und mit deinen Freunden und Followern zu teilen. Nur wer den Link hat, kann die Szene sehen. Danach ist dieses Skript gesperrt. Dr\u00fcck eine andere Taste, um abzubrechen.');
+  eq2('confirmation in Italian, title only', cm.smFuelSay('title', {title:'Bottleneck', keys:'Ctrl+Shift+9'}, 'it'), 'Premi di nuovo Invio per pubblicare la scena \u00abBottleneck\u00bb su fuel.social, senza il tuo nome, e condividerla con i tuoi amici e follower. Solo chi ha il link pu\u00f2 vederla. Poi questo copione sar\u00e0 bloccato. Premi un altro tasto per annullare. Per aggiungere il tuo nome, apri il frontespizio (Ctrl+Shift+9).');
   eq2('first Enter: nothing sent, text unchanged', sent.length + ' ' + (cm.getValue() === script), '0 true');
   cm.setCursor({line:2, ch:0}); eq2('moving off the line takes the confirmation away', note(), '');
   cm.setCursor({line:4, ch:10}); enter(); enter();
@@ -827,7 +830,7 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   cm.replaceRange('x', {line:2, ch:0}, null, '+input'); eq2('while publishing: the text cannot change', cm.getValue(), script);
   w.smFueled('no');
   eq2('no: free again, the line stays, not locked', ro() + ' ' + (cm.getValue() === script) + ' ' + cm.smLocked(), 'false true false');
-  cm.setCursor({line:4, ch:10}); enter(); eq2('after no: Enter asks again', /^Enter again publishes/.test(note()), true);
+  cm.setCursor({line:4, ch:10}); enter(); eq2('after no: Enter asks again', /^Press Enter again to publish/.test(note()), true);
   enter(); eq2('and the second Enter sends again', sent.length, 2);
   w.localStorage.setItem('scriptin.capacitor.text', script);
   w.smFueled('yes');
