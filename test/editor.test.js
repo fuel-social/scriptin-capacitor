@@ -760,16 +760,19 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
   eq2('no script yet: the address stays as Bubble sets it', w.location.search + w.location.hash, '');
   cm.smSync.link = real;
 }
-// A page Bubble loads anew without the link (the language switch) or a reload gets it back from this tab; an address
-// typed or opened from elsewhere does not
+// A page Bubble loads anew without the link (the language switch) or a reload gets it back from this tab, within ten
+// seconds and on the same page; an address typed or opened from elsewhere does not
 {
-  const L = '#' + 'a'.repeat(32) + '.' + 'b'.repeat(43), P = '/version-test/scriptin', k = cm.smKeptLink;
-  eq2('language switch (comes from scriptin): link back', k(L, '', 'https://fuel.social/version-test/scriptin?lang=en_us', P, 'navigate'), L);
-  eq2('reload: link back', k(L, '', '', P, 'reload'), L);
-  eq2('typed address, no referrer: no link', k(L, '', '', P, 'navigate'), '');
-  eq2('coming from another page: no link', k(L, '', 'https://fuel.social/version-test/m_index', P, 'navigate'), '');
-  eq2('the address has its own link: kept as it is', k(L, '#' + 'c'.repeat(32) + '.' + 'd'.repeat(43), '', P, 'reload'), '');
-  eq2('nothing kept: nothing put back', k(null, '', '', P, 'reload'), '');
+  const L = '#' + 'a'.repeat(32) + '.' + 'b'.repeat(43), P = '/version-test/scriptin', k = cm.smKeptLink, T = 1000000;
+  const st = (o) => JSON.stringify(Object.assign({link:L, path:P, at:T}, o || {}));
+  eq2('language switch (referrer fuel.social): link back', k(st(), '', 'https://fuel.social/', P, 'navigate', T + 900), L);
+  eq2('reload: link back', k(st(), '', '', P, 'reload', T + 900), L);
+  eq2('typed address, no referrer: no link', k(st(), '', '', P, 'navigate', T + 900), '');
+  eq2('coming from another site: no link', k(st(), '', 'https://example.com/', P, 'navigate', T + 900), '');
+  eq2('more than ten seconds later: no link', k(st(), '', 'https://fuel.social/', P, 'navigate', T + 11000), '');
+  eq2('another page: no link', k(st(), '', 'https://fuel.social/', '/version-test/m_index', 'navigate', T + 900), '');
+  eq2('the address has its own link: kept as it is', k(st(), '#' + 'c'.repeat(32) + '.' + 'd'.repeat(43), '', P, 'reload', T + 900), '');
+  eq2('nothing kept: nothing put back', k(null, '', '', P, 'reload', T + 900), '');
 }
 
 // /fuel: the space comes by itself, the name of the role goes to capitals, no completion; with a name and something to

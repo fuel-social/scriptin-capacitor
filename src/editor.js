@@ -1050,23 +1050,26 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       link: function(){ return token && keyStr ? '#' + token + '.' + keyStr : ''; }
     };
   }
-  // The script's link survives a page that Bubble loads anew without it (the language switch reloads scriptin with a new
-  // lang and no # part), and a reload: on leaving, the link goes into this tab's sessionStorage; on loading without a
-  // link it is put back when the page is reloaded or comes from scriptin itself. Opening scriptin from elsewhere (a
+  // The script's link survives a page that Bubble loads anew without it (the language switch loads scriptin again with
+  // a new lang and no # part) and a reload: on leaving, the link goes into this tab's sessionStorage with the page and
+  // the time; a page loading without a link gets it back when it is the same page, loaded within LINK_KEEP_MS, by a
+  // reload or from fuel.social itself (Bubble sends only the origin as the referrer). Opening scriptin from elsewhere (a
   // typed address, a bookmark) still starts without a link. Returns the # part to put back, or ''
-  var LINK_KEY = 'scriptin.capacitor.link';
-  function keptLink(stored, hash, referrer, path, navType){
-    if (!stored || !HASH.test(stored) || HASH.test(hash || '')) return '';
+  var LINK_KEY = 'scriptin.capacitor.link', LINK_KEEP_MS = 10000;
+  function keptLink(stored, hash, referrer, path, navType, now){
+    var o = null;
+    try { o = JSON.parse(stored || 'null'); } catch (e){}
+    if (!o || !HASH.test(o.link || '') || HASH.test(hash || '') || o.path !== path || !(now - o.at >= 0 && now - o.at <= LINK_KEEP_MS)) return '';
     var same = false;
-    try { same = !!referrer && new URL(referrer).pathname === path; } catch (e){}
-    return navType === 'reload' || same ? stored : '';
+    try { same = !!referrer && new URL(referrer).origin === window.location.origin; } catch (e){}
+    return navType === 'reload' || same ? o.link : '';
   }
   function restoreLink(){
     try {
       var stored = window.sessionStorage.getItem(LINK_KEY);
       window.sessionStorage.removeItem(LINK_KEY);
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
-      var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav);
+      var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
     } catch (e){}
   }
@@ -1184,7 +1187,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     window.addEventListener('pagehide', function(){
       sync.flush();
       var link = sync.link();
-      try { if (link) window.sessionStorage.setItem(LINK_KEY, link); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
+      try { if (link) window.sessionStorage.setItem(LINK_KEY, JSON.stringify({link:link, path:window.location.pathname, at:Date.now()})); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
     });
     // ---- /fuel: confirm, publish, lock ----
     // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
