@@ -432,6 +432,7 @@ cm.setValue(full + '\n\nOne more.');
   typ('Action.'); same('and nothing printed goes in there', full + '\n\n');
   typ('// a note, longer than one row: the scene could also end at the window, with the light going out'); same('but a note does', full + '\n\n// a note, longer than one row: the scene could also end at the window, with the light going out');
   cm.setValue(full + '\n\n'); typ('/pdf'); same('and so does an export command, letter by letter', full + '\n\n/pdf');
+  cm.setValue(full + '\n\n'); typ('/fuel MARA'); same('and so does /fuel with a name, letter by letter', full + '\n\n/fuel MARA');
   cm.setValue(full); cm.setCursor(endPos()); kd({ altKey:true }); cm.replaceRange('Yes.', endPos(), endPos(), '+input'); same('three full pages: Option+Enter at the end, and the one line left takes text', full + '\nYes.');
   // between the lines: a new paragraph between two others takes a note or a command at any time, printed text not
   const mid = () => ({line:4, ch:cm.getLine(4).length}); // the middle one of the three empty lines after Line 1.
@@ -445,8 +446,9 @@ cm.setValue(full + '\n\nOne more.');
   cm.setValue('.i HOUSE - DAY\n\n'); typ('//' + N400 + 'xy'); same('a note takes 400 characters after its //, no more', '.i HOUSE - DAY\n\n//' + N400);
   cm.setValue('.i HOUSE - DAY\n\n//' + 'a'.repeat(200) + '\n'); typ('b'.repeat(205)); same('line breaks in a note are not counted', '.i HOUSE - DAY\n\n//' + 'a'.repeat(200) + '\n' + 'b'.repeat(200));
   cm.setValue('.i HOUSE - DAY\n\n'); cm.replaceRange('//' + N400 + '!', endPos(), endPos(), 'paste'); same('a pasted note over 400 characters is refused', '.i HOUSE - DAY\n\n');
-  cm.setValue('.i HOUSE - DAY\n\n'); typ('/pdfx'); same('after the /: three characters (the longest command), no more', '.i HOUSE - DAY\n\n/pdf');
-  cm.setValue('.i HOUSE - DAY\n\n'); typ('/abcd'); same('the same for something that is no command', '.i HOUSE - DAY\n\n/abc');
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('/pdfxy'); same('after the /: four characters (the longest command, fuel), no more', '.i HOUSE - DAY\n\n/pdfx');
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('/abcde'); same('the same for something that is no command', '.i HOUSE - DAY\n\n/abcd');
+  cm.setValue('.i HOUSE - DAY\n\n'); typ('/fuel ' + 'M'.repeat(39)); same('after /fuel and its space: 38 characters for the name, no more', '.i HOUSE - DAY\n\n/fuel ' + 'M'.repeat(38));
   cm.setValue('.i HOUSE - DAY\n\nAnna waits at the window.'); typ('//', () => ({line:2, ch:cm.getLine(2).indexOf('A')}));
   same('// typed in front of a paragraph turns it into a note', '.i HOUSE - DAY\n\n//Anna waits at the window.');
   const longTitle = 'T'.repeat(450);
@@ -731,6 +733,29 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   start(T); type('.actx'); check('.act followed by another letter is .act_new then that letter', '".act_new X" cursor 4:10');
   start(T); type('.a'); check('.a alone is left alone', '".a" cursor 4:2');
   rf('Reformat: act command lowercase, title in capitals', '.ACT_NEW  act   one\n\n.act_end end\nof act one', '.act_new ACT ONE\n\n.act_end END\nOF ACT ONE'); }
+
+// /fuel: the space comes by itself, the name of the role goes to capitals, no completion; with a name and something to
+// share it shows as a command (↵); Enter does nothing yet; it takes no room and is left out of the exports
+{
+  const cmd = i => /sm-t-cmd/.test(cm.getLineHandle(i).textClass || ''), marks = () => w.document.querySelectorAll('.sm-cmdmark').length;
+  start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type('/fuel'); check('/fuel gets its space at once', '"/fuel " cursor 5:6');
+  type('mara'); check('the name goes to capitals', '"/fuel MARA" cursor 5:10');
+  start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type('/fuel an'); check('no completion of the name (ANNA is in the script)', '"/fuel AN" cursor 5:8');
+  start('.i HOUSE - DAY\n\n,ANNA,\nHi.\n\n'); type('/fuel '); check('a space typed right after it is not doubled', '"/fuel " cursor 5:6');
+  start('.i HOUSE - DAY\n\nShe waits.\n'); type('/fuel'); check('inside a paragraph: no space added', '"/fuel" cursor 3:5');
+  cm.setValue('Action.\n\n/fuel MARA'); eq2('/fuel MARA alone: shown as a command', cmd(2), true); eq2('/fuel MARA: ↵ in the left margin', marks(), 1);
+  cm.setValue('Action.\n\n/fuel '); eq2('/fuel without a name: not a command', cmd(2), false); eq2('/fuel without a name: no ↵', marks(), 0);
+  cm.setValue('Action.\n/fuel MARA'); eq2('/fuel MARA inside a paragraph: not a command', cmd(1), false);
+  cm.setValue('// a note\n\n/fuel MARA'); eq2('only a note: nothing to share', cmd(2), false);
+  cm.setValue('.act_new ACT ONE\n\n/fuel MARA'); eq2('only an act line: nothing to share', cmd(2), false);
+  cm.setValue(',ANNA,\n(quietly)\n\n/fuel MARA'); eq2('only a cue without dialogue: nothing to share', cmd(3), false);
+  cm.setValue(',ANNA,\nHi.\n\n/fuel MARA'); eq2('a cue with dialogue: something to share', cmd(3), true);
+  cm.setValue('/fuel MARA\n\n/txt'); eq2('a /fuel line is no content for /txt', cmd(2), false);
+  cm.setValue('.i HOUSE - DAY\n\nShe waits.\n\n/fuel MARA'); cm.setCursor({line:4, ch:10}); enter();
+  eq2('Enter on /fuel MARA does nothing yet', JSON.stringify(cm.getValue()) + ' ' + cm.getCursor().line + ':' + cm.getCursor().ch, JSON.stringify('.i HOUSE - DAY\n\nShe waits.\n\n/fuel MARA') + ' 4:10');
+  cm.setValue('.i A - DAY\n\nOne.\n\n/fuel MARA');
+  eq2('/fdx leaves /fuel out', (cm.smFdx().match(/<Paragraph Type="([^"]+)"/g) || []).map(x => x.slice(17, -1)).join(','), 'Scene Heading,Action');
+}
 
 // Final Draft import (test/fdx/*.fdx): elements, extensions, language, page size, the page limit, undo
 { const fs = require('fs'), path = require('path');

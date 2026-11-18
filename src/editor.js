@@ -412,7 +412,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var h = ps[0], el = {pos:{line:s0, ch:0}, space:SPACE_OTHER, keep:false, split:false, cue:false, brk:false, runs:[], kind:'act'}, d, m;
       // notes are never printed, and neither is an export command alone in its paragraph, typed out or on its way
       // (/, /p, /pd, /pdf ...): they take no room, so the page limit never keeps one from being written
-      if (NOTE.test(h) || (ps.length === 1 && CMD_TYPING.test(h))) continue;
+      if (NOTE.test(h) || (ps.length === 1 && (CMD_TYPING.test(h) || FUEL_ANY.test(h)))) continue;
       el.brk = brk; brk = false;
       if ((d = slugDelta(h, L)) >= 0){
         speaker = null;
@@ -596,30 +596,49 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // Export commands alone on a line: /pdf (the printed reading script), /txt (the script as written, with its markup,
   // UTF-8, nothing added or wrapped) and /fdx (a Final Draft file, see fdxDoc)
   // The commands, written after a / alone in a paragraph. A new command is added here (and where it is carried out):
-  // the patterns below and the number of characters that can be typed after a / follow from this list
-  var COMMANDS = ['pdf', 'txt', 'fdx'];
-  var CMD_EXPORT = new RegExp('^\\s*\\/(' + COMMANDS.join('|') + ')\\s*$', 'i');
+  // the patterns below and the number of characters that can be typed after a / follow from this list. /pdf, /txt and
+  // /fdx export; /fuel hands the scene to fuel.social (see CMD_FUEL)
+  var COMMANDS = ['pdf', 'txt', 'fdx', 'fuel'];
+  var EXPORTS = ['pdf', 'txt', 'fdx'];
+  var CMD_EXPORT = new RegExp('^\\s*\\/(' + EXPORTS.join('|') + ')\\s*$', 'i');
+  // /fuel, a space and the name of the role the group takes on (at most FUEL_NAME_MAX characters, the space not counted).
+  // One letter after /fuel and its space makes it a command; /fuel and /fuel with its space alone are a command on its
+  // way (CMD_TYPING). FUEL_ANY is every form of it, with a name or without: none of them takes room on the pages
+  var FUEL_NAME_MAX = 38;
+  var CMD_FUEL = /^\s*\/fuel (\S.*)$/i, FUEL_ANY = /^\s*\/fuel(\s.*)?$/i;
   // A command while it is typed: / and every beginning of one (/p, /pd, /pdf ...)
   var CMD_TYPING = new RegExp('^\\s*\\/(' + COMMANDS.reduce(function(a, c){ for (var k = 1; k <= c.length; k++) if (a.indexOf(c.slice(0, k)) < 0) a.push(c.slice(0, k)); return a; }, []).join('|') + ')?\\s*$', 'i');
-  // After a / that begins a paragraph no more characters can be typed than the longest command has
+  // After a / that begins a paragraph no more characters can be typed than the longest command has; after /fuel and its
+  // space the name of the role as well
   var CMD_MAX = Math.max.apply(null, COMMANDS.map(function(c){ return c.length; }));
+  var FUEL_MAX = 'fuel '.length + FUEL_NAME_MAX;
   // An export command only works when there is something to export below the title page: /pdf needs a printed element
   // (notes, section marks and page breaks are never printed), /txt and /fdx need any text, notes included (marks and the
   // export commands themselves do not count). Paragraphs are read as the exports read them: split at empty lines and marks
+  // /fuel needs something to share: what /pdf prints, without act lines and without cues that have no dialogue (a cue
+  // with only a parenthetical below it has none)
   function exportContent(get, n, te){
-    var any = false, i = te + 1;
+    var any = false, print = false, share = false, i = te + 1;
     while (i < n){
       var s = get(i);
       if (s.trim() === '' || isMark(s)){ i++; continue; }
       var j = i;
       while (j < n && get(j).trim() !== '' && !isMark(get(j))) j++;
-      if (!(j === i + 1 && CMD_EXPORT.test(s))){
+      if (!(j === i + 1 && (CMD_EXPORT.test(s) || FUEL_ANY.test(s)))){
         any = true;
-        if (!NOTE.test(s)) return {pdf:true, txt:true};
+        if (!NOTE.test(s)){
+          print = true;
+          if (!share && !ACT.test(s)){
+            var cue = /^,[^,]*,(.*)$/.exec(s);
+            if (!cue || cue[1].trim() !== '') share = true;
+            else for (var k = i + 1; k < j; k++){ if (!/^\s*\(/.test(get(k))){ share = true; break; } }
+          }
+          if (share) return {pdf:true, txt:true, fuel:true};
+        }
       }
       i = j;
     }
-    return {pdf:false, txt:any};
+    return {pdf:print, txt:any, fuel:share};
   }
   function exportKind(s){ return /pdf/i.test(s) ? 'pdf' : 'txt'; }
   var PT = 72, LH = 12, INDENT = {act:1.5, dlg:2.5, par:2.9, cue:3.5};
@@ -673,7 +692,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var p = [];
       while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) p.push(lines[i++]);
       var h = p[0], rest = p.slice(1).join(' '), m;
-      if (CMD_EXPORT.test(h) && p.length === 1) continue;
+      if ((CMD_EXPORT.test(h) || FUEL_ANY.test(h)) && p.length === 1) continue;
       if ((m = h.match(/^\.(IE|EI|I|E)(\s+|$)/i))) add('Scene Heading', L.slug[m[1].toUpperCase()] + ' ' + h.slice(m[0].length) + ' ' + rest, true);
       else if ((m = h.match(/^\.act_(new|end)\s*/i))) add(/new/i.test(m[1]) ? 'New Act' : 'End of Act', h.slice(m[0].length) + ' ' + rest, true);
       else if (SHOT.test(h)) add('Shot', h.replace(/^\.s\s*/i, '') + ' ' + rest, true);
@@ -1077,6 +1096,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function isNoteHead(ln){ return paraStart(ln) && NOTE.test(line(ln)); }
     function isNoteLn(ln){ return !isBlank(line(ln)) && isNoteHead(paraHead(ln)); }
     function isCmdLn(ln){ return CMD_EXPORT.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))) && exportReady(line(ln)); }
+    // /fuel with a name alone in its paragraph, with something to share below the title page
+    function isFuelLn(ln){ return CMD_FUEL.test(line(ln)) && paraStart(ln) && (ln + 1 >= cm.lineCount() || isBlank(line(ln + 1))) && exportReadyAll().fuel; }
     // Whether /pdf and /txt or /fdx have something to export, kept until the text changes
     var readyMemo = null;
     function exportReadyAll(){
@@ -1432,6 +1453,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (/txt/i.test(s)) exportTxt(cm.getValue()); else if (/fdx/i.test(s)) exportFdx(cm.getValue()); else exportPdf(cm.getValue());
         return;
       }
+      // /fuel NAME: Enter does nothing yet (publishing comes in the next step)
+      if (!cm.somethingSelected() && ln > preEnd() && isFuelLn(ln)) return;
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;
@@ -1555,6 +1578,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       }
       if (lastAuto === ln && cur.ch === ACT_CMD + 2 && /^\.act_new _$/i.test(s)){
         put('.act_', {line:ln, ch:0}, {line:ln, ch:ACT_CMD + 2}); caret(ln, 5);
+        lastAuto = -1;
+        return true;
+      }
+      // /fuel gets its space at once; the name typed after it goes to capitals (see the capitals while typing)
+      if (cur.ch === 5 && /^\/fuel$/i.test(s) && ln > preEnd()){
+        put(' ', {line:ln, ch:5}, {line:ln, ch:5}); caret(ln, 6);
         lastAuto = -1;
         return true;
       }
@@ -2048,7 +2077,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         }
         if (hid[i] || isBlank(s)) return {w:W, x:X};
         // A finished export command (/pdf alone in its paragraph) shows in colorRed, so Enter is known to run it
-        if (i > te && isCmdLn(i)){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
+        if (i > te && (isCmdLn(i) || isFuelLn(i))){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
         if (i <= te || isMarkLn(i)){
           want('text', 'sm-t-act sm-t-note');
           if (i < te && headOf(s)) want('wrap', 'sm-head');
@@ -2098,7 +2127,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         }
         if (hid[i] || blank) return {w:W, x:X};
         var h0 = H[i], hs = T[h0];
-        if (i > te && CMD_EXPORT.test(s) && h0 === i && (i + 1 >= n || T[i + 1].trim() === '') && exportReady(s)){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
+        if (i > te && h0 === i && (i + 1 >= n || T[i + 1].trim() === '') && ((CMD_EXPORT.test(s) && exportReady(s)) || (CMD_FUEL.test(s) && exportReadyAll().fuel))){ want('text', 'sm-t-act sm-t-cmd'); return {w:W, x:X}; }
         if (i <= te || isMark(s)){
           want('text', 'sm-t-act sm-t-note');
           if (i < te && headOf(s)) want('wrap', 'sm-head');
@@ -2339,12 +2368,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var te = preEnd(), n = cm.lineCount();
       if (!rng){
         cmdStarts = [];
-        for (var c = te + 1; c < n; c++) if (!hid[c] && isCmdLn(c)) cmdStarts.push({line:c, ch:0});
+        for (var c = te + 1; c < n; c++) if (!hid[c] && (isCmdLn(c) || isFuelLn(c))) cmdStarts.push({line:c, ch:0});
       } else {
         var a = rng.a, b = rng.b, kept = [];
         // known commands above the changed lines stay, those below move with the lines gained; in between they are read again
         cmdStarts.forEach(function(p){ if (p.line < a) kept.push(p); else if (p.line > b - rng.delta) kept.push({line:p.line + rng.delta, ch:0}); });
-        for (var c2 = Math.max(te + 1, a); c2 <= Math.min(b, n - 1); c2++) if (!hid[c2] && isCmdLn(c2)) kept.push({line:c2, ch:0});
+        for (var c2 = Math.max(te + 1, a); c2 <= Math.min(b, n - 1); c2++) if (!hid[c2] && (isCmdLn(c2) || isFuelLn(c2))) kept.push({line:c2, ch:0});
         kept.sort(function(x, y){ return x.line - y.line; });
         cmdStarts = kept;
       }
@@ -2562,7 +2591,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         // a change over many lines (Reformat, a long paste) is quicker as one pass over the whole script
         var big = !!d && d.b - d.a > 1500;
         // export commands light up or go dark everywhere when the script gains its first content or loses its last
-        var rd = exportReadyAll(), ready = (rd.pdf ? 'p' : '') + (rd.txt ? 't' : '');
+        var rd = exportReadyAll(), ready = (rd.pdf ? 'p' : '') + (rd.txt ? 't' : '') + (rd.fuel ? 'f' : '');
         var full = DEC.full || rebuilt || inner || big || te !== DEC.te || lang !== DEC.lang || ready !== DEC.ready;
         if (full) decorate();
         else {
@@ -2795,7 +2824,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     });
     // Capitals while typing, as Reformat writes them: sluglines, shots and transitions after .i .e .ie .ei .s .t and
     // a space (the short form itself stays lowercase, the lines below the first too), cues between the two commas,
-    // extension included. Only typed letters; pasted text is left to Reformat
+    // extension included, and the name of the role after /fuel and its space. Only typed letters; pasted text is left
+    // to Reformat
     var CAPS_HEAD = /^\.(ie|ei|i|e|s|t|act_new|act_end)(\s+|$)/i;
     cm.on('beforeChange', function(_cm, ch){
       if (!ch.update || ch.origin !== '+input' || ch.text.length !== 1 || ch.from.line !== ch.to.line) return;
@@ -2806,6 +2836,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var s = line(ln), a = ch.from.ch, ns = s.slice(0, a) + t + s.slice(ch.to.ch), from = -1, to = Infinity, m;
       if (paraStart(ln)){
         if ((m = ns.match(CAPS_HEAD)) && m[2]) from = m[0].length;
+        else if ((m = ns.match(/^\s*\/fuel /i))) from = m[0].length;
         else if (ns.charAt(0) === ','){ from = 1; var c2 = ns.indexOf(',', 1); if (c2 >= 0) to = c2; }
       } else if ((m = line(paraHead(ln)).match(CAPS_HEAD)) && m[2]) from = 0;
       if (from < 0) return;
@@ -2884,7 +2915,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         } else if ((m0 = /^\s*\/(?!\/)/.exec(h0))){
           len = h0.length - m0[0].length; for (q = pa + 1; q <= pe; q++) len += 1 + get(q).length;
           var front = F === pa && A === 0 && ch.from.ch + ch.text[0].length <= m0[0].length;
-          if (len > CMD_MAX && !front){ ch.cancel(); return; }
+          if (len > (/^\s*\/fuel /i.test(h0) ? FUEL_MAX : CMD_MAX) && !front){ ch.cancel(); return; }
         }
         pa = pe + 1;
       }
