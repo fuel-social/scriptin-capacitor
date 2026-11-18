@@ -747,6 +747,20 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
 start('Action.\n\n/Test'); cm.setCursor({line:2, ch:1}); enter();
 eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue()), JSON.stringify('Action.\n\n/\nTest'));
 
+// Bubble goes to the current page without the # part (menu, language): the script's link is put back at once
+{
+  const link = '#' + 'a'.repeat(32) + '.' + 'b'.repeat(43), real = cm.smSync.link;
+  cm.smSync.link = () => link;
+  w.history.pushState(null, '', '/version-test/scriptin?view=about&lang=en_us');
+  eq2('pushState without the link: the link is put back', w.location.search + w.location.hash, '?view=about&lang=en_us' + link);
+  w.history.replaceState(null, '', '/version-test/scriptin?view=editor&lang=en_us');
+  eq2('replaceState without the link: the link is put back', w.location.search + w.location.hash, '?view=editor&lang=en_us' + link);
+  cm.smSync.link = () => '';
+  w.history.replaceState(null, '', '/version-test/scriptin');
+  eq2('no script yet: the address stays as Bubble sets it', w.location.search + w.location.hash, '');
+  cm.smSync.link = real;
+}
+
 // /fuel: the space comes by itself, the name of the role goes to capitals, no completion; with a name and something to
 // share it shows as a command (↵); Enter does nothing yet; it takes no room and is left out of the exports
 {

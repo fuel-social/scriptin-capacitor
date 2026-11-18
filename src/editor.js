@@ -1045,7 +1045,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           setTimeout(wait, 100);
         })();
       },
-      lock: function(){ locked = true; clearTimeout(timer); dirty = false; if (token) dropPending(token); }
+      lock: function(){ locked = true; clearTimeout(timer); dirty = false; if (token) dropPending(token); },
+      // the script's own address part, #<token>.<key>, once it has one
+      link: function(){ return token && keyStr ? '#' + token + '.' + keyStr : ''; }
     };
   }
   function init(){
@@ -1143,6 +1145,21 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     window.addEventListener('pagehide', save);
     var sync = makeSync(cm, saved, function(){ lockScript(); });
     cm.smSync = sync;
+    // Bubble changes the address without the # part when it goes to the current page (the menu Editor, About, Guide sets
+    // view=..., a missing lang is added on load): the script's link would be gone from the address bar, and a reload
+    // would open the copy in this browser instead of the script. The link is put back at once, in the same history entry
+    ['pushState', 'replaceState'].forEach(function(name){
+      var orig = window.history && window.history[name];
+      if (typeof orig !== 'function') return;
+      window.history[name] = function(st, title, url){
+        var r = orig.apply(window.history, arguments), link = sync.link();
+        if (link && window.location.hash !== link){
+          try { window.history.replaceState.orig.call(window.history, window.history.state, '', window.location.pathname + window.location.search + link); } catch (e){}
+        }
+        return r;
+      };
+      window.history[name].orig = orig;
+    });
     window.addEventListener('pagehide', function(){ sync.flush(); });
     // ---- /fuel: confirm, publish, lock ----
     // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
