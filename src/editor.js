@@ -945,11 +945,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       if (typeof fn !== 'function') return false;
       fn(value); return true;
     }
+    // the script arrives: the cursor goes where it was before the page was loaded anew (language switch, reload), once
     function setText(text){
       quiet = true;
       cm.setValue(text); cm.clearHistory();
       quiet = false;
       cm.setOption('readOnly', false);
+      if (startCursor){ cm.setCursor(startCursor); startCursor = null; }
       cm.focus();
     }
     function unlink(){
@@ -1055,7 +1057,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // the page and the time; a page loading without a link gets it back when it is the same page, loaded within LINK_KEEP_MS, by a
   // reload or from fuel.social itself (Bubble sends only the origin as the referrer). Opening scriptin from elsewhere (a
   // typed address, a bookmark) still starts without a link. Returns the # part to put back, or ''
-  var LINK_KEY = 'scriptin.capacitor.link', LINK_KEEP_MS = 5000;
+  var LINK_KEY = 'scriptin.capacitor.link', LINK_KEEP_MS = 5000, startCursor = null;
+  // the cursor kept with the link: {line, ch}, or null
+  function keptCursor(stored){
+    try { var c = JSON.parse(stored || 'null').cur; return c && c.line >= 0 && c.ch >= 0 ? {line:+c.line, ch:+c.ch} : null; } catch (e){ return null; }
+  }
   function keptLink(stored, hash, referrer, path, navType, now){
     var o = null;
     try { o = JSON.parse(stored || 'null'); } catch (e){}
@@ -1070,6 +1076,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
       var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
+      // the cursor goes back to where it was, too (see makeSync)
+      if (put) startCursor = keptCursor(stored);
       return put;
     } catch (e){ return ''; }
   }
@@ -1197,7 +1205,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // the link, its page and the time go into this tab's sessionStorage while the page is open (see keptLink)
     function keepLink(){
       var link = sync.link();
-      try { if (link) window.sessionStorage.setItem(LINK_KEY, JSON.stringify({link:link, path:window.location.pathname, at:Date.now()})); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
+      try { if (link) window.sessionStorage.setItem(LINK_KEY, JSON.stringify({link:link, path:window.location.pathname, at:Date.now(), cur:cm.getCursor()})); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
     }
     // ---- /fuel: confirm, publish, lock ----
     // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
@@ -1273,6 +1281,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.smFuelScene = fuelScene;
     cm.smFuelSay = fuelSay;
     cm.smKeptLink = keptLink;
+    cm.smKeptCursor = keptCursor;
     // While publishing nothing changes the text; once locked only the Mode line and the title page's own additions do
     cm.on('beforeChange', function(_cm, ch){
       if (fuelOwn || (!locked && fuelSt !== 'sending')) return;

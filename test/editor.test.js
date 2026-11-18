@@ -773,6 +773,8 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
   eq2('another page: no link', k(st(), '', 'https://fuel.social/', '/version-test/m_index', 'navigate', T + 900), '');
   eq2('the address has its own link: kept as it is', k(st(), '#' + 'c'.repeat(32) + '.' + 'd'.repeat(43), '', P, 'reload', T + 900), '');
   eq2('nothing kept: nothing put back', k(null, '', '', P, 'reload', T + 900), '');
+  eq2('the cursor is kept with the link', JSON.stringify(cm.smKeptCursor(st({cur:{line:12, ch:5}}))), '{"line":12,"ch":5}');
+  eq2('no cursor kept: none', cm.smKeptCursor(st()), null);
 }
 
 // /fuel: the space comes by itself, the name of the role goes to capitals, no completion; with a name and something to
