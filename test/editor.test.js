@@ -734,6 +734,19 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   start(T); type('.a'); check('.a alone is left alone', '".a" cursor 4:2');
   rf('Reformat: act command lowercase, title in capitals', '.ACT_NEW  act   one\n\n.act_end end\nof act one', '.act_new ACT ONE\n\n.act_end END\nOF ACT ONE'); }
 
+// Below a hidden title page only the title page and the one empty line after it are hidden: Enter at the start of the
+// first paragraph moves it down, and the new empty line shows
+{
+  const gone = i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '');
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n---\n\nTest'); cm.smView();
+  eq2('hidden title page: the empty line after it is hidden too', gone(6) + ' ' + gone(7) + ' ' + gone(8), 'true true false');
+  cm.setCursor({line:8, ch:0}); enter(); cm.smView();
+  eq2('Enter at the start of the first paragraph: it moves down', JSON.stringify(cm.getLine(9)) + ' ' + gone(8), '"Test" false');
+}
+// Enter in a line that starts with / and has text after it: a plain new line, as in the middle of any line
+start('Action.\n\n/Test'); cm.setCursor({line:2, ch:1}); enter();
+eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue()), JSON.stringify('Action.\n\n/\nTest'));
+
 // /fuel: the space comes by itself, the name of the role goes to capitals, no completion; with a name and something to
 // share it shows as a command (↵); Enter does nothing yet; it takes no room and is left out of the exports
 {

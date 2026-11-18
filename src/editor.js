@@ -1438,12 +1438,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var out = [];
       if (view === 1 && !notesOff && (preOn || !hasPre())) return out;
       var te = preEnd(), last = cm.lastLine();
-      // Only the title page is hidden (whole script, notes shown): everything from line 0 to the line before the first
-      // paragraph below it, without reading the paragraphs of the whole script
+      // Only the title page is hidden (whole script, notes shown): the title page and the one empty line that sets the
+      // script off from it, without reading the paragraphs of the whole script. Further empty lines above the first
+      // paragraph stay visible, so Enter at the start of the first paragraph moves it down
       if (view === 1 && !notesOff && !preOn){
         var f = te + 1;
         while (f <= last && isBlank(line(f))) f++;
-        if (f <= last) hideRange(0, f - 1, true, out); else hideRange(0, last > te ? last - 1 : last, true, out);
+        if (f <= last) hideRange(0, isBlank(line(te + 1)) ? te + 1 : te, true, out); else hideRange(0, last > te ? last - 1 : last, true, out);
         return out;
       }
       var ps = paragraphs(), cl = cm.getCursor().line, prevEnd = -1, run = false;
@@ -3111,8 +3112,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (NOTE.test(h0)){
           len = h0.length - 2; for (q = pa + 1; q <= pe; q++) len += get(q).length;
           if (len > NOTE_MAX){ ch.cancel(); return; }
-        } else if ((m0 = /^\s*\/(?!\/)/.exec(h0))){
-          len = h0.length - m0[0].length; for (q = pa + 1; q <= pe; q++) len += 1 + get(q).length;
+        } else if ((m0 = /^\s*\/(?!\/)/.exec(h0)) && pe === pa){
+          // only a paragraph of one line is a command (one of more lines is printed and counted like any other)
+          len = h0.length - m0[0].length;
           var front = F === pa && A === 0 && ch.from.ch + ch.text[0].length <= m0[0].length;
           if (len > (/^\s*\/fuel /i.test(h0) ? FUEL_MAX : CMD_MAX) && !front){ ch.cancel(); return; }
         }
