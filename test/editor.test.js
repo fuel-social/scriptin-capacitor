@@ -797,6 +797,48 @@ cm.setValue(',*BEAMTER*,\nHi.'); eq2('a cue shows its emphasis', cm.getLineToken
   r = imp('long'); eq2('a long script: only the first three pages', r.cut + ' ' + (cm.smPages().full.length + 1), 'true 3');
   eq2('a long script: A4 from the file', pre('Page size'), 'A4'); }
 
+// /fuel, what goes to the server: marked plain text, the script language as en_us/de_de/it_it, title and author
+{
+  const tp = '---\n\n//TITLE PAGE\nTitle: Bottleneck\nAuthor: Fabrizio\n\n//SETTINGS\nPage size: A4\nLanguage: Deutsch\nAutocomplete: On\nMode: Day\n\n---\n\n';
+  const sc = cm.smFuelScene(tp + '.act_new ACT ONE\n\n.i küche - nacht\n\n// a note\n\nSie _wartet_ *lange*.\nDann geht sie.\n\n,ANNA (OFF),\nHallo.\n(leise)\nJa.\n\n,TOM,\n(seufzt)\n\n,,\nNein.\n\n.s close on the letter\n\n.t SCHNITT AUF:\n\n===\n\n/fuel MARA');
+  eq2('fuel scene: elements and marks', JSON.stringify(sc.scene), JSON.stringify('S INNEN. KÜCHE - NACHT\nA Sie wartet lange.\nA Dann geht sie.\nC ANNA (OFF)\nD Hallo.\nP (leise)\nD Ja.\nC ANNA\nD Nein.\nH CLOSE ON THE LETTER\nT SCHNITT AUF:'));
+  eq2('fuel scene: language, title, author', sc.language + ' ' + sc.title + ' ' + sc.author, 'de_de Bottleneck Fabrizio');
+  const sc2 = cm.smFuelScene('.i HOUSE - DAY\n\nShe waits.');
+  eq2('fuel scene without a title page: English, no title, no author', sc2.language + '|' + sc2.title + '|' + sc2.author, 'en_us||');
+}
+
+// /fuel: the first Enter asks, the second publishes through Bubble; yes locks the script, no gives it back
+{
+  const note = () => { const n = w.document.querySelector('.sm-fuel-note'); return n ? n.textContent : ''; };
+  const ro = () => cm.view.state.readOnly;
+  const sent = [];
+  w.bubble_fn_fuel = v => sent.push(v);
+  cm.smSync.ready = cb => cb('t'.repeat(32));
+  const script = '.i HOUSE - DAY\n\nShe waits.\n\n/fuel MARA';
+  cm.setValue(script); cm.setCursor({line:4, ch:10}); enter();
+  eq2('first Enter: the confirmation below the line (no title, no name)', /^Enter again publishes this scene on fuel\.social, without a title and without your name\. .*write the next line for MARA\. .*\(Cmd\+Option\+9\)\.$/.test(note()), true);
+  eq2('first Enter: nothing sent, text unchanged', sent.length + ' ' + (cm.getValue() === script), '0 true');
+  cm.setCursor({line:2, ch:0}); eq2('moving off the line takes the confirmation away', note(), '');
+  cm.setCursor({line:4, ch:10}); enter(); enter();
+  eq2('second Enter: sent to Bubble', sent.length, 1);
+  const pl = JSON.parse(sent[0] || '{}');
+  eq2('the six values', [pl.token, pl.role, pl.scene_text, pl.language, pl.title, pl.author].join('|'), 't'.repeat(32) + '|MARA|S INT. HOUSE - DAY\nA She waits.|en_us||');
+  eq2('while publishing: read only, no confirmation', ro() + ' ' + JSON.stringify(note()), 'true ""');
+  cm.replaceRange('x', {line:2, ch:0}, null, '+input'); eq2('while publishing: the text cannot change', cm.getValue(), script);
+  w.smFueled('no');
+  eq2('no: free again, the line stays, not locked', ro() + ' ' + (cm.getValue() === script) + ' ' + cm.smLocked(), 'false true false');
+  cm.setCursor({line:4, ch:10}); enter(); eq2('after no: Enter asks again', /^Enter again publishes/.test(note()), true);
+  enter(); eq2('and the second Enter sends again', sent.length, 2);
+  w.localStorage.setItem('scriptin.capacitor.text', script);
+  w.smFueled('yes');
+  eq2('yes: locked, the /fuel line emptied, read only', cm.smLocked() + ' ' + JSON.stringify(cm.getValue()) + ' ' + ro(), 'true ' + JSON.stringify('.i HOUSE - DAY\n\nShe waits.\n\n') + ' true');
+  eq2('yes: Cmd+Z cannot go back past it', JSON.stringify(cm.historySize()), '{"undo":0,"redo":0}');
+  eq2('yes: the copy in this browser is gone', w.localStorage.getItem('scriptin.capacitor.text'), null);
+  cm.replaceRange('x', {line:2, ch:0}, null, '+input'); eq2('locked: typing is refused', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
+  cm.replaceRange('', {line:2, ch:0}, {line:2, ch:4}, '+delete'); eq2('locked: deleting is refused', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
+  w.smFueled('yes'); eq2('a second yes changes nothing', cm.smLocked(), true);
+}
+
 console.log(fails ? fails + ' failed' : 'all passed');
 process.exit(fails ? 1 : 0); // jsdom keeps timers alive, so exit explicitly
 }

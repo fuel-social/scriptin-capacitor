@@ -155,6 +155,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // the address ends in #<token>.<key>; the token names the record, the key stays in the URL fragment,
   // which browsers never send to a server, so the database only ever holds ciphertext
   var HASH = /^#([a-z0-9]{32})\.([A-Za-z0-9_-]{43})$/, SYNC_MS = 2000, LOAD_WAIT_MS = 15000, PEND_PREFIX = 'scriptin.capacitor.pending.';
+  // /fuel: the last save may take this long before publishing; without an answer from Bubble after FUEL_WAIT_MS in all,
+  // nothing is locked and Enter tries again
+  var FUEL_SAVE_MS = 15000, FUEL_WAIT_MS = 20000;
   function isBlank(s){ return s.trim() === ''; }
   function alpha(a, b){ return a.localeCompare(b, undefined, {sensitivity:'base'}); }
   // colorBlue of the other theme in OptS_theme_ui, used for the cursor on shot blocks
@@ -677,6 +680,71 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     }
     return out;
   }
+  // ---- /fuel: what goes to fuel.social ----
+  // The scene as marked plain text for the server (it builds the phone's HTML itself, so no HTML ever leaves the
+  // browser): one element per line, a letter and a space: S slugline, A action, H shot, T transition, C cue, D dialogue,
+  // P parenthetical. Underline and italic travel as private use characters (U+E000/U+E001 open and close underline,
+  // U+E002/U+E003 italic). What /pdf prints, without act lines: empty cues get names as with Reformat, cues without
+  // dialogue (also one with only a parenthetical) are left out, and so are notes, marks, page breaks and command lines.
+  // From the title page: title, author and the script language (as en_us, de_de, it_it)
+  var FUEL_LANG = {en:'en_us', de:'de_de', it:'it_it'};
+  function fuelScene(text){
+    text = fillCues(text).text;
+    var lines = text.split('\n'), get = function(k){ return lines[k]; }, te = titleEnd(get, lines.length), L = langIn(get, te);
+    var out = [], i = te + 1, U0 = '', U1 = '', I0 = '', I1 = '';
+    function mk(s, up){
+      return emphSegs(s.replace(/\s+/g, ' ').trim(), up).map(function(g){
+        var t = g.t;
+        if (g.i) t = I0 + t + I1;
+        if (g.u) t = U0 + t + U1;
+        return t;
+      }).join('');
+    }
+    function add(k, s, up){ var t = mk(s, up); if (t) out.push(k + ' ' + t); }
+    while (i < lines.length){
+      if (lines[i].trim() === ''){ i++; continue; }
+      if (isMark(lines[i])){ i++; continue; }
+      var p = [];
+      while (i < lines.length && lines[i].trim() !== '' && !isMark(lines[i])) p.push(lines[i++]);
+      var h = p[0], rest = p.slice(1).join(' '), m;
+      if (p.length === 1 && (CMD_TYPING.test(h) || CMD_EXPORT.test(h) || FUEL_ANY.test(h))) continue;
+      if (NOTE.test(h) || ACT.test(h)) continue;
+      if ((m = h.match(/^\.(IE|EI|I|E)(\s+|$)/i))) add('S', L.slug[m[1].toUpperCase()] + ' ' + h.slice(m[0].length) + ' ' + rest, true);
+      else if (SHOT.test(h)) add('H', h.replace(/^\.s\s*/i, '') + ' ' + rest, true);
+      else if (TRANS.test(h)) add('T', h.replace(/^\.t\s*/i, '') + ' ' + rest, true);
+      else if ((m = h.match(/^,([^,]*),(.*)$/))){
+        var said = [], spoken = false;
+        [m[2]].concat(p.slice(1)).forEach(function(l){
+          if (!l.trim()) return;
+          splitParens(l.trim()).forEach(function(x){ var par = /^\(/.test(x); if (!par) spoken = true; said.push([par ? 'P' : 'D', x]); });
+        });
+        if (!spoken) continue;
+        add('C', m[1], true);
+        said.forEach(function(d){ add(d[0], d[1], false); });
+      }
+      else p.forEach(function(l){ add('A', l, false); });
+    }
+    return {scene:out.join('\n'), language:FUEL_LANG[L.code] || 'en_us', title:(preValue(get, te, 'title') || '').trim(), author:(preValue(get, te, 'author') || '').trim()};
+  }
+  // The editor's own /fuel texts, in the language of the interface (the address's lang, read once on load; the language
+  // switch reloads the page), English without one. {title}, {author}, {role}, {keys} are filled in
+  var FUEL_TEXT = {
+    en:{
+      both:'Enter again publishes this scene on fuel.social, with the title “{title}” and your name, {author}. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels.',
+      title:'Enter again publishes this scene on fuel.social, with the title “{title}” but without your name. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add your name on the title page ({keys}).',
+      name:'Enter again publishes this scene on fuel.social, with your name, {author}, but without a title. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add a title on the title page ({keys}).',
+      none:'Enter again publishes this scene on fuel.social, without a title and without your name. Anyone with the link can read it and write the next line for {role}. The scene is then locked here. Any other key cancels. Add both on the title page ({keys}).',
+      error:'fuel.social could not be reached. Nothing was published, and the scene is not locked. Enter tries again.'
+    }
+  };
+  function uiLang(){
+    var m = /[?&]lang=([a-z]{2})/i.exec(window.location.search || '');
+    return m && FUEL_TEXT[m[1].toLowerCase()] ? m[1].toLowerCase() : 'en';
+  }
+  function fuelSay(key, vals){
+    var T = FUEL_TEXT[uiLang()] || FUEL_TEXT.en, t = T[key] || FUEL_TEXT.en[key];
+    return t.replace(/\{(title|author|role|keys)\}/g, function(_, k){ return vals && vals[k] !== undefined ? vals[k] : ''; });
+  }
   // The script as Final Draft elements (src/fdx.js writes the file): sluglines with the script language's INT./EXT.
   // words, cues with their extension (empty ones get names as Reformat gives them), every parenthetical on its own,
   // act lines as New Act and End of Act, // notes as Note, shots and transitions; each line of an action paragraph is
@@ -812,10 +880,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
     return a;
   }
-  function makeSync(cm, localText){
+  function makeSync(cm, localText, onLocked){
     var m = HASH.exec(window.location.hash || '');
     var token = m ? m[1] : '', keyStr = m ? m[2] : '', key = null;
     var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false, inflight = false, inflightTimer = null, inflightAt = 0, inflightToken = '';
+    // After /fuel the script is locked: the server takes no more saves, so none go out
+    var locked = false;
     var subtle = window.crypto && window.crypto.subtle;
     function getKey(){
       if (key) return Promise.resolve(key);
@@ -870,7 +940,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function schedule(){ clearTimeout(timer); timer = setTimeout(function(){ if (window.requestIdleCallback) window.requestIdleCallback(flush, {timeout:1000}); else flush(); }, SYNC_MS); }
     function flush(){
       clearTimeout(timer);
-      if (!subtle || !dirty || state !== 'idle') return;
+      if (locked || !subtle || !dirty || state !== 'idle') return;
       if (!token){
         // The first real text asks Bubble for a new record
         if (cm.getValue().trim() === '') return;
@@ -907,12 +977,20 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       });
     };
     window.smSaved = function(ok){ if (inflight) settle(String(ok).trim() === 'yes'); };
-    window.smLoaded = function(found, payload){
+    // The third value says whether the script is locked (published with /fuel): then it opens read only, without the
+    // /fuel line, and no newer copy from this browser is laid over it
+    window.smLoaded = function(found, payload, isLocked){
       if (state !== 'loading') return;
       var done = function(text){ state = 'idle'; setText(text); };
       if (String(found) !== 'yes' || !payload){ unlink(); done(localText); return; }
       var t = token;
       decrypt(payload).then(function(srv){
+        if (String(isLocked).trim() === 'yes'){
+          done(srv.t.split('\n').map(function(l){ return FUEL_ANY.test(l) ? '' : l; }).join('\n'));
+          locked = true; dirty = false; dropPending(t);
+          if (onLocked) onLocked();
+          return;
+        }
         done(srv.t);
         // A newer unconfirmed save from this browser goes on top as one undoable change (Cmd+Z returns to the server version)
         var p = readPending(t);
@@ -931,8 +1009,23 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       })();
     }
     return {
-      changed: function(){ if (quiet || state === 'loading') return; dirty = true; schedule(); },
-      flush: flush
+      changed: function(){ if (locked || quiet || state === 'loading') return; dirty = true; schedule(); },
+      flush: flush,
+      // Calls back with the token once the script is in the database exactly as it is now (created if it had no record
+      // yet, the last change saved), or with '' when that does not happen within FUEL_SAVE_MS
+      ready: function(cb){
+        if (!subtle || locked){ cb(''); return; }
+        var t0 = Date.now();
+        if (!token) dirty = true;
+        flush();
+        (function wait(){
+          if (token && !dirty && !inflight && state === 'idle'){ cb(token); return; }
+          if (Date.now() - t0 > FUEL_SAVE_MS){ cb(''); return; }
+          if (dirty && !inflight && state === 'idle') flush();
+          setTimeout(wait, 100);
+        })();
+      },
+      lock: function(){ locked = true; clearTimeout(timer); dirty = false; if (token) dropPending(token); }
     };
   }
   function init(){
@@ -1025,11 +1118,96 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var activeCue = -1, clicked = false;
     // The copy in this browser is written when the page is idle (a long script takes a moment to write), at the latest
     // after a second; on leaving the page at once
-    function save(){ try { window.localStorage.setItem(STORE_KEY, cm.getValue()); } catch (e){} }
+    function save(){ if (locked) return; try { window.localStorage.setItem(STORE_KEY, cm.getValue()); } catch (e){} }
     function saveIdle(){ if (window.requestIdleCallback) window.requestIdleCallback(save, {timeout:1000}); else save(); }
     window.addEventListener('pagehide', save);
-    var sync = makeSync(cm, saved);
+    var sync = makeSync(cm, saved, function(){ lockScript(); });
+    cm.smSync = sync;
     window.addEventListener('pagehide', function(){ sync.flush(); });
+    // ---- /fuel: confirm, publish, lock ----
+    // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
+    // away. The second Enter makes the editor read only, saves the last change and hands the scene to Bubble
+    // (bubble_fn_fuel with the six values as JSON). Bubble answers with window.smFueled('yes'|'no'): yes locks the script,
+    // no gives it back. Without any answer the editor gives itself back after FUEL_WAIT_MS and says so below the line.
+    // Bubble shows the progress, the QR code and its own error in a popup
+    var locked = false, fuelSt = 'idle', fuelLn = -1, fuelTimer = null, fuelBox = null, fuelOwn = false;
+    function fuelNote(ln, text){
+      if (!fuelBox){ fuelBox = document.createElement('div'); fuelBox.className = 'sm-fuel-note'; }
+      fuelBox.textContent = text;
+      cm.setBelow(ln, fuelBox);
+    }
+    function fuelHide(){ if (fuelSt === 'confirm' || fuelSt === 'error') fuelSt = 'idle'; cm.setBelow(-1, null); }
+    function fuelConfirm(ln){
+      var sc = fuelScene(cm.getValue()), role = CMD_FUEL.exec(line(ln))[1].trim();
+      var keys = /Win/i.test(navigator.platform || navigator.userAgent || '') ? 'Ctrl+Shift+9' : 'Cmd+Option+9';
+      var key = sc.title && sc.author ? 'both' : sc.title ? 'title' : sc.author ? 'name' : 'none';
+      fuelSt = 'confirm'; fuelLn = ln;
+      fuelNote(ln, fuelSay(key, {title:sc.title, author:sc.author, role:role, keys:keys}));
+    }
+    function fuelEnter(ln){
+      if (locked || fuelSt === 'sending') return;
+      if (fuelSt === 'confirm' && fuelLn === ln){ fuelSend(ln); return; }
+      fuelConfirm(ln);
+    }
+    function fuelSend(ln){
+      var role = CMD_FUEL.exec(line(ln))[1].trim();
+      fuelSt = 'sending'; fuelLn = ln; cm.setBelow(-1, null);
+      cm.setOption('readOnly', true);
+      clearTimeout(fuelTimer);
+      fuelTimer = setTimeout(function(){ fuelFail(true); }, FUEL_WAIT_MS);
+      sync.ready(function(token){
+        if (fuelSt !== 'sending') return;
+        if (!token){ fuelFail(true); return; }
+        var sc = fuelScene(cm.getValue()), fn = window.bubble_fn_fuel;
+        if (typeof fn !== 'function'){ fuelFail(true); return; }
+        fn(JSON.stringify({token:token, role:role, scene_text:sc.scene, language:sc.language, title:sc.title, author:sc.author}));
+      });
+    }
+    function fuelFail(say){
+      clearTimeout(fuelTimer);
+      if (locked) return;
+      cm.setOption('readOnly', false);
+      if (say && fuelLn >= 0 && fuelLn < cm.lineCount()){ fuelSt = 'error'; fuelNote(fuelLn, fuelSay('error')); }
+      else { fuelSt = 'idle'; cm.setBelow(-1, null); }
+    }
+    // Locked: the /fuel line is emptied, Cmd+Z cannot go back past it, the copy in this browser is gone (scriptin without
+    // a link opens empty), and nothing is saved any more. Still possible: moving, selecting, copying, views, showing and
+    // hiding notes, page and scene numbers and the title page, and the Mode setting (it only changes colours)
+    function lockScript(){
+      clearTimeout(fuelTimer);
+      if (fuelSt === 'sending' && fuelLn >= 0 && fuelLn < cm.lineCount() && CMD_FUEL.test(line(fuelLn))){ fuelOwn = true; try { put('', {line:fuelLn, ch:0}, {line:fuelLn, ch:line(fuelLn).length}); } finally { fuelOwn = false; } }
+      locked = true; fuelSt = 'locked'; cm.setBelow(-1, null);
+      cm.clearHistory();
+      clearTimeout(saveTimer);
+      try { window.localStorage.removeItem(STORE_KEY); } catch (e){}
+      sync.lock();
+      cm.setOption('readOnly', true);
+    }
+    window.smFueled = function(ok){
+      if (locked) return;
+      // a late yes still locks: the server has published and locked the script
+      if (String(ok).trim() === 'yes') lockScript();
+      else if (fuelSt === 'sending') fuelFail(false);
+    };
+    cm.smLocked = function(){ return locked; };
+    cm.smFuelScene = fuelScene;
+    // While publishing nothing changes the text; once locked only the Mode line and the title page's own additions do
+    cm.on('beforeChange', function(_cm, ch){
+      if (fuelOwn || (!locked && fuelSt !== 'sending')) return;
+      var o = ch.origin || '';
+      if (o === 'setValue') return;
+      if (locked && (o === '+pre' || (ch.from.line === ch.to.line && settingOf(ch.from.line) === 'mode'))) return;
+      ch.cancel();
+    });
+    // The confirmation (or the error) goes away with any other key, when the cursor leaves the line or the text changes
+    host.addEventListener('keydown', function(e){
+      if (fuelSt !== 'confirm' && fuelSt !== 'error') return;
+      if (/^(Shift|Meta|Alt|Control|CapsLock)$/.test(e.key)) return;
+      if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.metaKey && !e.ctrlKey) return;
+      fuelHide();
+    }, true);
+    cm.on('cursorActivity', function(){ if ((fuelSt === 'confirm' || fuelSt === 'error') && cm.getCursor().line !== fuelLn) fuelHide(); });
+    cm.on('changes', function(){ if (fuelSt === 'confirm' || fuelSt === 'error') fuelHide(); });
     // Slugline bars, shot blocks and the cursor get the same band height as cue blocks and selections (the text's own box inside the line)
     // Every band and the cursor: from the row's top plus gap, h high (the line's height and the descenders' reach)
     var BAND = {gap:0, h:cm.defaultTextHeight(), k:''};
@@ -1453,8 +1631,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (/txt/i.test(s)) exportTxt(cm.getValue()); else if (/fdx/i.test(s)) exportFdx(cm.getValue()); else exportPdf(cm.getValue());
         return;
       }
-      // /fuel NAME: Enter does nothing yet (publishing comes in the next step)
-      if (!cm.somethingSelected() && ln > preEnd() && isFuelLn(ln)) return;
+      // /fuel NAME: the first Enter asks, the second publishes (see fuelEnter)
+      if (!cm.somethingSelected() && ln > preEnd() && isFuelLn(ln)){ fuelEnter(ln); return; }
       // In a cue Enter does what Tab does: keep a completed name, close the cue and go to its dialogue line
       if (paraStart(ln) && (isCueLn(ln) || /^,[^,]*$/.test(s)) && (!cm.somethingSelected() || cm.getSelection().indexOf('\n') < 0)){ tab(); return; }
       if (cm.somethingSelected()) return CodeMirror.Pass;

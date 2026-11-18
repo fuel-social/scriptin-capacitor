@@ -103,3 +103,5 @@
 #sm-editor.sm-dropping:not(.sm-drop-msg) .sm-drop-sub{display:block}
 #sm-editor.sm-dropping .cm-content,#sm-editor.sm-dropping .sm-bands,#sm-editor.sm-dropping .sm-carets,#sm-editor.sm-dropping .sm-pages,#sm-editor.sm-dropping .sm-scenes{visibility:hidden}
 #sm-editor.sm-dropping .cm-editor{border-left-color:var(--sm-blue);border-right-color:var(--sm-blue)}
+/* /fuel: the confirmation (or the error) below the /fuel line; not text, not saved, not exported */
+#sm-editor .sm-fuel-note{padding:6px 16px 0;font-family:'GTPressuraRegular',sans-serif;font-size:16px;line-height:22px;color:var(--sm-blue);white-space:normal;user-select:none;cursor:default}

@@ -8,7 +8,7 @@
 //   undo history with CodeMirror 5's grouping (one step per operation, typing joined for 1.25 s)
 //   line classes ('wrap' and 'text' as one class list on the line) and a per line token function for marks
 import {EditorState, EditorSelection, Transaction, Annotation, StateField, StateEffect, Compartment, Prec, RangeSetBuilder} from '@codemirror/state';
-import {EditorView, Decoration, ViewPlugin, keymap, drawSelection, runScopeHandlers, layer, RectangleMarker} from '@codemirror/view';
+import {EditorView, Decoration, ViewPlugin, WidgetType, keymap, drawSelection, runScopeHandlers, layer, RectangleMarker} from '@codemirror/view';
 import {standardKeymap} from '@codemirror/commands';
 
 export var Pass = {toString: function(){ return 'CodeMirror.Pass'; }};
@@ -23,6 +23,23 @@ var originAnn = Annotation.define();      // the CodeMirror 5 origin of a change
 var noHistory = Annotation.define();      // changes that do not go into the undo history
 var setHidden = StateEffect.define();     // the collapsed (hidden) ranges, given anew
 var redraw = StateEffect.define();        // line classes or tokens changed: draw the visible lines again
+var setBelowFx = StateEffect.define();    // the block shown below one line (or none), given anew
+
+// A block of the editor's own below a line (the /fuel confirmation): not text, not saved, not selectable
+class BelowWidget extends WidgetType {
+  constructor(dom){ super(); this.dom = dom; }
+  eq(o){ return o.dom === this.dom; }
+  toDOM(){ return this.dom; }
+  ignoreEvent(){ return true; }
+}
+var belowField = StateField.define({
+  create: function(){ return Decoration.none; },
+  update: function(v, tr){
+    for (var i = 0; i < tr.effects.length; i++) if (tr.effects[i].is(setBelowFx)) return tr.effects[i].value;
+    return tr.docChanged ? v.map(tr.changes) : v;
+  },
+  provide: function(f){ return EditorView.decorations.from(f); }
+});
 
 var HISTORY_DELAY = 1250;                  // CodeMirror 5's historyEventDelay
 
@@ -511,6 +528,7 @@ export function createEditor(host, opts){
       caretLayer,
       EditorState.transactionFilter.of(filter),
       hiddenField,
+      belowField,
       drawPlugin,
       Prec.lowest(wrapperDecos),
       update,
@@ -594,6 +612,12 @@ export function createEditor(host, opts){
     hasFocus: function(){ return view.hasFocus; },
     getWrapperElement: function(){ return view.dom; },
     getInputField: function(){ return view.contentDOM; },
+    // show dom as a block below line ln (null: show none)
+    setBelow: function(ln, dom){
+      var deco = Decoration.none;
+      if (dom && ln >= 0 && ln < doc().lines) deco = Decoration.set([Decoration.widget({widget: new BelowWidget(dom), block: true, side: 1}).range(doc().line(ln + 1).to)]);
+      operation(function(){ apply({effects: setBelowFx.of(deco)}); });
+    },
     setOption: function(name, value){
       if (name === 'readOnly') apply({effects: readOnlyComp.reconfigure(EditorState.readOnly.of(!!value))});
       else if (name === 'extraKeys'){ extraKeys = value || {}; apply({effects: keysComp.reconfigure(keymap.of(keyBindings()))}); }
