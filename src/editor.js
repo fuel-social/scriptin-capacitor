@@ -1069,6 +1069,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var stored = window.sessionStorage.getItem(LINK_KEY);
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
       var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
+      // what was found, for looking into it in the browser's console
+      window.smLinkStart = {stored:stored, hash:window.location.hash, referrer:document.referrer, nav:nav, now:Date.now(), put:put};
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
       return put;
     } catch (e){ return ''; }
