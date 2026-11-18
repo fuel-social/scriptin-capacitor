@@ -1050,10 +1050,31 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       link: function(){ return token && keyStr ? '#' + token + '.' + keyStr : ''; }
     };
   }
+  // The script's link survives a page that Bubble loads anew without it (the language switch reloads scriptin with a new
+  // lang and no # part), and a reload: on leaving, the link goes into this tab's sessionStorage; on loading without a
+  // link it is put back when the page is reloaded or comes from scriptin itself. Opening scriptin from elsewhere (a
+  // typed address, a bookmark) still starts without a link. Returns the # part to put back, or ''
+  var LINK_KEY = 'scriptin.capacitor.link';
+  function keptLink(stored, hash, referrer, path, navType){
+    if (!stored || !HASH.test(stored) || HASH.test(hash || '')) return '';
+    var same = false;
+    try { same = !!referrer && new URL(referrer).pathname === path; } catch (e){}
+    return navType === 'reload' || same ? stored : '';
+  }
+  function restoreLink(){
+    try {
+      var stored = window.sessionStorage.getItem(LINK_KEY);
+      window.sessionStorage.removeItem(LINK_KEY);
+      var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
+      var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav);
+      if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
+    } catch (e){}
+  }
   function init(){
     var host = document.getElementById('sm-editor');
     if (!host || host.getAttribute('data-ready')) return;
     host.setAttribute('data-ready', '1');
+    restoreLink();
     if (T.bg) host.style.setProperty('--sm-bg', T.bg);
     if (T.fg) host.style.setProperty('--sm-fg', T.fg);
     if (T.blue) host.style.setProperty('--sm-blue', T.blue);
@@ -1160,7 +1181,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       };
       window.history[name].orig = orig;
     });
-    window.addEventListener('pagehide', function(){ sync.flush(); });
+    window.addEventListener('pagehide', function(){
+      sync.flush();
+      var link = sync.link();
+      try { if (link) window.sessionStorage.setItem(LINK_KEY, link); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
+    });
     // ---- /fuel: confirm, publish, lock ----
     // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
     // away. The second Enter makes the editor read only, saves the last change and hands the scene to Bubble
@@ -1234,6 +1259,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.smLocked = function(){ return locked; };
     cm.smFuelScene = fuelScene;
     cm.smFuelSay = fuelSay;
+    cm.smKeptLink = keptLink;
     // While publishing nothing changes the text; once locked only the Mode line and the title page's own additions do
     cm.on('beforeChange', function(_cm, ch){
       if (fuelOwn || (!locked && fuelSt !== 'sending')) return;
