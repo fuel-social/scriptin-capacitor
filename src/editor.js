@@ -1000,7 +1000,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // The third value says whether the script is locked (published with /fuel): then it opens read only, without the
     // /fuel line, and no newer copy from this browser is laid over it
     window.smLoaded = function(found, payload, isLocked){
-      window.smLinkLoad = {found:String(found), len:String(payload || '').length, locked:String(isLocked), state:state, token:token.slice(0, 6)};
       if (state !== 'loading') return;
       var done = function(text){ state = 'idle'; setText(text); };
       if (String(found) !== 'yes' || !payload){ unlink(); done(localText); return; }
@@ -1018,7 +1017,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (p && p.at > srv.at && p.t !== srv.t){
           cm.replaceRange(p.t, {line:0, ch:0}, {line:cm.lastLine(), ch:cm.getLine(cm.lastLine()).length}, '+restore');
         } else dropPending(t);
-      }, function(e){ window.smLinkLoad.err = String(e); unlink(); done(localText); });
+      }, function(){ unlink(); done(localText); });
     };
     if (state === 'loading'){
       // Wait for Bubble's bridge elements, then ask for the record; without an answer the editor stays read only
@@ -1070,8 +1069,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var stored = window.sessionStorage.getItem(LINK_KEY);
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
       var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
-      // what was found, for looking into it in the browser's console
-      window.smLinkStart = {stored:stored, hash:window.location.hash, referrer:document.referrer, nav:nav, now:Date.now(), put:put};
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
       return put;
     } catch (e){ return ''; }
