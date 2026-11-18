@@ -900,8 +900,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i);
     return a;
   }
-  function makeSync(cm, localText, onLocked){
-    var m = HASH.exec(window.location.hash || '');
+  function makeSync(cm, localText, onLocked, startLink){
+    var m = HASH.exec(startLink || window.location.hash || '');
     var token = m ? m[1] : '', keyStr = m ? m[2] : '', key = null;
     var state = m ? 'loading' : 'idle', dirty = false, timer = null, quiet = false, inflight = false, inflightTimer = null, inflightAt = 0, inflightToken = '';
     // After /fuel the script is locked: the server takes no more saves, so none go out
@@ -1071,13 +1071,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
       var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
-    } catch (e){}
+      return put;
+    } catch (e){ return ''; }
   }
   function init(){
     var host = document.getElementById('sm-editor');
     if (!host || host.getAttribute('data-ready')) return;
     host.setAttribute('data-ready', '1');
-    restoreLink();
+    // Bubble may still rewrite the address while it starts, so the link is taken from here, not read again later
+    var startLink = restoreLink() || (HASH.test(window.location.hash || '') ? window.location.hash : '');
     if (T.bg) host.style.setProperty('--sm-bg', T.bg);
     if (T.fg) host.style.setProperty('--sm-fg', T.fg);
     if (T.blue) host.style.setProperty('--sm-blue', T.blue);
@@ -1092,7 +1094,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var saved = '';
     try { saved = window.localStorage.getItem(STORE_KEY) || ''; } catch (e){}
     // An address ending in #<token>.<key> opens a script from the database: start empty and read only until it has arrived
-    var linked = HASH.test(window.location.hash || '');
+    var linked = !!startLink;
     // The editor grows with its text and has no scroll bar of its own: the browser page has the only one, and CodeMirror 6
     // draws only the lines in and near the window
     var cm = null;
@@ -1167,7 +1169,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     function save(){ if (locked) return; try { window.localStorage.setItem(STORE_KEY, cm.getValue()); } catch (e){} }
     function saveIdle(){ if (window.requestIdleCallback) window.requestIdleCallback(save, {timeout:1000}); else save(); }
     window.addEventListener('pagehide', save);
-    var sync = makeSync(cm, saved, function(){ lockScript(); });
+    var sync = makeSync(cm, saved, function(){ lockScript(); }, startLink);
     cm.smSync = sync;
     // Bubble changes the address without the # part when it goes to the current page (the menu Editor, About, Guide sets
     // view=..., a missing lang is added on load): the script's link would be gone from the address bar, and a reload
@@ -1184,6 +1186,12 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       };
       window.history[name].orig = orig;
     });
+    // Bubble may also use history functions it kept before the editor started; a light check twice a second puts the
+    // link back in that case too
+    setInterval(function(){
+      var link = sync.link(), rs = window.history.replaceState.orig || window.history.replaceState;
+      if (link && window.location.hash !== link){ try { rs.call(window.history, window.history.state, '', window.location.pathname + window.location.search + link); } catch (e){} }
+    }, 500);
     window.addEventListener('pagehide', function(){
       sync.flush();
       var link = sync.link();
