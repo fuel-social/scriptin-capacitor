@@ -1051,11 +1051,11 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     };
   }
   // The script's link survives a page that Bubble loads anew without it (the language switch loads scriptin again with
-  // a new lang and no # part) and a reload: on leaving, the link goes into this tab's sessionStorage with the page and
-  // the time; a page loading without a link gets it back when it is the same page, loaded within LINK_KEEP_MS, by a
+  // a new lang and no # part) and a reload: while the page is open, the link is kept in this tab's sessionStorage with
+  // the page and the time; a page loading without a link gets it back when it is the same page, loaded within LINK_KEEP_MS, by a
   // reload or from fuel.social itself (Bubble sends only the origin as the referrer). Opening scriptin from elsewhere (a
   // typed address, a bookmark) still starts without a link. Returns the # part to put back, or ''
-  var LINK_KEY = 'scriptin.capacitor.link', LINK_KEEP_MS = 10000;
+  var LINK_KEY = 'scriptin.capacitor.link', LINK_KEEP_MS = 5000;
   function keptLink(stored, hash, referrer, path, navType, now){
     var o = null;
     try { o = JSON.parse(stored || 'null'); } catch (e){}
@@ -1067,7 +1067,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   function restoreLink(){
     try {
       var stored = window.sessionStorage.getItem(LINK_KEY);
-      window.sessionStorage.removeItem(LINK_KEY);
       var nav = window.performance && window.performance.getEntriesByType ? (window.performance.getEntriesByType('navigation')[0] || {}).type : '';
       var put = keptLink(stored, window.location.hash, document.referrer, window.location.pathname, nav, Date.now());
       if (put) window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search + put);
@@ -1188,15 +1187,18 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     });
     // Bubble may also use history functions it kept before the editor started; a light check twice a second puts the
     // link back in that case too
+    // link back too; the same check keeps the link in sessionStorage up to date, so it is there however the page goes
     setInterval(function(){
       var link = sync.link(), rs = window.history.replaceState.orig || window.history.replaceState;
       if (link && window.location.hash !== link){ try { rs.call(window.history, window.history.state, '', window.location.pathname + window.location.search + link); } catch (e){} }
+      keepLink();
     }, 500);
-    window.addEventListener('pagehide', function(){
-      sync.flush();
+    window.addEventListener('pagehide', function(){ sync.flush(); keepLink(); });
+    // the link, its page and the time go into this tab's sessionStorage while the page is open (see keptLink)
+    function keepLink(){
       var link = sync.link();
       try { if (link) window.sessionStorage.setItem(LINK_KEY, JSON.stringify({link:link, path:window.location.pathname, at:Date.now()})); else window.sessionStorage.removeItem(LINK_KEY); } catch (e){}
-    });
+    }
     // ---- /fuel: confirm, publish, lock ----
     // The first Enter on /fuel NAME shows the confirmation below the line; any other key (or leaving the line) takes it
     // away. The second Enter makes the editor read only, saves the last change and hands the scene to Bubble
