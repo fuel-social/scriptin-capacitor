@@ -203,6 +203,21 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     ok(m2.bands.every(b => m2.tops.some(t => Math.abs(b.top - (t + m2.B.gap)) < 0.51)), 'late stylesheet: bands at row tops');
     await p2.close();
   }
+  // Back from About or Guide (the editor shown again): the cursor grows once; not in a locked script (after /fuel)
+  {
+    const growths = () => page.evaluate(async () => {
+      const host = document.getElementById('sm-editor'), cm = host.smCM;
+      cm.setCursor({ line: cm.lastLine(), ch: 0 });
+      host.style.display = 'none'; await new Promise(r => setTimeout(r, 150));
+      host.style.display = ''; await new Promise(r => setTimeout(r, 400));
+      return [...document.querySelectorAll('#sm-editor div')].filter(d => d.style.zIndex === '5' && d.getAnimations && d.getAnimations().length).length;
+    });
+    ok(await growths() === 1, 'back in the editor: the cursor grows once');
+    await page.evaluate(() => { const cm = document.getElementById('sm-editor').smCM; cm.smSync.ready = cb => cb('t'.repeat(32)); window.smFueled('yes'); });
+    await page.waitForTimeout(1300);
+    ok(await page.evaluate(() => document.getElementById('sm-editor').smCM.smLocked()), 'locked for the next check');
+    ok(await growths() === 0, 'back in a locked script: the cursor does not grow');
+  }
   await browser.close();
   console.log((fails ? fails + ' failed' : 'all passed') + ' (' + checks + ' visual checks)');
   process.exit(fails ? 1 : 0);

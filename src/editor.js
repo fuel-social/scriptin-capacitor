@@ -3295,7 +3295,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       };
       new window.ResizeObserver(function(){
         var now = host.offsetWidth > 0;
-        if (now && !shown){ cm.refresh(); measureBand(); placePages(); cm.focus(); requestAnimationFrame(function(){ backPulse(0); }); }
+        // a locked script (after /fuel) takes the focus too, but the cursor does not grow: there is nothing to write
+        if (now && !shown){ cm.refresh(); measureBand(); placePages(); cm.focus(); if (!locked) requestAnimationFrame(function(){ backPulse(0); }); }
         shown = now;
       }).observe(host);
     }
