@@ -610,7 +610,29 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var FUEL_NAME_MAX = 38;
   var CMD_FUEL = /^\s*\/fuel (\S.*)$/i, FUEL_ANY = /^\s*\/fuel(\s.*)?$/i;
   // A command while it is typed: / and every beginning of one (/p, /pd, /pdf ...)
-  var CMD_TYPING = new RegExp('^\\s*\\/(' + COMMANDS.reduce(function(a, c){ for (var k = 1; k <= c.length; k++) if (a.indexOf(c.slice(0, k)) < 0) a.push(c.slice(0, k)); return a; }, []).join('|') + ')?\\s*$', 'i');
+  function cmdPrefixes(list){ return list.reduce(function(a, c){ for (var k = 1; k <= c.length; k++) if (a.indexOf(c.slice(0, k)) < 0) a.push(c.slice(0, k)); return a; }, []); }
+  var CMD_TYPING = new RegExp('^\\s*\\/(' + cmdPrefixes(COMMANDS).join('|') + ')?\\s*$', 'i');
+  // An export command while it is typed (/, /p, /pd, /pdf, /t ... /fdx), without /fuel: all a locked script takes
+  var EXPORT_TYPING = new RegExp('^\\s*\\/(' + cmdPrefixes(EXPORTS).join('|') + ')?\\s*$', 'i');
+  // A locked script (after /fuel) takes a change only when the text afterwards (next) is the locked text (base) with
+  // lines added in one place below the title page: empty lines, and at most one export command on its way, alone in
+  // its paragraph. An empty line of the locked text may become that command's line, no other line changes or goes
+  function lockedExtra(base, next){
+    if (next === base) return true;
+    var a = base.split('\n'), b = next.split('\n'), p = 0, s = 0;
+    while (p < a.length && p < b.length && a[p] === b[p]) p++;
+    while (s < a.length - p && s < b.length - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+    var gone = a.slice(p, a.length - s), added = b.slice(p, b.length - s), te = titleEnd(function(k){ return b[k]; }, b.length);
+    if (p <= te || added.length < gone.length || gone.some(function(l){ return !isBlank(l); })) return false;
+    var cmds = 0;
+    for (var k = 0; k < added.length; k++){
+      if (isBlank(added[k])) continue;
+      if (!EXPORT_TYPING.test(added[k]) || ++cmds > 1) return false;
+      var at = p + k;
+      if (!(at === 0 || at - 1 === te || isBlank(b[at - 1])) || !(at + 1 >= b.length || isBlank(b[at + 1]))) return false;
+    }
+    return true;
+  }
   // After a / that begins a paragraph no more characters can be typed than the longest command has; after /fuel and its
   // space the name of the role as well
   var CMD_MAX = Math.max.apply(null, COMMANDS.map(function(c){ return c.length; }));
@@ -1260,16 +1282,20 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     }
     // Locked: the /fuel line is emptied, Cmd+Z cannot go back past it, the copy in this browser is gone (scriptin without
     // a link opens empty), and nothing is saved any more. Still possible: moving, selecting, copying, views, showing and
-    // hiding notes, page and scene numbers and the title page, and the Mode setting (it only changes colours)
+    // hiding notes, page and scene numbers and the title page, the Mode setting (it only changes colours), and the
+    // exports: a new paragraph takes only what is on the way to /pdf, /txt or /fdx (see lockedExtra and the check at the
+    // end of init). lockedText is the text as published, with later Mode and title page changes
+    var lockedText = null, lockedNext = null;
     function lockScript(){
       clearTimeout(fuelTimer);
       if (fuelSt === 'sending' && fuelLn >= 0 && fuelLn < cm.lineCount() && CMD_FUEL.test(line(fuelLn))){ fuelOwn = true; try { put('', {line:fuelLn, ch:0}, {line:fuelLn, ch:line(fuelLn).length}); } finally { fuelOwn = false; } }
       locked = true; fuelSt = 'locked'; cm.setBelow(-1, null);
+      lockedText = cm.getValue(); lockedNext = null;
       cm.clearHistory();
       clearTimeout(saveTimer);
       try { window.localStorage.removeItem(STORE_KEY); } catch (e){}
       sync.lock();
-      cm.setOption('readOnly', true);
+      cm.setOption('readOnly', false);
     }
     window.smFueled = function(ok){
       if (locked) return;
@@ -1282,12 +1308,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.smFuelSay = fuelSay;
     cm.smKeptLink = keptLink;
     cm.smKeptCursor = keptCursor;
-    // While publishing nothing changes the text; once locked only the Mode line and the title page's own additions do
+    // While publishing nothing changes the text (once locked, see the check at the end of init)
     cm.on('beforeChange', function(_cm, ch){
-      if (fuelOwn || (!locked && fuelSt !== 'sending')) return;
-      var o = ch.origin || '';
-      if (o === 'setValue') return;
-      if (locked && (o === '+pre' || (ch.from.line === ch.to.line && settingOf(ch.from.line) === 'mode'))) return;
+      if (fuelOwn || locked || fuelSt !== 'sending') return;
+      if ((ch.origin || '') === 'setValue') return;
       ch.cancel();
     });
     // The confirmation (or the error) goes away with any other key, when the cursor leaves the line or the text changes
@@ -2684,7 +2708,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // Returns {ok, reason, lang, cut}; reason 'notfdx' (not a Final Draft script), 'language' (not English, German
     // or Italian) or 'readonly' (a script is still loading)
     function importFdx(xml){
-      if (cm.view && cm.view.state.readOnly) return {ok:false, reason:'readonly'};
+      if (locked || (cm.view && cm.view.state.readOnly)) return {ok:false, reason:'readonly'};
       var r = readFdx(xml, window.DOMParser, LANGS, extIndex);
       if (!r.ok) return r;
       var L = r.lang, te = preEnd(), size = r.size || sizeOf(preValue(line, te, 'size'));
@@ -2731,7 +2755,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         var t = items[0].type || '';
         if (t && !/xml|fdx|finaldraft|octet-stream/i.test(t)) return false;
       }
-      return !(cm.view && cm.view.state.readOnly);
+      return !locked && !(cm.view && cm.view.state.readOnly);
     }
     function dropShow(on, msg){
       clearTimeout(dropMsgTimer);
@@ -2775,7 +2799,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       e.preventDefault(); e.stopPropagation();
       dropDepth = 0;
       var f = e.dataTransfer.files && e.dataTransfer.files[0];
-      if (!f || e.dataTransfer.files.length !== 1 || !/\.fdx$/i.test(f.name || '') || (cm.view && cm.view.state.readOnly)){ dropShow(false); return; }
+      if (!f || e.dataTransfer.files.length !== 1 || !/\.fdx$/i.test(f.name || '') || locked || (cm.view && cm.view.state.readOnly)){ dropShow(false); return; }
       dropShow(false);
       (f.text ? f.text() : new Promise(function(res){ var fr = new FileReader(); fr.onload = function(){ res(fr.result); }; fr.readAsText(f); })).then(function(xml){
         var r = importFdx(xml);
@@ -3215,6 +3239,31 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       // kept, so the count after the change needs no second run when the change goes in exactly like this
       PG.ahead = {r:r, from:ch.from, to:ch.to, text:ch.text.join('\n')};
     });
+    // A locked script (after /fuel): the last check, after every other one has shaped the change. The Mode line and the
+    // title page's own additions go through, and the locked text follows them; otherwise only what lockedExtra allows:
+    // empty lines and one export command on its way. Nothing of it is ever saved (see lockScript)
+    cm.on('beforeChange', function(_cm, ch){
+      if (!locked || fuelOwn || ch.canceled) return;
+      var o = ch.origin || '';
+      if (o === 'setValue') return;
+      lockedNext = null;
+      var cur = cm.getValue(), next = cur.slice(0, cm.indexFromPos(ch.from)) + ch.text.join('\n') + cur.slice(cm.indexFromPos(ch.to));
+      if (o === '+pre' || (ch.from.line === ch.to.line && settingOf(ch.from.line) === 'mode')){
+        if (cur === lockedText){ lockedNext = next; return; }
+        // with lines added for an export further down: the same change in the locked text, which has the same lines
+        // above the first added one (the title page and its additions are always above them)
+        var bl = lockedText.split('\n'), cl = cur.split('\n'), same = 0;
+        while (same < bl.length && same < cl.length && bl[same] === cl[same]) same++;
+        if (ch.to.line < same){
+          var off = function(p){ var n = 0; for (var k = 0; k < p.line; k++) n += bl[k].length + 1; return n + p.ch; };
+          lockedNext = lockedText.slice(0, off(ch.from)) + ch.text.join('\n') + lockedText.slice(off(ch.to));
+          return;
+        }
+        ch.cancel(); return;
+      }
+      if (!lockedExtra(lockedText, next)) ch.cancel();
+    });
+    cm.on('changes', function(){ if (lockedNext !== null){ lockedText = lockedNext; lockedNext = null; } });
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
       clicked = true;

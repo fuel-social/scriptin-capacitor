@@ -878,12 +878,45 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
   enter(); eq2('and the second Enter sends again', sent.length, 2);
   w.localStorage.setItem('scriptin.capacitor.text', script);
   w.smFueled('yes');
-  eq2('yes: locked, the /fuel line emptied, read only', cm.smLocked() + ' ' + JSON.stringify(cm.getValue()) + ' ' + ro(), 'true ' + JSON.stringify('.i HOUSE - DAY\n\nShe waits.\n\n') + ' true');
+  eq2('yes: locked, the /fuel line emptied, not read only (exports still go)', cm.smLocked() + ' ' + JSON.stringify(cm.getValue()) + ' ' + ro(), 'true ' + JSON.stringify('.i HOUSE - DAY\n\nShe waits.\n\n') + ' false');
   eq2('yes: Cmd+Z cannot go back past it', JSON.stringify(cm.historySize()), '{"undo":0,"redo":0}');
   eq2('yes: the copy in this browser is gone', w.localStorage.getItem('scriptin.capacitor.text'), null);
   cm.replaceRange('x', {line:2, ch:0}, null, '+input'); eq2('locked: typing is refused', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
   cm.replaceRange('', {line:2, ch:0}, {line:2, ch:4}, '+delete'); eq2('locked: deleting is refused', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
   w.smFueled('yes'); eq2('a second yes changes nothing', cm.smLocked(), true);
+  // Locked: a new paragraph takes only what is on the way to /pdf, /txt or /fdx; the export runs, the line is emptied
+  const L0 = '.i HOUSE - DAY\n\nShe waits.\n\n';
+  const typ = (t, ln, ch) => cm.replaceRange(t, {line:ln, ch:ch}, null, '+input');
+  typ('/', 4, 0); typ('p', 4, 1); typ('d', 4, 2); typ('f', 4, 3);
+  eq2('locked: /pdf can be typed on the empty line', cm.getLine(4), '/pdf');
+  typ('x', 4, 4); eq2('locked: nothing after /pdf', cm.getLine(4), '/pdf');
+  cm.replaceRange('', {line:4, ch:1}, {line:4, ch:4}, '+delete'); typ('f', 4, 1); typ('u', 4, 2);
+  eq2('locked: no second /fuel', cm.getLine(4), '/f');
+  cm.replaceRange('', {line:4, ch:0}, {line:4, ch:2}, '+delete'); eq2('locked: deleting the command again', cm.getValue(), L0);
+  typ('/', 2, 0); eq2('locked: no / in front of a line of the script', cm.getValue(), L0);
+  typ('/', 1, 0); eq2('locked: no / on the empty line between two paragraphs', cm.getValue(), '.i HOUSE - DAY\n\nShe waits.\n\n');
+  cm.replaceRange('', {line:2, ch:10}, {line:3, ch:0}, '+delete'); eq2('locked: an empty line of the script cannot go', cm.getValue(), L0);
+  reformatAll(); eq2('locked: Reformat changes nothing', cm.getValue(), L0);
+  cm.setCursor({line:2, ch:10}); enter(); typ('/', 4, 0); typ('t', 4, 1); typ('x', 4, 2); typ('t', 4, 3);
+  eq2('locked: Enter after the last line, then /txt', cm.getLine(4) + ' ' + cm.getLine(3) + '|', '/txt |');
+  const made = []; const orig = w.URL.createObjectURL; w.URL.createObjectURL = b => { made.push(b); return 'blob:x'; };
+  cm.setCursor({line:4, ch:4}); enter();
+  eq2('locked: Enter on /txt exports and empties the line', made.length + ' ' + JSON.stringify(cm.getLine(4)), '1 ""');
+  w.URL.createObjectURL = orig;
+  eq2('locked: still locked, nothing saved locally', cm.smLocked() + ' ' + w.localStorage.getItem('scriptin.capacitor.text'), 'true null');
+  eq2('locked: no Final Draft import', cm.smImportFdx('<FinalDraft/>').reason, 'readonly');
+  // the title page can still be shown, and Mode changed; an export still works after that
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  k9(); const tl = cm.getValue().split('\n');
+  eq2('locked: Cmd+Option+9 shows the title page', tl[0] + ' ' + tl.some(l => /^Mode: Day$/.test(l)), '--- true');
+  const ml = tl.findIndex(l => /^Mode:/.test(l));
+  cm.setCursor({line:ml, ch:2}); cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  if (cm.getLine(ml) !== 'Mode: Night'){ cm.setCursor({line:ml - 1, ch:2}); tab(); cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} }); }
+  eq2('locked: Mode can be changed', cm.getLine(ml), 'Mode: Night');
+  const last = cm.lastLine(); typ('/', last, 0); typ('f', last, 1); typ('d', last, 2); typ('x', last, 3);
+  eq2('locked: after Mode, /fdx can still be typed', cm.getLine(last), '/fdx');
+  const sw = cm.getValue().split('\n').indexOf('She waits.'); typ('Z', sw, 0);
+  eq2('locked: after Mode, the script still cannot change', cm.getLine(sw), 'She waits.');
 }
 
 console.log(fails ? fails + ' failed' : 'all passed');
