@@ -2619,7 +2619,9 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     cm.on('changes', function(_cm, list){
       var ah = PG.ahead; PG.ahead = null;
       if (list.some(function(c){ return c.origin === 'setValue'; })){ PG.starts = null; PG.dirty = null; DEC.full = true; return; }
-      for (var q = 0; q < list.length; q++) DEC.dirty = pgDirty(DEC.dirty, list[q].from, list[q].to, list[q].text.length - 1);
+      // A change that a full redraw inside the same operation already saw (the title page shown for the first time
+      // redraws everything before 'changes' arrives) is not worked in a second time: the lines below it would move twice
+      for (var q = 0; q < list.length; q++){ if (!(list[q].seq <= DEC.seen)) DEC.dirty = pgDirty(DEC.dirty, list[q].from, list[q].to, list[q].text.length - 1); }
       var P = CodeMirror.cmpPos, c0 = list[0];
       if (ah && !PG.dirty && list.length === 1 && P(c0.from, ah.from) === 0 && P(c0.to, ah.to) === 0 && c0.text.join('\n') === ah.text){ pgAdopt(ah.r); return; }
       for (var k = 0; k < list.length; k++) PG.dirty = pgDirty(PG.dirty, list[k].from, list[k].to, list[k].text.length - 1);
@@ -2864,7 +2866,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // refresh(): everything again (after a command: a view, notes, the title page, a setting). refreshChanged(): after
     // typing, only the lines around the changes since the last time get their classes again; it falls back to the whole
     // script when the hidden text, the title page or the language changed
-    var DEC = {dirty:null, full:true, te:-2, lang:'', ready:''};
+    var DEC = {dirty:null, full:true, te:-2, lang:'', ready:'', seen:0};
     function refresh(){ DEC.full = true; refreshChanged(); }
     function refreshChanged(){
       preGaps();
@@ -2897,6 +2899,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           catch (e){ if (window.console) console.error('scriptin: line classes', e); decorate(); }
         }
         DEC.rng = full || !DEC.dirty ? (full ? null : {a:0, b:-1, delta:0}) : (function(){ var r = decoRange(DEC.dirty.a, DEC.dirty.b); return {a:r.a, b:r.b, delta:DEC.dirty.delta}; })();
+        // a full redraw has seen every change made so far (see the 'changes' handler of the page count)
+        if (full) DEC.seen = cm.changeSeq();
         DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang; DEC.ready = ready;
       });
       belowPre(); paginatePages(DEC.rng); applyTheme(); undoing = false;

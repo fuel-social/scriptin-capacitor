@@ -850,6 +850,15 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
   eq2('fuel scene without a title page: English, no title, no author', sc2.language + '|' + sc2.title + '|' + sc2.author, 'en_us||');
 }
 
+// The title page shown for the first time between the two Enters of /fuel (Cmd+Option+9 adds it at the top): the ↵ of
+// the /fuel line moves down with it once, not twice (it stood behind the end of the script and stayed after the lock)
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  cm.setValue('.i HOUSE - DAY\n\nShe waits.\n\n/fuel MARA'); cm.setCursor({line:4, ch:10}); enter(); k9();
+  const fl = cm.getValue().split('\n').findIndex(l => /^\/fuel/.test(l)), c = cm.smClasses();
+  eq2('title page added after the first Enter: the ↵ stays on the /fuel line', c.cmdInc + ' ' + c.cmdFull, JSON.stringify([{line:fl, ch:0}]) + ' ' + JSON.stringify([{line:fl, ch:0}]));
+  k9();
+}
 // /fuel: the first Enter asks, the second publishes through Bubble; yes locks the script, no gives it back
 {
   const note = () => { const n = w.document.querySelector('.sm-fuel-note'); return n ? n.textContent : ''; };

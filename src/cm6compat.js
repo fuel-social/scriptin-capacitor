@@ -58,6 +58,8 @@ export function createEditor(host, opts){
   var depth = 0, processing = false, opId = 0, curOp = 0;
   var pend = {changes: [], inputs: [], cursor: false, hidden: false, redraw: false};
   var version = 0, valueCache = null, valueVersion = -1;
+  // every change object gets a number in the order the changes were made (see changeSeq)
+  var chgSeq = 0;
   var wrapCls = [], textCls = [];              // line classes by line number
   var markers = [];                            // markText results, in document offsets
   var hist = {done: [], undone: [], lastOp: -1, lastOrigin: null, lastTime: 0};
@@ -169,6 +171,7 @@ export function createEditor(host, opts){
     if (tr.docChanged){
       version++;
       var objs = changeObjs(tr, origin);
+      objs.forEach(function(c){ c.seq = ++chgSeq; });
       objs.forEach(shiftClasses);
       markers.forEach(function(m){
         if (!m.live) return;
@@ -544,6 +547,9 @@ export function createEditor(host, opts){
     operation: operation,
     getLine: function(n){ return n < 0 || n >= doc().lines ? undefined : doc().line(n + 1).text; },
     lineCount: function(){ return doc().lines; },
+    // the number of the last change made: 'changes' arrives after the operation, so a handler can tell which of its
+    // changes code inside the operation has already looked at
+    changeSeq: function(){ return chgSeq; },
     lastLine: function(){ return doc().lines - 1; },
     getValue: function(){ if (valueVersion !== version){ valueCache = doc().toString(); valueVersion = version; } return valueCache; },
     setValue: function(text){
