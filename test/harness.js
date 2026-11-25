@@ -3,8 +3,11 @@
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
-module.exports = function(){
-  const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'https://fuel.social/version-test/scriptin' });
+// opts (optional): url, the page's address (with a #<token>.<key> part the editor opens a script from the database);
+// before(w), called before the editor starts (to fill localStorage or set up Bubble's bridge functions)
+module.exports = function(opts){
+  opts = opts || {};
+  const dom = new JSDOM('<!doctype html><div id="box"><div id="sm-editor"></div></div>', { runScripts: 'outside-only', pretendToBeVisual: true, url: opts.url || 'https://fuel.social/version-test/scriptin' });
   const w = dom.window;
   const none = () => ({ length: 0, item(){ return null; }, [Symbol.iterator]: function*(){} });
   const zero = () => ({ top:0, bottom:0, left:0, right:0, height:0, width:0, x:0, y:0 });
@@ -31,6 +34,7 @@ module.exports = function(){
   // the editor starts at once, not on DOMContentLoaded
   Object.defineProperty(w.document, 'readyState', { get(){ return 'complete'; } });
   if (process.env.BENCH_PLAIN) return { w, cm: null };
+  if (opts.before) opts.before(w);
   w.eval(fs.readFileSync(path.join(__dirname, '..', 'capacitor.js'), 'utf8'));
   const cm = w.document.getElementById('sm-editor').smCM;
   if (!cm){ console.log('no editor'); process.exit(1); }
