@@ -155,15 +155,6 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   // the address ends in #<token>.<key>; the token names the record, the key stays in the URL fragment,
   // which browsers never send to a server, so the database only ever holds ciphertext
   var HASH = /^#([a-z0-9]{32})\.([A-Za-z0-9_-]{43})$/, SYNC_MS = 2000, LOAD_WAIT_MS = 15000, PEND_PREFIX = 'scriptin.capacitor.pending.';
-  // The Mode of a locked script (after /fuel) is never saved (see lockScript): this browser keeps it under the script's
-  // token, so a reload opens the locked script in the Mode it had, not in the one it was published with
-  var MODE_PREFIX = 'scriptin.capacitor.mode.';
-  // text with the value of its Mode line set to v; unchanged when the title page has no Mode line
-  function withMode(text, v){
-    var a = text.split('\n'), te = titleEnd(function(k){ return a[k]; }, a.length);
-    for (var k = 1; k < te; k++){ var c = cmdOf(a[k]); if (c && c.key === 'mode'){ a[k] = c.label + ': ' + v; return a.join('\n'); } }
-    return text;
-  }
   // /fuel: the last save may take this long before publishing; without an answer from Bubble after FUEL_WAIT_MS in all,
   // nothing is locked and Enter tries again
   var FUEL_SAVE_MS = 15000, FUEL_WAIT_MS = 20000;
@@ -1039,10 +1030,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var t = token;
       decrypt(payload).then(function(srv){
         if (String(isLocked).trim() === 'yes'){
-          var mode = null;
-          try { mode = window.localStorage.getItem(MODE_PREFIX + t); } catch (e){}
-          var shown = srv.t.split('\n').map(function(l){ return FUEL_ANY.test(l) ? '' : l; }).join('\n');
-          done(mode ? withMode(shown, mode) : shown);
+          done(srv.t.split('\n').map(function(l){ return FUEL_ANY.test(l) ? '' : l; }).join('\n'));
           locked = true; dirty = false; dropPending(t);
           if (onLocked) onLocked();
           return;
@@ -3279,16 +3267,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       }
       if (!lockedExtra(lockedText, next)) ch.cancel();
     });
-    cm.on('changes', function(){
-      if (lockedNext !== null){ lockedText = lockedNext; lockedNext = null; }
-      if (locked) keepMode();
-    });
-    // the Mode of the locked script goes into this browser under its token (see MODE_PREFIX)
-    function keepMode(){
-      var m = HASH.exec(sync.link()), v = preValue(line, preEnd(), 'mode');
-      if (!m || v === null) return;
-      try { if (window.localStorage.getItem(MODE_PREFIX + m[1]) !== v) window.localStorage.setItem(MODE_PREFIX + m[1], v); } catch (e){}
-    }
+    cm.on('changes', function(){ if (lockedNext !== null){ lockedText = lockedNext; lockedNext = null; } });
     // Leaving the cue line ends the active cue; a click into a cue makes it active
     cm.on('mousedown', function(){
       clicked = true;
