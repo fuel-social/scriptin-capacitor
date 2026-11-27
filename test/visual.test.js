@@ -239,8 +239,9 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
       return { y: scrollY, vh, gap: B.gap, caret: c ? { top: c.top, bottom: c.bottom, mid: (c.top + c.bottom) / 2 - B.gap / 2 } : null, rowTop: c ? c.top - B.gap : null, lh: cm.view.defaultLineHeight, sc: { left: sc.left, right: sc.left + sw }, marks, tw: document.getElementById('sm-editor').classList.contains('sm-typewriter') };
     });
     const atMiddle = s => s.caret && Math.abs((s.rowTop + s.lh / 2) - s.vh / 2) <= 1;
-    const marksOk = s => s.marks.length === 2 && s.marks.every(m => Math.abs(m.bottom - s.rowTop) <= 0.51 && Math.abs(m.h - 1) < 0.01 && Math.abs(m.w - 16) < 0.01) &&
-      Math.abs(Math.min(s.marks[0].left, s.marks[1].left) - s.sc.left) <= 0.51 && Math.abs(Math.max(s.marks[0].right, s.marks[1].right) - s.sc.right) <= 0.51;
+    // two dark pieces of the frame lines (the 2 px borders just outside the scroller), 24 px high, centred on the row
+    const marksOk = s => s.marks.length === 2 && s.marks.every(m => Math.abs((m.top + m.bottom) / 2 - (s.rowTop + s.lh / 2)) <= 1 && Math.abs(m.h - 24) < 0.01 && Math.abs(m.w - 2) < 0.01) &&
+      Math.abs(Math.min(s.marks[0].left, s.marks[1].left) - (s.sc.left - 2)) <= 0.51 && Math.abs(Math.max(s.marks[0].right, s.marks[1].right) - (s.sc.right + 2)) <= 0.51;
     // near the top: nothing moves, no marks
     await load(tp('Typewriter') + '.i HOUSE - DAY\n\nShort.', -1);
     await p3.evaluate(() => scrollTo(0, 0)); await frames();
@@ -254,7 +255,7 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('She waits.'); await frames();
     s = await state();
     ok(atMiddle(s), 'typewriter: the last line stands at the middle of the window', JSON.stringify({ y: s.y, rowTop: s.rowTop, vh: s.vh }));
-    ok(marksOk(s), 'typewriter: two marks, 16 x 1 px, at the frame lines, on the top of the line', JSON.stringify({ marks: s.marks, rowTop: s.rowTop, sc: s.sc }));
+    ok(marksOk(s), 'typewriter: two marks, 2 x 24 px, on the frame lines, centred on the line', JSON.stringify({ marks: s.marks, rowTop: s.rowTop, sc: s.sc }));
     // typing on: rows wrap and new lines start, the line stays at the middle and the text above moves up
     const y0 = s.y;
     await p3.keyboard.type(' The phone rings twice, then stops, and the room is so quiet that she can hear the fridge again.'); await frames();
@@ -293,6 +294,52 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     s = await state();
     ok(s.marks.length === 0, 'typewriter: a new window size hides the marks');
     await p3.setViewportSize({ width: 1000, height: 800 });
+    // The title page: shown above, the marks stay with their row in the script; typing on it, Tab through its
+    // settings: the text does not move and the marks go
+    await load(tp('Typewriter') + scenes(40), -1); await frames();
+    await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('Zq waits.'); await frames();
+    s = await state();
+    ok(marksOk(s), 'title page: marks on the row typed in the script');
+    const k9 = () => p3.evaluate(() => document.getElementById('sm-editor').smCM.triggerOnKeyDown({ type: 'keydown', keyCode: 57, key: '9', ctrlKey: true, shiftKey: true, preventDefault(){}, stopPropagation(){} }));
+    await k9(); await frames(); await p3.waitForTimeout(100); await frames();
+    const rowAtMarks = () => p3.evaluate(() => {
+      const ms = [...document.querySelectorAll('.sm-twmark')].filter(e => getComputedStyle(e).display !== 'none');
+      if (!ms.length) return null;
+      const r = ms[0].getBoundingClientRect(), sc = document.querySelector('#sm-editor .cm-scroller').getBoundingClientRect();
+      if (r.top + 12 < 0 || r.top + 12 > innerHeight) return 'off screen';
+      const el = document.elementFromPoint(sc.left + 40, r.top + 12), line = el && el.closest('.cm-line');
+      return line ? line.textContent : '(no line)';
+    });
+    const shown = await p3.evaluate(() => /^---/.test(document.getElementById('sm-editor').smCM.getValue()) && !/sm-gone/.test(document.getElementById('sm-editor').smCM.getLineHandle(3).wrapClass || ''));
+    const at = await rowAtMarks();
+    ok(shown && (at === null || at === 'off screen' || /Zq waits/.test(at)), 'title page shown: the marks are not in it, they stay with their row', JSON.stringify({ shown, at }));
+    const y1 = (await state()).y;
+    await p3.keyboard.type('Night'); await frames();
+    s = await state();
+    ok(s.marks.length === 0 && s.y === y1, 'typing a title: the text does not move and the marks go', JSON.stringify({ y: s.y, y1, m: s.marks.length }));
+    for (let k = 0; k < 6; k++) await p3.keyboard.press('Tab');
+    await frames();
+    s = await state();
+    ok(s.marks.length === 0 && /^Mode:/.test(await p3.evaluate(() => { const cm = document.getElementById('sm-editor').smCM; return cm.getLine(cm.getCursor().line); })), 'Tab through the settings to Mode: no marks', JSON.stringify(s.marks));
+    // Enter after the last setting and Backspace (a new command line, taken back), low enough on the page to be centred
+    const y2 = s.y;
+    await p3.keyboard.press('Enter'); await frames(); await p3.keyboard.press('Backspace'); await frames();
+    s = await state();
+    ok(s.marks.length === 0 && s.y === y2, 'Enter and Backspace on the last setting: the text does not move, no marks in the settings', JSON.stringify({ y: s.y, y2, m: s.marks }));
+    await k9(); await frames();
+    // Safari keeps scroll positions on whole pixels: with the middle between two pixels (an odd window height) typing
+    // along a row asks for no scroll at all
+    await p3.setViewportSize({ width: 1000, height: 801 }); await p3.waitForTimeout(150);
+    await load(tp('Typewriter') + scenes(40), -1); await frames();
+    await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('Yes.'); await frames();
+    await p3.evaluate(() => { window.__sc = []; const by = window.scrollBy.bind(window), to = window.scrollTo.bind(window);
+      window.scrollBy = function(x, y){ window.__sc.push(['by', x, y]); return by.apply(null, arguments); };
+      window.scrollTo = function(x, y){ window.__sc.push(['to', x, y]); return to.apply(null, arguments); }; });
+    for (const ch of 'abcdefgh') { await p3.keyboard.press(ch); await frames(); }
+    const sc = await p3.evaluate(() => { const r = window.__sc; delete window.scrollBy; delete window.scrollTo; return r; });
+    s = await state();
+    ok(sc.length === 0 && atMiddle(s), 'odd window height: typing along a row asks for no scroll, the row stays at the middle', JSON.stringify({ sc: sc.slice(0, 4), rowTop: s.rowTop, vh: s.vh }));
+    await p3.setViewportSize({ width: 1000, height: 800 }); await p3.waitForTimeout(150);
     // Standard: no class, no marks, and typing at the end only brings the cursor into view
     await load(tp('Standard') + scenes(40), -1); await frames();
     await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('She waits.'); await frames();

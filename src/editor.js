@@ -1137,7 +1137,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // Typing: Typewriter on the title page (see applyTyping); cm6compat asks for it on every keystroke, so it is a variable
     var typingOn = 0;
     cm = createEditor(host, {value:linked ? '' : saved, readOnly:linked, lineTokens:function(n, s){ return cm ? lineTokens(n, s) : []; },
-      typewriter:function(){ return typingOn === 1; },
+      // Typing: Typewriter on; with a text and a cursor in it: not on the title page (its opening --- down to its closing
+      // ---), where the text never moves. The title page's end is found as everywhere else: the first --- after line 0
+      typewriter:function(st, pos){
+        if (typingOn !== 1) return false;
+        if (!st) return true;
+        var d = st.doc, te = titleEnd(function(k){ return d.line(k + 1).text; }, d.lines);
+        return d.lineAt(pos).number - 1 > te;
+      },
       // the colour bands behind the text (see cm6compat): slugline bars from frame to frame, cue boxes around the name,
       // shot blocks 16px beyond the text on both sides, transition blocks from 16px before the text to the frame
       bands:function(n, s){

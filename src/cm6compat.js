@@ -103,12 +103,14 @@ export function createEditor(host, opts){
   // extra reading of the page). Clicks, arrow keys, Cmd+Z and the editor's commands clear the mark and scroll nothing.
   // Near the top of the script the window cannot scroll that far: the text stays where it is.
   var TW_MS = 400, typedAt = -1e9;
-  var tw = {pending: false, show: false, y: 0, w: 0, exp: null, drawn: false, count: 0};
+  var tw = {pending: false, show: false, pos: 0, assoc: 1, exp: null, drawn: false, count: 0};
   function twOn(){ return !!(opts.typewriter && opts.typewriter()); }
   function twCenter(q){
     for (var i = 0; i < q.length; i++){
       if (!q[i].docChanged) continue;
       var st = q[q.length - 1].state, m = st.selection.main;
+      // on the title page (opts.typewriter answers for the new text) the text never moves and the marks go
+      if (!opts.typewriter(st, m.head)){ tw.pending = false; tw.show = false; tw.exp = null; return null; }
       // the same target CodeMirror takes for the cursor itself, only to the middle
       var r = m.empty ? m : EditorSelection.cursor(m.head, m.head > m.anchor ? -1 : 1), fx = EditorView.scrollIntoView(r, {y: 'center'});
       tw.pending = true; tw.count++;
@@ -523,41 +525,63 @@ export function createEditor(host, opts){
     markers: caretMarkers,
     update: function(u){ return u.docChanged || u.selectionSet || u.focusChanged || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.reconfigured || t.effects.some(function(e){ return e.is(redraw); }); }); }
   });
-  // The two marks of the typewriter: short lines, 16 px into the editor from each frame line, at the top of the line
-  // being typed. They appear with a keystroke that holds that line at the middle of the window and stay, also through
-  // clicks and arrow keys, until the page scrolls by other means (the wheel, the scroll bar, a command) or the window
-  // changes size. Whether the line will stand at the middle is worked out here, before CodeMirror scrolls, from the
-  // same rectangle it centres: the window has to be able to scroll that far.
+  // The two marks of the typewriter: a dark piece of each frame line, 24 px high, on the row being typed. They appear
+  // with a keystroke that holds that row at the middle of the window and stay with that row (through clicks, arrow keys,
+  // the title page shown or hidden above it) until the page scrolls by other means (the wheel, the scroll bar, a
+  // command) or the window changes size. Whether the row will stand at the middle is worked out here, before the page
+  // scrolls, from the same rectangle that is centred: the window has to be able to scroll that far.
   function twMarkers(v){
     if (!twOn()){ tw.pending = false; tw.show = false; tw.drawn = false; return []; }
+    var win = win2();
     if (tw.pending){
       tw.pending = false; tw.show = false;
       var m = v.state.selection.main, assoc = m.empty ? (m.assoc || 1) : (m.head > m.anchor ? -1 : 1), c = v.coordsAtPos(m.head, assoc);
-      var win = host.ownerDocument.defaultView, vp = win.visualViewport, vh = vp ? vp.height : win.innerHeight;
+      var vp = win.visualViewport, vh = vp ? vp.height : win.innerHeight;
       var se = host.ownerDocument.scrollingElement || host.ownerDocument.documentElement;
       if (c && vh){
         var y = win.scrollY || win.pageYOffset || 0, to = y + (c.top + c.bottom) / 2 - vh / 2, max = se.scrollHeight - vh;
         if (to >= -1 && to <= max + 1){
-          var lh = v.defaultLineHeight, blk = v.lineBlockAt(m.head), top0 = blk.top + v.documentTop, mid = (c.top + c.bottom) / 2;
-          var rowTop = top0 + Math.max(0, Math.floor((mid - top0) / lh)) * lh, sr = v.scrollDOM.getBoundingClientRect();
-          // relative to the scroller: the same before and after the window scrolls
-          tw.y = rowTop - (sr.top - v.scrollDOM.scrollTop); tw.w = v.scrollDOM.clientWidth; tw.show = true;
-          // the scroll CodeMirror is about to make (and any smooth scrolling towards it) is not the reader's
+          tw.pos = m.head; tw.assoc = assoc; tw.show = true;
+          // the scroll about to be made (and any smooth scrolling towards it) is not the reader's
           tw.exp = {from: y, to: Math.max(0, Math.min(max, to)), until: Date.now() + 1000};
         }
       }
     }
     if (!tw.show){ tw.drawn = false; return []; }
-    var dpr = win2().devicePixelRatio || 1, ty = Math.round(tw.y * dpr) / dpr - 1;
+    var r = v.coordsAtPos(tw.pos, tw.assoc);
+    if (!r){ tw.drawn = false; return []; }
+    // relative to the scroller (the same before and after the window scrolls), centred on the row
+    var sr = v.scrollDOM.getBoundingClientRect(), dpr = win.devicePixelRatio || 1;
+    var ty = Math.round(((r.top + r.bottom) / 2 - (sr.top - v.scrollDOM.scrollTop) - 12) * dpr) / dpr, w = v.scrollDOM.clientWidth;
     tw.drawn = true;
-    return [new RectangleMarker('sm-twmark', 0, ty, 16, 1), new RectangleMarker('sm-twmark', tw.w - 16, ty, 16, 1)];
+    // the frame lines are the editor's 2 px borders, just outside the scroller on both sides
+    return [new RectangleMarker('sm-twmark', -2, ty, 2, 24), new RectangleMarker('sm-twmark', w, ty, 2, 24)];
   }
   function win2(){ return host.ownerDocument.defaultView || window; }
   var twLayer = layer({
     above: true,
     class: 'sm-twmarks',
     markers: twMarkers,
-    update: function(u){ return (tw.pending || tw.drawn) && (u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged); }
+    update: function(u){
+      if (tw.show && u.docChanged) tw.pos = u.changes.mapPos(tw.pos, tw.assoc);
+      return (tw.pending || tw.drawn || tw.show) && (u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged);
+    }
+  });
+  // The scroll to the middle is made here, in CodeMirror's own layout step. A row already at the middle (less than half
+  // a row away) does not move, so typing along a row never touches the page; otherwise the window goes to a whole
+  // pixel. Safari keeps scroll positions on whole pixels: a middle between two pixels was asked for again on every
+  // keystroke (half a pixel each time) and the text crept. The rectangle is CodeMirror's own for the target (the public
+  // coordsAtPos may not be called inside this step); without it CodeMirror scrolls as before.
+  var twScroll = EditorView.scrollHandler.of(function(v, range, t){
+    if (t.y !== 'center' || !twOn()) return false;
+    var dv = v.docView, c = dv && dv.coordsAt ? dv.coordsAt(range.head, range.assoc || (range.head > range.anchor ? -1 : 1)) : null;
+    if (!c) return false;
+    var win = win2(), vp = win.visualViewport, vh = vp ? vp.height : win.innerHeight;
+    var d = (c.top + c.bottom) / 2 - vh / 2;
+    if (Math.abs(d) < v.defaultLineHeight / 2) return true;
+    var y = win.scrollY || win.pageYOffset || 0;
+    win.scrollTo(win.scrollX || win.pageXOffset || 0, Math.round(y + d));
+    return true;
   });
   var bandLayer = layer({
     above: false,
@@ -604,6 +628,7 @@ export function createEditor(host, opts){
       bandLayer,
       caretLayer,
       twLayer,
+      twScroll,
       EditorState.transactionFilter.of(filter),
       hiddenField,
       belowField,
@@ -752,7 +777,7 @@ export function createEditor(host, opts){
     cursorElement: function(){ flush(); return view.dom.querySelector('.sm-caret') || view.dom.querySelector('.cm-cursor'); },
     version: function(){ return version; },
     // the typewriter was switched on or off: no marks until the next keystroke
-    typewriterReset: function(){ tw.pending = false; tw.show = false; tw.exp = null; },
+    typewriterReset: function(){ tw.pending = false; tw.show = false; tw.exp = null; tw.pos = 0; },
     // how often typing asked for the middle (tests)
     typewriterCount: function(){ return tw.count; },
     // measure line height and character width again (a stylesheet or font that arrived after the editor started)
