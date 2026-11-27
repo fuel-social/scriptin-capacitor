@@ -26,6 +26,11 @@
 #sm-editor .cm-cursor{display:none !important}
 #sm-editor .sm-caret{background:var(--sm-blue)}
 #sm-editor .cm-editor:not(.cm-focused) .sm-carets{display:none}
+/* Typing: Typewriter. The two marks at the top of the line being typed, 16px from each frame line, in the frame colour;
+   gone while sm-tw-off is set (the reader scrolled). Room below the last line, so it can reach the middle of the window too */
+#sm-editor .sm-twmark{background:var(--sm-frame)}
+#sm-editor .cm-editor.sm-tw-off .sm-twmark{display:none}
+#sm-editor.sm-typewriter .cm-content{padding-bottom:calc(50vh + 10px)}
 /* A selection on screen (completion, marked words): no cursor, the blue band shows where it is (the editor draws none) */
 /* Night: the cursor on sluglines takes colorBlue of the day theme, on cues and transitions colorBlue of the night theme */
 #sm-editor[data-mode=night] .sm-on-slug .sm-caret{background:var(--sm-blue-day)}

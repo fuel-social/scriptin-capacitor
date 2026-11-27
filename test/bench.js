@@ -1,6 +1,6 @@
 // Performance check: a 500+ page script in a jsdom CodeMirror; per keystroke the longest blocking piece of work
 // (the key handling, or the longest task after it), in ms, jsdom and CodeMirror included (BENCH_PLAIN: CodeMirror alone).
-// Run with: node test/bench.js   (BENCH_SCENES to change the size)
+// Run with: node test/bench.js   (BENCH_SCENES to change the size, BENCH_TYPEWRITER=1 with Typing: Typewriter)
 const path = require('path');
 let { w, cm } = require('./harness')();
 if (process.env.BENCH_PLAIN){
@@ -16,7 +16,7 @@ let longest = 0;
 const wst = w.setTimeout.bind(w);
 w.setTimeout = function(f, ms){ const a = [].slice.call(arguments, 2); return wst(function(){ const t0 = process.hrtime.bigint(); try { f.apply(null, a); } finally { const d = Number(process.hrtime.bigint() - t0) / 1e6; if (d > longest) longest = d; } }, ms); };
 function script(n){
-  const out = ['---\n\n//TITLE PAGE\nTitle: Bench\nAuthor: Test\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---'];
+  const out = ['---\n\n//TITLE PAGE\nTitle: Bench\nAuthor: Test\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: ' + (process.env.BENCH_TYPEWRITER ? 'Typewriter' : 'Standard') + '\nMode: Day\n\n---'];
   for (let s = 0; s < n; s++) out.push('.i HOUSE ' + s + ' - DAY\n\nShe waits for the call number ' + s + ' and looks out of the window for a long while, thinking about _nothing_ at all.\n\n,ANNA,\nWhere is it? I left it here this morning, I am *sure* of it.\n\n,BEN,\n(quietly)\nMaybe it fell behind the desk. Look again.\n\nShe kneels and searches.\n\n// a note');
   return out.join('\n\n');
 }

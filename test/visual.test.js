@@ -218,6 +218,89 @@ function ok(cond, label, extra){ checks++; if (!cond){ fails++; console.log('FAI
     ok(await page.evaluate(() => document.getElementById('sm-editor').smCM.smLocked()), 'locked for the next check');
     ok(await growths() === 0, 'back in a locked script: the cursor does not grow');
   }
+  // Typing: Typewriter. The line being typed stays at the middle of the window and the text moves up; near the top
+  // nothing moves; two marks at the frame lines show the line's top; scrolling hides them until the next keystroke
+  {
+    const p3 = await browser.newPage({ viewport: { width: 1000, height: 800 }, deviceScaleFactor: 2 });
+    await p3.setContent('<!doctype html><html><head><meta charset="utf-8"><style>@font-face{font-family:GTPressuraMonoRegular;src:local("DejaVu Sans Mono"),local("Liberation Mono"),local("Courier New")}body{margin:0;background:#F9F9F9}#head{height:200px}#foot{height:220px}</style></head><body><div id="head"></div><div id="sm-editor"></div><div id="foot"></div></body></html>');
+    await p3.addStyleTag({ path: path.join(root, 'capacitor.css') });
+    await p3.evaluate(() => { try { localStorage.clear(); } catch (e){} window.SM_THEME = {}; });
+    await p3.addScriptTag({ path: path.join(root, 'capacitor.js') });
+    await p3.waitForFunction(() => document.getElementById('sm-editor').smCM);
+    const frames = () => p3.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)))));
+    const tp = t => '---\n\n//TITLE PAGE\nTitle: T\nAuthor: A\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nTyping: ' + t + '\nMode: Day\n\n---\n\n';
+    const scenes = n => Array.from({ length: n }, (_, i) => '.i ROOM ' + i + ' - DAY\n\nShe reads the letter number ' + i + ' and puts it back.\n\n,ANNA,\nNot again.').join('\n\n');
+    const load = (text, line) => p3.evaluate(([t, l]) => { const cm = document.getElementById('sm-editor').smCM; cm.setValue(t); cm.focus(); const ln = l < 0 ? cm.lastLine() : l; cm.setCursor({ line: ln, ch: cm.getLine(ln).length }); }, [text, line]);
+    const state = () => p3.evaluate(() => {
+      const cm = document.getElementById('sm-editor').smCM, B = cm.smBand(), vh = innerHeight;
+      const car = document.querySelector('.sm-caret'), c = car && car.getBoundingClientRect();
+      const sc = document.querySelector('#sm-editor .cm-scroller').getBoundingClientRect(), sw = document.querySelector('#sm-editor .cm-scroller').clientWidth;
+      const marks = [...document.querySelectorAll('.sm-twmark')].filter(e => getComputedStyle(e).display !== 'none').map(e => { const r = e.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, w: r.width, h: r.height }; });
+      return { y: scrollY, vh, gap: B.gap, caret: c ? { top: c.top, bottom: c.bottom, mid: (c.top + c.bottom) / 2 - B.gap / 2 } : null, rowTop: c ? c.top - B.gap : null, lh: cm.view.defaultLineHeight, sc: { left: sc.left, right: sc.left + sw }, marks, tw: document.getElementById('sm-editor').classList.contains('sm-typewriter') };
+    });
+    const atMiddle = s => s.caret && Math.abs((s.rowTop + s.lh / 2) - s.vh / 2) <= 1;
+    const marksOk = s => s.marks.length === 2 && s.marks.every(m => Math.abs(m.bottom - s.rowTop) <= 0.51 && Math.abs(m.h - 1) < 0.01 && Math.abs(m.w - 16) < 0.01) &&
+      Math.abs(Math.min(s.marks[0].left, s.marks[1].left) - s.sc.left) <= 0.51 && Math.abs(Math.max(s.marks[0].right, s.marks[1].right) - s.sc.right) <= 0.51;
+    // near the top: nothing moves, no marks
+    await load(tp('Typewriter') + '.i HOUSE - DAY\n\nShort.', -1);
+    await p3.evaluate(() => scrollTo(0, 0)); await frames();
+    await p3.keyboard.type(' More.'); await frames();
+    let s = await state();
+    ok(s.tw, 'typewriter: the editor gets the class with room below');
+    ok(s.y === 0, 'typewriter, near the top: the page does not scroll', '' + s.y);
+    ok(s.marks.length === 0, 'typewriter, near the top: no marks', JSON.stringify(s.marks));
+    // a long script, typing at its very end: the last line comes to the middle (there is room below it)
+    await load(tp('Typewriter') + scenes(40), -1); await frames();
+    await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('She waits.'); await frames();
+    s = await state();
+    ok(atMiddle(s), 'typewriter: the last line stands at the middle of the window', JSON.stringify({ y: s.y, rowTop: s.rowTop, vh: s.vh }));
+    ok(marksOk(s), 'typewriter: two marks, 16 x 1 px, at the frame lines, on the top of the line', JSON.stringify({ marks: s.marks, rowTop: s.rowTop, sc: s.sc }));
+    // typing on: rows wrap and new lines start, the line stays at the middle and the text above moves up
+    const y0 = s.y;
+    await p3.keyboard.type(' The phone rings twice, then stops, and the room is so quiet that she can hear the fridge again.'); await frames();
+    s = await state();
+    ok(atMiddle(s) && s.y > y0, 'typewriter: after the rows wrap the line is still at the middle, the text moved up', JSON.stringify({ y0, y: s.y, rowTop: s.rowTop }));
+    ok(marksOk(s), 'typewriter: the marks follow the line');
+    // Enter at the very end of the script: the new line comes to the middle right away, not one keystroke later
+    for (let k = 0; k < 3; k++){
+      await p3.keyboard.press('Enter'); await frames();
+      s = await state();
+      ok(atMiddle(s) && marksOk(s), 'typewriter: Enter at the end of the script, the new line at once at the middle (' + (k + 1) + ')', JSON.stringify({ rowTop: s.rowTop, vh: s.vh, m: s.marks.length }));
+      await p3.keyboard.type('Then.'); await frames();
+    }
+    // a click on a line above (no scrolling) and arrow keys: nothing moves, the marks stay
+    const before = s;
+    const lineAbove = await p3.evaluate(() => { const ls = [...document.querySelectorAll('.cm-line')].filter(l => { const r = l.getBoundingClientRect(); return r.top > 120 && r.bottom < innerHeight / 2 - 60 && l.textContent.length > 10; }); const r = ls[0].getBoundingClientRect(); return { x: r.left + 60, y: r.top + r.height / 2 }; });
+    await p3.mouse.click(lineAbove.x, lineAbove.y); await frames();
+    s = await state();
+    ok(s.y === before.y && s.marks.length === 2 && Math.abs(s.marks[0].top - before.marks[0].top) < 0.01, 'typewriter: a click moves nothing and the marks stay', JSON.stringify({ y: s.y, by: before.y, m: s.marks.length }));
+    await p3.keyboard.press('ArrowDown'); await frames();
+    s = await state();
+    ok(s.y === before.y && s.marks.length === 2, 'typewriter: an arrow key moves nothing and the marks stay', JSON.stringify({ y: s.y, by: before.y }));
+    // the next keystroke brings that line between the marks
+    await p3.keyboard.type('x'); await frames();
+    s = await state();
+    ok(atMiddle(s) && marksOk(s), 'typewriter: the next keystroke brings the line to the middle, between the marks', JSON.stringify({ rowTop: s.rowTop, vh: s.vh, m: s.marks }));
+    // the reader scrolls: the marks go; the next keystroke brings them back
+    await p3.mouse.move(500, 400); await p3.mouse.wheel(0, -240); await p3.waitForTimeout(250); await frames();
+    s = await state();
+    ok(s.marks.length === 0, 'typewriter: scrolling hides the marks', JSON.stringify(s.marks));
+    await p3.keyboard.type('y'); await frames();
+    s = await state();
+    ok(atMiddle(s) && marksOk(s), 'typewriter: typing again brings the line and the marks back');
+    // a new size of the window hides them too
+    await p3.setViewportSize({ width: 1000, height: 760 }); await p3.waitForTimeout(150); await frames();
+    s = await state();
+    ok(s.marks.length === 0, 'typewriter: a new window size hides the marks');
+    await p3.setViewportSize({ width: 1000, height: 800 });
+    // Standard: no class, no marks, and typing at the end only brings the cursor into view
+    await load(tp('Standard') + scenes(40), -1); await frames();
+    await p3.keyboard.press('Enter'); await p3.keyboard.press('Enter'); await p3.keyboard.type('She waits.'); await frames();
+    s = await state();
+    ok(!s.tw && s.marks.length === 0, 'standard: no room below, no marks');
+    ok(!atMiddle(s) && s.caret && s.caret.bottom <= s.vh, 'standard: the cursor is only brought into view, not to the middle', JSON.stringify({ rowTop: s.rowTop, vh: s.vh }));
+    await p3.close();
+  }
   await browser.close();
   console.log((fails ? fails + ' failed' : 'all passed') + ' (' + checks + ' visual checks)');
   process.exit(fails ? 1 : 0);

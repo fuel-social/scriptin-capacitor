@@ -89,7 +89,45 @@ export function createEditor(host, opts){
   function flush(){
     if (!queue.length) return;
     var q = queue; queue = []; cstate = null;
+    var late = typedAt > Date.now() - TW_MS && twOn() ? twCenter(q) : null;
     view.update(q);
+    // a target behind the end of the text the view still had (typing at the very end of the script) would be cut back
+    // by CodeMirror to that old end: then the request comes in its own small update right after, against the new text
+    if (late) view.update([view.state.update({effects: late})]);
+  }
+  // ---- Typewriter (Typing: Typewriter on the title page, opts.typewriter()) ----
+  // Only typing moves the text: a keystroke that writes (a character, Enter, Tab, Backspace, Delete, paste, cut, an
+  // input method) marks the moment, and the next update that changes the text gets one more transaction asking
+  // CodeMirror to scroll the cursor to the middle of the window. It is the last one of the update, so it replaces
+  // CodeMirror's own "bring the cursor into view" and the page scrolls once, inside CodeMirror's own layout pass (no
+  // extra reading of the page). Clicks, arrow keys, Cmd+Z and the editor's commands clear the mark and scroll nothing.
+  // Near the top of the script the window cannot scroll that far: the text stays where it is.
+  var TW_MS = 400, typedAt = -1e9;
+  var tw = {pending: false, show: false, y: 0, w: 0, exp: null, drawn: false, count: 0};
+  function twOn(){ return !!(opts.typewriter && opts.typewriter()); }
+  function twCenter(q){
+    for (var i = 0; i < q.length; i++){
+      if (!q[i].docChanged) continue;
+      var st = q[q.length - 1].state, m = st.selection.main;
+      // the same target CodeMirror takes for the cursor itself, only to the middle
+      var r = m.empty ? m : EditorSelection.cursor(m.head, m.head > m.anchor ? -1 : 1), fx = EditorView.scrollIntoView(r, {y: 'center'});
+      tw.pending = true; tw.count++;
+      view.dom.classList.remove('sm-tw-off');
+      if (r.to > view.state.doc.length) return fx;
+      q.push(st.update({effects: fx}));
+      return null;
+    }
+    return null;
+  }
+  function typingKey(e){
+    if (e.isComposing) return true;
+    var k = e.key || '';
+    if (k === 'Enter') return !e.metaKey && !e.ctrlKey;
+    if (k === 'Tab') return !e.metaKey && !e.ctrlKey && !e.altKey;
+    if (k === 'Backspace' || k === 'Delete') return true;
+    // a character; Option on a Mac and AltGr (Ctrl+Alt) on Windows type characters too, Cmd and Ctrl are commands
+    if (k.length === 1) return !e.metaKey && (!e.ctrlKey || e.altKey);
+    return k === 'Process' || k === 'Dead' || k === 'Unidentified';
   }
   // as CodeMirror 5's clipPos: before the first line is its start, after the last line is the end of the last line
   function clip(p){
@@ -485,6 +523,42 @@ export function createEditor(host, opts){
     markers: caretMarkers,
     update: function(u){ return u.docChanged || u.selectionSet || u.focusChanged || u.viewportChanged || u.geometryChanged || u.transactions.some(function(t){ return t.reconfigured || t.effects.some(function(e){ return e.is(redraw); }); }); }
   });
+  // The two marks of the typewriter: short lines, 16 px into the editor from each frame line, at the top of the line
+  // being typed. They appear with a keystroke that holds that line at the middle of the window and stay, also through
+  // clicks and arrow keys, until the page scrolls by other means (the wheel, the scroll bar, a command) or the window
+  // changes size. Whether the line will stand at the middle is worked out here, before CodeMirror scrolls, from the
+  // same rectangle it centres: the window has to be able to scroll that far.
+  function twMarkers(v){
+    if (!twOn()){ tw.pending = false; tw.show = false; tw.drawn = false; return []; }
+    if (tw.pending){
+      tw.pending = false; tw.show = false;
+      var m = v.state.selection.main, assoc = m.empty ? (m.assoc || 1) : (m.head > m.anchor ? -1 : 1), c = v.coordsAtPos(m.head, assoc);
+      var win = host.ownerDocument.defaultView, vp = win.visualViewport, vh = vp ? vp.height : win.innerHeight;
+      var se = host.ownerDocument.scrollingElement || host.ownerDocument.documentElement;
+      if (c && vh){
+        var y = win.scrollY || win.pageYOffset || 0, to = y + (c.top + c.bottom) / 2 - vh / 2, max = se.scrollHeight - vh;
+        if (to >= -1 && to <= max + 1){
+          var lh = v.defaultLineHeight, blk = v.lineBlockAt(m.head), top0 = blk.top + v.documentTop, mid = (c.top + c.bottom) / 2;
+          var rowTop = top0 + Math.max(0, Math.floor((mid - top0) / lh)) * lh, sr = v.scrollDOM.getBoundingClientRect();
+          // relative to the scroller: the same before and after the window scrolls
+          tw.y = rowTop - (sr.top - v.scrollDOM.scrollTop); tw.w = v.scrollDOM.clientWidth; tw.show = true;
+          // the scroll CodeMirror is about to make (and any smooth scrolling towards it) is not the reader's
+          tw.exp = {from: y, to: Math.max(0, Math.min(max, to)), until: Date.now() + 1000};
+        }
+      }
+    }
+    if (!tw.show){ tw.drawn = false; return []; }
+    var dpr = win2().devicePixelRatio || 1, ty = Math.round(tw.y * dpr) / dpr - 1;
+    tw.drawn = true;
+    return [new RectangleMarker('sm-twmark', 0, ty, 16, 1), new RectangleMarker('sm-twmark', tw.w - 16, ty, 16, 1)];
+  }
+  function win2(){ return host.ownerDocument.defaultView || window; }
+  var twLayer = layer({
+    above: true,
+    class: 'sm-twmarks',
+    markers: twMarkers,
+    update: function(u){ return (tw.pending || tw.drawn) && (u.docChanged || u.selectionSet || u.viewportChanged || u.geometryChanged); }
+  });
   var bandLayer = layer({
     above: false,
     class: 'sm-bands',
@@ -529,6 +603,7 @@ export function createEditor(host, opts){
       drawSelection({cursorBlinkRate: 0}),
       bandLayer,
       caretLayer,
+      twLayer,
       EditorState.transactionFilter.of(filter),
       hiddenField,
       belowField,
@@ -540,6 +615,20 @@ export function createEditor(host, opts){
   });
   view = new EditorView({state: state, parent: host, dispatchTransactions: function(trs){ dispatchTransactions(trs); }});
   view.dom.addEventListener('mousedown', function(e){ fire('mousedown', e); });
+  // what counts as typing for the typewriter (capture: before CodeMirror handles the key)
+  view.dom.addEventListener('keydown', function(e){ typedAt = typingKey(e) ? Date.now() : -1e9; }, true);
+  view.dom.addEventListener('beforeinput', function(e){ if (!/^history/.test(e.inputType || '')) typedAt = Date.now(); }, true);
+  ['paste', 'cut', 'compositionend'].forEach(function(t){ view.dom.addEventListener(t, function(){ typedAt = Date.now(); }, true); });
+  view.dom.addEventListener('mousedown', function(){ typedAt = -1e9; }, true);
+  // the reader scrolls (or the window changes size): the marks go until the next keystroke
+  function twHide(){ if (!tw.show) return; tw.show = false; tw.exp = null; view.dom.classList.add('sm-tw-off'); }
+  win2().addEventListener('scroll', function(){
+    if (!tw.show) return;
+    var w = win2(), y = w.scrollY || w.pageYOffset || 0, e = tw.exp;
+    if (e && Date.now() < e.until && y >= Math.min(e.from, e.to) - 1 && y <= Math.max(e.from, e.to) + 1){ if (Math.abs(y - e.to) < 1) e.from = e.to; return; }
+    twHide();
+  }, {passive: true});
+  win2().addEventListener('resize', twHide);
 
   var cm = {
     view: view,
@@ -662,6 +751,10 @@ export function createEditor(host, opts){
     contentWidth: function(){ return view.contentDOM.clientWidth; },
     cursorElement: function(){ flush(); return view.dom.querySelector('.sm-caret') || view.dom.querySelector('.cm-cursor'); },
     version: function(){ return version; },
+    // the typewriter was switched on or off: no marks until the next keystroke
+    typewriterReset: function(){ tw.pending = false; tw.show = false; tw.exp = null; },
+    // how often typing asked for the middle (tests)
+    typewriterCount: function(){ return tw.count; },
     // measure line height and character width again (a stylesheet or font that arrived after the editor started)
     remeasure: function(){ flush(); view.dispatch({effects: themeComp.reconfigure(EditorView.theme({}))}); },
     // f runs when the editor next reads its layout (once, however often it is asked for before)
@@ -670,11 +763,13 @@ export function createEditor(host, opts){
     triggerOnKeyDown: function(e){
       var ev = new (host.ownerDocument.defaultView.KeyboardEvent)('keydown', {key: e.key, code: e.code || '', ctrlKey: !!e.ctrlKey, shiftKey: !!e.shiftKey, altKey: !!e.altKey, metaKey: !!e.metaKey, bubbles: true, cancelable: true});
       if (e.keyCode) try { Object.defineProperty(ev, 'keyCode', {get: function(){ return e.keyCode; }}); } catch (x){}
+      typedAt = typingKey(ev) ? Date.now() : -1e9;
       flush();
       runScopeHandlers(view, ev, 'editor');
     },
     typeText: function(text){
       flush();
+      typedAt = Date.now();
       var r = view.state.selection.main;
       view.dispatch({changes: {from: r.from, to: r.to, insert: text}, selection: EditorSelection.cursor(r.from + text.length), userEvent: 'input.type', scrollIntoView: true});
     }

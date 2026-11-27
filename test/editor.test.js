@@ -127,7 +127,7 @@ start(',JANE,\n(asda)'); enter(); enter(); doc('Enter twice after a parenthetica
 }
 
 // Title page: Cmd+Option+9 (here Ctrl+Shift+9) shows it, the first time as the bare commands between two ---; again hides it
-const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor: ' + a + '\n\n//SETTINGS\nPage size: ' + (size || 'A4') + '\nLanguage: ' + (lang || 'English') + '\nAutocomplete: ' + (auto || 'On') + '\nMode: ' + (mode || 'Day') + '\n\n---';
+const TP = (t, a, size, lang, mode, auto, typing) => '---\n\n//TITLE PAGE\nTitle: ' + t + '\nAuthor: ' + a + '\n\n//SETTINGS\nPage size: ' + (size || 'A4') + '\nLanguage: ' + (lang || 'English') + '\nAutocomplete: ' + (auto || 'On') + '\nTyping: ' + (typing || 'Standard') + '\nMode: ' + (mode || 'Day') + '\n\n---';
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   start('Action.'); k9();
@@ -137,15 +137,16 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   tab(); doc('Tab skips the heading and goes to Page size', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @8:13');
   tab(); doc('Tab goes on to Language', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @9:17');
   tab(); doc('Tab goes on to Autocomplete', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @10:16');
-  tab(); doc('Tab goes on to Mode', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @11:9');
-  tab(); doc('Tab stays on the last command', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @11:9');
-  enter(); type('Background: x'); doc('Enter after the last command starts a new command line right below', TP('Night', 'Fabrizio\nPeter', 'A4', 'English', 'Day\nBackground: x') + '\n\nAction. @12:13');
+  tab(); doc('Tab goes on to Typing', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @11:16');
+  tab(); doc('Tab goes on to Mode', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @12:9');
+  tab(); doc('Tab stays on the last command', TP('Night', 'Fabrizio\nPeter') + '\n\nAction. @12:9');
+  enter(); type('Background: x'); doc('Enter after the last command starts a new command line right below', TP('Night', 'Fabrizio\nPeter', 'A4', 'English', 'Day\nBackground: x') + '\n\nAction. @13:13');
   k9();
-  const hidden = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
-  const ok = hidden && cm.getCursor().line === 16;
+  const hidden = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
+  const ok = hidden && cm.getCursor().line === 17;
   if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'pressed again: hidden without any height, cursor below it');
   cm.setCursor({line:0, ch:0});
-  { const ok2 = cm.getCursor().line === 16; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
+  { const ok2 = cm.getCursor().line === 17; if (!ok2) fails++; console.log((ok2 ? 'ok   ' : 'FAIL ') + 'the cursor cannot enter the hidden title page'); }
   k9(); doc('shown again with what was typed, no second template', TP('Night', 'Fabrizio\nPeter', 'A4', 'English', 'Day\nBackground: x') + '\n\nAction. @3:12');
   cm.setCursor({line:5, ch:2}); tab(); doc('Tab from a second line goes to the next command', TP('Night', 'Fabrizio\nPeter', 'A4', 'English', 'Day\nBackground: x') + '\n\nAction. @8:13');
   k9();
@@ -159,9 +160,9 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   down(); doc('Down on Page size: US Letter', TP('Night', '', 'US Letter') + ' @7:20');
   down(); doc('again: back to A4', TP('Night', '', 'A4') + ' @7:13');
   tab(); down();
-  doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nModus: Tag\n\n--- @8:16');
-  down(); doc('Italiano', '---\n\n//FRONTESPIZIO\nTitolo: Night\nAutore: \n\n//IMPOSTAZIONI\nFormato: A4\nLingua: Italiano\nAutocompletamento: Attivo\nModalità: Giorno\n\n--- @8:16');
-  up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nModus: Tag\n\n--- @8:16');
+  doc('Down on Language: Deutsch, the title page in German', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nTippen: Standard\nModus: Tag\n\n--- @8:16');
+  down(); doc('Italiano', '---\n\n//FRONTESPIZIO\nTitolo: Night\nAutore: \n\n//IMPOSTAZIONI\nFormato: A4\nLingua: Italiano\nAutocompletamento: Attivo\nDigitazione: Standard\nModalità: Giorno\n\n--- @8:16');
+  up(); doc('Up goes back to Deutsch', '---\n\n//TITELSEITE\nTitel: Night\nAutor:in: \n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nTippen: Standard\nModus: Tag\n\n--- @8:16');
   up(); doc('and to English', TP('Night', '') + ' @8:17');
   cm.setCursor({line:6, ch:0}); cm.setCursor({line:7, ch:3}); up();
   { const ok = cm.getValue() === TP('Night', ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with the arrow keys the setting stays as it is'); }
@@ -176,17 +177,17 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   { const ok = /sm-set-on/.test(cm.getLineHandle(8).wrapClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'reached with Tab the chip is active (blue)'); }
   k9(); // hide again, then load an older script
   cm.setValue('---\nTitle: A\n---\n\nAction.'); cm.setCursor({line:6, ch:0}); k9();
-  doc('an older title page gets the heading and settings when shown', '---\n\n//TITLE PAGE\nTitle: A\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\nAction. @3:8');
+  doc('an older title page gets the heading and settings when shown', '---\n\n//TITLE PAGE\nTitle: A\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\nAction. @3:8');
   k9();
 }
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   start('.i HOUSE - DAY\n\nAction.'); k9();
-  const sp = cm.getLineHandle(12).wrapClass || '';
+  const sp = cm.getLineHandle(13).wrapClass || '';
   { const ok = !/sm-sp2/.test(sp); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'one empty line between title page and slugline'); }
-  k9(); cm.setCursor({line:13, ch:0});
+  k9(); cm.setCursor({line:14, ch:0});
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  doc('Backspace never joins a slugline to the hidden title page', TP('', '') + '\n\n.i HOUSE - DAY\n\nAction. @14:0');
+  doc('Backspace never joins a slugline to the hidden title page', TP('', '') + '\n\n.i HOUSE - DAY\n\nAction. @15:0');
   start('Background: she grew up here.\n\n.i HOUSE - DAY\n\nAction.');
   { const ok = !cm.getAllMarks().length && !/sm-t-note/.test(cm.getLineHandle(0).textClass || ''); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Background: in the script is plain action'); }
 }
@@ -201,17 +202,17 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const gone = [0,1,2,3,4,5,6].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || ''));
   { const ok = gone; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'hidden title page hides all its lines, cursor or not'); }
-  doc('showing adds the empty lines after and before ---', '---\n\n//TITLE PAGE\nTitle: A\n\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\n.i HOUSE - DAY\n\nAction. @15:0');
+  doc('showing adds the empty lines after and before ---', '---\n\n//TITLE PAGE\nTitle: A\n\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\n.i HOUSE - DAY\n\nAction. @16:0');
 }
 
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   // empty page: show the title page, type nothing, hide it again; the cursor goes to an empty script line at the left edge
   start(''); k9(); k9();
-  doc('hiding an untouched title page on an empty page leaves an empty script line below it', TP('', '') + '\n\n @14:0');
+  doc('hiding an untouched title page on an empty page leaves an empty script line below it', TP('', '') + '\n\n @15:0');
   type('F');
-  doc('typing then starts the script, the closing --- stays intact', TP('', '') + '\n\nF @14:1');
-  { const ok = [0,1,2,3,4,5,6,7,8,9,10,11,12].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page stays hidden while typing below it'); }
+  doc('typing then starts the script, the closing --- stays intact', TP('', '') + '\n\nF @15:1');
+  { const ok = [0,1,2,3,4,5,6,7,8,9,10,11,12,13].every(i => /sm-gone/.test(cm.getLineHandle(i).wrapClass || '')); if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page stays hidden while typing below it'); }
 }
 
 {
@@ -236,13 +237,13 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   // Locked: the commands Title: and Author: and the headings; the values stay free
   cm.setCursor({line:3, ch:7}); type('Night');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
-  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\n @3:11');
+  doc('the title can be typed and deleted', '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\n @3:11');
   cm.setCursor({line:3, ch:7}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.setCursor({line:3, ch:2}); type('x');
   cm.setCursor({line:2, ch:5}); type('x');
   cm.setCursor({line:4, ch:0}); cm.triggerOnKeyDown({ type:'keydown', keyCode:8, key:'Backspace', preventDefault(){}, stopPropagation(){} });
   cm.replaceRange('', {line:3, ch:0}, {line:4, ch:3}, '+delete');
-  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
+  { const ok = cm.getValue() === '---\n\n//TITLE PAGE\nTitle: Nigh\nAuthor: \n\n//SETTINGS\nPage size: US Letter\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\n'; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'Title:, Author: and the headings cannot be changed or deleted' + (ok ? '' : ' -> ' + JSON.stringify(cm.getValue()))); }
 }
 
 // Tab on an empty script below a title page starts the ring at .i, like an empty page
@@ -287,7 +288,7 @@ const TP = (t, a, size, lang, mode, auto) => '---\n\n//TITLE PAGE\nTitle: ' + t 
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const undo = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:90, key:'z', ctrlKey:true, preventDefault(){}, stopPropagation(){} });
   const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
-  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\nAction.';
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\nAction.';
   cm.setValue(T); cm.clearHistory();
   if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   cm.setCursor({line:3, ch:8}); type('x');
@@ -452,7 +453,7 @@ cm.setValue(full + '\n\nOne more.');
   cm.setValue('.i HOUSE - DAY\n\nAnna waits at the window.'); typ('//', () => ({line:2, ch:cm.getLine(2).indexOf('A')}));
   same('// typed in front of a paragraph turns it into a note', '.i HOUSE - DAY\n\n//Anna waits at the window.');
   const longTitle = 'T'.repeat(450);
-  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---\n\nAction.');
+  cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\nAction.');
   cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} }); // show the title page (it starts hidden, read only)
   cm.replaceRange(longTitle, {line:3, ch:7}, {line:3, ch:7}, '+input');
   { const ok = cm.getLine(3) === 'Title: ' + longTitle; if (!ok) fails++; console.log((ok ? 'ok   ' : 'FAIL ') + 'the title page headings (//TITLE PAGE) are no notes: a long title goes in'); }
@@ -606,16 +607,16 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
 {
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
-  const off = lang => lang === 'de' ? '---\n\n//TITELSEITE\nTitel: A\nAutor:in: B\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Aus\nModus: Tag\n\n---\n\n'
-    : '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nMode: Day\n\n---\n\n';
+  const off = lang => lang === 'de' ? '---\n\n//TITELSEITE\nTitel: A\nAutor:in: B\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Aus\nTippen: Standard\nModus: Tag\n\n---\n\n'
+    : '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nTyping: Standard\nMode: Day\n\n---\n\n';
   const body = '.i HOUSE - LIVING ROOM - DAY\n\n,ANNA,\nHi.\n\n';
-  start(off('en') + body); type('.ih'); check('Off: no location completion', '".i H" cursor 19:4');
-  type('ouse - l'); check('Off: no second location', '".i HOUSE - L" cursor 19:12');
-  type('iving room - d'); check('Off: no time of day', '".i HOUSE - LIVING ROOM - D" cursor 19:26');
-  start(off('en') + body); type(',a'); check('Off: no name completion', '",A," cursor 19:2');
-  start(off('en') + body); type('.t'); check('Off: transitions still come', '".t CUT TO:" cursor 19:10');
-  start(off('de') + body); type(',a'); check('Aus (Deutsch): no name completion', '",A," cursor 19:2');
-  start(off('en').replace('Off', 'On') + body); type(',a'); check('On: names complete', '",ANNA," cursor 19:2 selected "NNA"');
+  start(off('en') + body); type('.ih'); check('Off: no location completion', '".i H" cursor 20:4');
+  type('ouse - l'); check('Off: no second location', '".i HOUSE - L" cursor 20:12');
+  type('iving room - d'); check('Off: no time of day', '".i HOUSE - LIVING ROOM - D" cursor 20:26');
+  start(off('en') + body); type(',a'); check('Off: no name completion', '",A," cursor 20:2');
+  start(off('en') + body); type('.t'); check('Off: transitions still come', '".t CUT TO:" cursor 20:10');
+  start(off('de') + body); type(',a'); check('Aus (Deutsch): no name completion', '",A," cursor 20:2');
+  start(off('en').replace('Off', 'On') + body); type(',a'); check('On: names complete', '",ANNA," cursor 20:2 selected "NNA"');
   // Up/Down on the active Autocomplete line, in the script's language
   start('Action.'); k9(); if (!/^---/.test(cm.getValue()) || /sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); tab(); tab(); tab(); tab();
   eq2('Tab reaches Autocomplete: On', cm.getLine(cm.getCursor().line), 'Autocomplete: On');
@@ -625,35 +626,83 @@ cm.setValue('Action.\n/pdf'); eq2('/pdf inside a paragraph: not a command', /sm-
   eq2('Language to Deutsch: Off becomes Aus', cm.getLine(9), 'Autovervollständigung: Aus');
   down(); eq2('Italiano: Disattivo', cm.getLine(9), 'Autocompletamento: Disattivo');
   k9();
-  // A title page from before Autocomplete gets it, on, right above Mode
+  // A title page from before Autocomplete and Typing gets them, On and Standard, right above Mode
   cm.setValue('---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nMode: Night\n\n---\n\nAction.');
   if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
   k9();
-  eq2('an older title page gets Autocomplete: On above Mode', cm.getValue().split('\n').slice(7, 11).join(' | '), 'Page size: A4 | Language: English | Autocomplete: On | Mode: Night');
+  eq2('an older title page gets Autocomplete: On and Typing: Standard above Mode', cm.getValue().split('\n').slice(7, 12).join(' | '), 'Page size: A4 | Language: English | Autocomplete: On | Typing: Standard | Mode: Night');
   k9();
   // Without a title page completion is on
   start('.i HOUSE - DAY\n\n'); type('.eh'); check('no title page: on', '".e HOUSE" cursor 2:4 selected "OUSE"');
 }
 
+// Typing on the title page: Standard or Typewriter (the line being typed stays at the middle of the window)
+{
+  const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
+  const down = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:40, key:'ArrowDown', preventDefault(){}, stopPropagation(){} });
+  const keyOf = (key, code, mods) => cm.triggerOnKeyDown(Object.assign({ type:'keydown', keyCode:code, key, preventDefault(){}, stopPropagation(){} }, mods || {}));
+  const host = w.document.getElementById('sm-editor');
+  const tp = t => '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: ' + t + '\nMode: Day\n\n---\n\n';
+  // Up/Down on the active Typing line, in the script's language
+  start('Action.'); k9(); if (!/^---/.test(cm.getValue()) || /sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); tab(); tab(); tab(); tab(); tab();
+  eq2('Tab reaches Typing: Standard', cm.getLine(cm.getCursor().line), 'Typing: Standard');
+  eq2('Standard: the editor has no room below for the typewriter', host.classList.contains('sm-typewriter'), false);
+  down(); eq2('Down: Typewriter', cm.getLine(10), 'Typing: Typewriter');
+  eq2('Typewriter: the editor gets room below its last line', host.classList.contains('sm-typewriter'), true);
+  down(); eq2('again: Standard', cm.getLine(10), 'Typing: Standard');
+  eq2('Standard again: no room below', host.classList.contains('sm-typewriter'), false);
+  down(); cm.setCursor({line:7, ch:3}); tab(); down();
+  eq2('Language to Deutsch: Typewriter becomes Schreibmaschine', cm.getLine(10), 'Tippen: Schreibmaschine');
+  down(); eq2('Italiano: Macchina da scrivere', cm.getLine(10), 'Digitazione: Macchina da scrivere');
+  eq2('still the typewriter in Italian', host.classList.contains('sm-typewriter'), true);
+  k9();
+  // a value typed in another language or in English is read too
+  cm.setValue('---\n\n//TITELSEITE\nTitel: A\nAutor:in: B\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Ein\nTippen: Typewriter\nModus: Tag\n\n---\n\nAction.');
+  eq2('Tippen: Typewriter (an English value in German) is the typewriter', host.classList.contains('sm-typewriter'), true);
+  eq2('and is written in German', cm.getLine(10), 'Tippen: Schreibmaschine');
+  // Only typing asks for the middle of the window: characters, Enter, Backspace; not arrows, clicks, Cmd+Z or Reformat
+  start(tp('Typewriter') + '.i HOUSE - DAY\n\nAction.');
+  let n = cm.typewriterCount();
+  type('x'); eq2('Typewriter: a typed character centres the line', cm.typewriterCount(), n + 1);
+  keyOf('Enter', 13); eq2('Enter centres it', cm.typewriterCount(), n + 2);
+  keyOf('Backspace', 8); eq2('Backspace centres it', cm.typewriterCount(), n + 3);
+  n = cm.typewriterCount();
+  keyOf('ArrowUp', 38); keyOf('ArrowDown', 40); eq2('arrow keys do not', cm.typewriterCount(), n);
+  cm.setCursor({line:15, ch:2}); eq2('a click (the cursor placed) does not', cm.typewriterCount(), n);
+  keyOf('z', 90, { ctrlKey:true }); eq2('Cmd+Z does not', cm.typewriterCount(), n);
+  keyOf('Enter', 13, { ctrlKey:true, shiftKey:true }); eq2('Reformat does not', cm.typewriterCount(), n);
+  start(tp('Standard') + 'Action.'); n = cm.typewriterCount();
+  type('x'); keyOf('Enter', 13); eq2('Standard: typing scrolls nothing extra', cm.typewriterCount(), n);
+  // without a title page: Standard
+  start('Action.'); n = cm.typewriterCount(); type('x');
+  eq2('no title page: Standard', cm.typewriterCount() === n && !host.classList.contains('sm-typewriter'), true);
+  // A title page from before Typing gets it, Standard, right above Mode, in its own language
+  cm.setValue('---\n\n//TITELSEITE\nTitel: A\nAutor:in: B\n\n//EINSTELLUNGEN\nSeitenformat: A4\nSprache: Deutsch\nAutovervollständigung: Aus\nModus: Nacht\n\n---\n\nAction.');
+  if (!/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9();
+  k9();
+  eq2('an older German title page gets Tippen: Standard above Modus', cm.getValue().split('\n').slice(9, 12).join(' | '), 'Autovervollständigung: Aus | Tippen: Standard | Modus: Nacht');
+  k9();
+}
+
 // Tab on the closing --- of the title page starts the script with .i
 {
-  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nMode: Day\n\n---';
+  const T = '---\n\n//TITLE PAGE\nTitle: A\nAuthor: B\n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---';
   const k9 = () => cm.triggerOnKeyDown({ type:'keydown', keyCode:57, key:'9', ctrlKey:true, shiftKey:true, preventDefault(){}, stopPropagation(){} });
   const show = () => { if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); };
   for (const [label, text, want] of [
-    ['nothing below: .i two lines below ---', T, T + '\n\n.i  @14:3'],
-    ['empty lines below: .i two lines below ---', T + '\n\n', T + '\n\n.i  @14:3'],
-    ['script below: .i in front of it', T + '\n\nAction.', T + '\n\n.i \n\nAction. @14:3']]){
-    cm.setValue(text); show(); cm.setCursor({line:12, ch:3}); tab(); doc(label, want);
+    ['nothing below: .i two lines below ---', T, T + '\n\n.i  @15:3'],
+    ['empty lines below: .i two lines below ---', T + '\n\n', T + '\n\n.i  @15:3'],
+    ['script below: .i in front of it', T + '\n\nAction.', T + '\n\n.i \n\nAction. @15:3']]){
+    cm.setValue(text); show(); cm.setCursor({line:13, ch:3}); tab(); doc(label, want);
   }
-  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(12).wrapClass || '') || cm.getCursor().line < 12) k9(); cm.setCursor({line:12, ch:3}); tab(); tab();
-  doc('Tab again goes on in the ring: .e', T + '\n\n.e  @14:3');
-  cm.setValue(T + '\n'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:13, ch:0}); tab();
-  doc('Tab on the empty line right below ---: .i with an empty line between, cursor on it', T + '\n\n.i  @14:3');
-  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:12, ch:3}); tab();
-  doc('Tab on --- as the very last line: cursor on the new .i', T + '\n\n.i  @14:3');
-  cm.setValue(T + '\n\nAction.'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:13, ch:0}); tab();
-  doc('the same above existing text: .i in front of it', T + '\n\n.i \n\nAction. @14:3');
+  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(13).wrapClass || '') || cm.getCursor().line < 13) k9(); cm.setCursor({line:13, ch:3}); tab(); tab();
+  doc('Tab again goes on in the ring: .e', T + '\n\n.e  @15:3');
+  cm.setValue(T + '\n'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:14, ch:0}); tab();
+  doc('Tab on the empty line right below ---: .i with an empty line between, cursor on it', T + '\n\n.i  @15:3');
+  cm.setValue(T); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:13, ch:3}); tab();
+  doc('Tab on --- as the very last line: cursor on the new .i', T + '\n\n.i  @15:3');
+  cm.setValue(T + '\n\nAction.'); if (/sm-gone/.test(cm.getLineHandle(0).wrapClass || '')) k9(); cm.setCursor({line:14, ch:0}); tab();
+  doc('the same above existing text: .i in front of it', T + '\n\n.i \n\nAction. @15:3');
   k9();
 }
 
@@ -803,7 +852,7 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
 // Final Draft import (test/fdx/*.fdx): elements, extensions, language, page size, the page limit, undo
 { const fs = require('fs'), path = require('path');
   const fdx = n => fs.readFileSync(path.join(__dirname, 'fdx', n + '.fdx'), 'utf8');
-  const imp = n => { cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nMode: Night\n\n---\n\n.i OLD - DAY\n\nOld script.'); cm.clearHistory(); return cm.smImportFdx(fdx(n)); };
+  const imp = n => { cm.setValue('---\n\n//TITLE PAGE\nTitle: \nAuthor: \n\n//SETTINGS\nPage size: A4\nLanguage: English\nAutocomplete: Off\nTyping: Typewriter\nMode: Night\n\n---\n\n.i OLD - DAY\n\nOld script.'); cm.clearHistory(); return cm.smImportFdx(fdx(n)); };
   const body = () => cm.getValue().split('\n---\n')[1].trim();
   const pre = k => (cm.getValue().match(new RegExp('^' + k + ': ?(.*)$', 'm')) || [])[1];
   let r = imp('en');
@@ -811,7 +860,7 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
   eq2('every Final Draft element mapped', body(), '.act_new ACT ONE\n\n.i BAR - DAY\n\nTwo men sip beers in *complete* silence. The _door_ opens.\n\n,DAVID (V.O.),\n(quietly)\nAren\'t you afraid of A.I. taking your job?\n\n,SAM,\nYeah, but what can I do?\n\n,DAVID (ON PHONE),\nLearn to fly.\n\n// check the timing here\n\n.s CLOSE ON THE GLASS\n\n.t CUT TO:\n\n.ei CAR - NIGHT\n\nIt is raining and the wipers are slow.\n\n,DAVID,\nLeft.\n\n,SAM,\nRight.\n\n// They argue.\n\n.act_end END OF ACT ONE');
   eq2('title and author from the title page', pre('Title') + ' / ' + pre('Author'), 'Learn To Fly / Fabrizio Test');
   eq2('page size from the file', pre('Page size'), 'US Letter');
-  eq2('Mode and Autocomplete stay as they were', pre('Mode') + ' / ' + pre('Autocomplete'), 'Night / Off');
+  eq2('Mode, Autocomplete and Typing stay as they were', pre('Mode') + ' / ' + pre('Autocomplete') + ' / ' + pre('Typing'), 'Night / Off / Typewriter');
   cm.execCommand('undo');
   eq2('one Cmd+Z brings the old script back', /\.i OLD - DAY\n\nOld script\./.test(cm.getValue()) && !/BAR/.test(cm.getValue()), true);
   r = imp('de');
@@ -842,7 +891,7 @@ eq2('Enter after the / of /Test makes a new line', JSON.stringify(cm.getValue())
 
 // /fuel, what goes to the server: marked plain text, the script language as en_us/de_de/it_it, title and author
 {
-  const tp = '---\n\n//TITLE PAGE\nTitle: Bottleneck\nAuthor: Fabrizio\n\n//SETTINGS\nPage size: A4\nLanguage: Deutsch\nAutocomplete: On\nMode: Day\n\n---\n\n';
+  const tp = '---\n\n//TITLE PAGE\nTitle: Bottleneck\nAuthor: Fabrizio\n\n//SETTINGS\nPage size: A4\nLanguage: Deutsch\nAutocomplete: On\nTyping: Standard\nMode: Day\n\n---\n\n';
   const sc = cm.smFuelScene(tp + '.act_new ACT ONE\n\n.i küche - nacht\n\n// a note\n\nSie _wartet_ *lange*.\nDann geht sie.\n\n,ANNA (OFF),\nHallo.\n(leise)\nJa.\n\n,TOM,\n(seufzt)\n\n,,\nNein.\n\n.s close on the letter\n\n.t SCHNITT AUF:\n\n===\n\n/fuel MARA');
   eq2('fuel scene: elements and marks', JSON.stringify(sc.scene), JSON.stringify('S INNEN. KÜCHE - NACHT\nA Sie wartet lange.\nA Dann geht sie.\nC ANNA (OFF)\nD Hallo.\nP (leise)\nD Ja.\nC ANNA\nD Nein.\nH CLOSE ON THE LETTER\nT SCHNITT AUF:'));
   eq2('fuel scene: language, title, author', sc.language + ' ' + sc.title + ' ' + sc.author, 'de_de Bottleneck Fabrizio');

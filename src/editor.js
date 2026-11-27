@@ -46,15 +46,15 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   var FENCE = /^---\s*$/, CMD = /^[A-Za-zÀ-ÿ][\wÀ-ÿ ]*:/;
   // Script settings on the title page. Language names the headings and commands of the title page in that language, and
   // (for the export, still to come) how .i .e .ie .ei are printed; English and A4 by default.
-  // Up/Down on an active Page size, Language, Autocomplete or Mode line steps through the values
+  // Up/Down on an active Page size, Language, Autocomplete, Typing or Mode line steps through the values
   var LANGS = [
-    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language', auto:'Autocomplete', mode:'Mode'}, modes:['Day', 'Night'], autos:['On', 'Off'], slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
+    {name:'English', code:'en', head:{title:'TITLE PAGE', settings:'SETTINGS'}, cmd:{title:'Title', author:'Author', size:'Page size', lang:'Language', auto:'Autocomplete', typing:'Typing', mode:'Mode'}, modes:['Day', 'Night'], autos:['On', 'Off'], typings:['Standard', 'Typewriter'], slug:{I:'INT.', E:'EXT.', IE:'I/E.', EI:'I/E.'}, credit:'Written by', more:'(MORE)',
      time:['DAY', 'NIGHT', 'MORNING', 'AFTERNOON', 'EVENING', 'DAWN', 'DUSK', 'MAGIC HOUR', 'CONTINUOUS', 'LATER', 'MOMENTS LATER', 'SAME', 'SAME TIME', 'THE NEXT DAY'], ext:['V.O.', 'O.S.', 'O.C.', "CONT'D"],
      trans:['CUT TO:', 'FADE IN:', 'FADE OUT.', 'FADE TO:', 'DISSOLVE TO:', 'BACK TO:', 'MATCH CUT TO:', 'JUMP CUT TO:', 'FADE TO BLACK.', 'SMASH CUT TO:', 'CUT TO BLACK.', 'TIME CUT:']},
-    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', auto:'Autovervollständigung', mode:'Modus'}, modes:['Tag', 'Nacht'], autos:['Ein', 'Aus'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
+    {name:'Deutsch', code:'de', head:{title:'TITELSEITE', settings:'EINSTELLUNGEN'}, cmd:{title:'Titel', author:'Autor:in', size:'Seitenformat', lang:'Sprache', auto:'Autovervollständigung', typing:'Tippen', mode:'Modus'}, modes:['Tag', 'Nacht'], autos:['Ein', 'Aus'], typings:['Standard', 'Schreibmaschine'], slug:{I:'INNEN.', E:'AUSSEN.', IE:'INNEN/AUSSEN.', EI:'INNEN/AUSSEN.'}, credit:'Drehbuch von', more:'(MEHR)',
      time:['TAG', 'NACHT', 'MORGEN', 'NACHMITTAG', 'ABEND', 'MORGENDÄMMERUNG', 'ABENDDÄMMERUNG', 'MAGIC HOUR', 'CONTINUOUS', 'SPÄTER', 'MOMENTE SPÄTER', 'GLEICH', 'GLEICHE ZEIT', 'AM NÄCHSTEN TAG'], ext:['OFF', 'OFF', 'OFF', 'WEITER'],
      trans:['SCHNITT AUF:', 'AUFBLENDE:', 'ABBLENDE.', 'BLENDE AUF:', 'ÜBERBLENDE AUF:', 'ZURÜCK ZU:', 'MATCH CUT AUF:', 'JUMP CUT AUF:', 'ABBLENDE ZU SCHWARZ.', 'SMASH CUT AUF:', 'SCHNITT ZU SCHWARZ.', 'ZEITSCHNITT:']},
-    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', auto:'Autocompletamento', mode:'Modalità'}, modes:['Giorno', 'Notte'], autos:['Attivo', 'Disattivo'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
+    {name:'Italiano', code:'it', head:{title:'FRONTESPIZIO', settings:'IMPOSTAZIONI'}, cmd:{title:'Titolo', author:'Autore', size:'Formato', lang:'Lingua', auto:'Autocompletamento', typing:'Digitazione', mode:'Modalità'}, modes:['Giorno', 'Notte'], autos:['Attivo', 'Disattivo'], typings:['Standard', 'Macchina da scrivere'], slug:{I:'INT.', E:'EST.', IE:'INT./EST.', EI:'INT./EST.'}, credit:'Sceneggiatura di', more:'(CONTINUA)',
      time:['GIORNO', 'NOTTE', 'MATTINA', 'POMERIGGIO', 'SERA', 'ALBA', 'TRAMONTO', 'ORA MAGICA', 'CONTINUO', 'PIÙ TARDI', 'POCO DOPO', 'STESSO', 'STESSO MOMENTO', 'IL GIORNO DOPO'], ext:['V.O.', 'F.C.', 'F.C.', 'CONT.'],
      trans:['STACCO SU:', 'DISSOLVENZA IN ENTRATA:', 'DISSOLVENZA IN USCITA.', 'DISSOLVENZA SU:', 'DISSOLVENZA INCROCIATA:', 'RITORNO A:', 'MATCH CUT SU:', 'JUMP CUT SU:', 'DISSOLVENZA AL NERO.', 'STACCO NETTO SU:', 'STACCO AL NERO.', 'STACCO TEMPORALE:']}
   ];
@@ -71,7 +71,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
   function preTemplate(L){
     return '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': \n' + L.cmd.author + ': \n\n' + preSettings(L, 'A4') + '\n\n---';
   }
-  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[0] + '\n' + L.cmd.mode + ': ' + L.modes[0]; }
+  function preSettings(L, size){ return '//' + L.head.settings + '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[0] + '\n' + L.cmd.typing + ': ' + L.typings[0] + '\n' + L.cmd.mode + ': ' + L.modes[0]; }
   // Mode of this script: 0 day, 1 night (colours of OptS_theme_ui light and dark); the value in any language, Day by default
   var THEMES = ['light', 'dark'];
   function modeOf(v){
@@ -85,6 +85,13 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     var b = bare(v || '');
     for (var l = 0; l < LANGS.length; l++){ if (b === bare(LANGS[l].autos[1])) return 1; }
     return b === 'off' ? 1 : 0;
+  }
+  // Typing of this script: 0 standard, 1 typewriter (the line being typed stays at the middle of the window and the
+  // text moves up, see the typewriter in cm6compat); the value in any language, standard by default
+  function typingOf(v){
+    var b = bare(v || '');
+    for (var l = 0; l < LANGS.length; l++){ if (b === bare(LANGS[l].typings[1])) return 1; }
+    return b === 'typewriter' ? 1 : 0;
   }
   function bare(v){ return v.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
   // Language from a typed value: its own name or its two letter code, accents and case do not matter; null if unknown
@@ -1127,7 +1134,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     // The editor grows with its text and has no scroll bar of its own: the browser page has the only one, and CodeMirror 6
     // draws only the lines in and near the window
     var cm = null;
+    // Typing: Typewriter on the title page (see applyTyping); cm6compat asks for it on every keystroke, so it is a variable
+    var typingOn = 0;
     cm = createEditor(host, {value:linked ? '' : saved, readOnly:linked, lineTokens:function(n, s){ return cm ? lineTokens(n, s) : []; },
+      typewriter:function(){ return typingOn === 1; },
       // the colour bands behind the text (see cm6compat): slugline bars from frame to frame, cue boxes around the name,
       // shot blocks 16px beyond the text on both sides, transition blocks from 16px before the text to the frame
       bands:function(n, s){
@@ -1155,7 +1165,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (!c) return out;
         var at = c.label.length + 1;
         while (at < s.length && s.charAt(at) === ' ') at++;
-        if (at < s.length) out.push([at, s.length, c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'mode' ? 'cm-smsetval' : 'cm-smfield']);
+        if (at < s.length) out.push([at, s.length, c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'typing' || c.key === 'mode' ? 'cm-smsetval' : 'cm-smfield']);
         return out;
       }
       if (n === te || isBlank(s)) return out;
@@ -1985,17 +1995,17 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       put('.t ' + list[idx], {line:ln, ch:0}, {line:ln, ch:s.length});
       caret(ln, line(ln).length);
     }
-    // A Page size, Language, Autocomplete or Mode line of the title page: 'size', 'lang', 'auto' or 'mode', else null
+    // A Page size, Language, Autocomplete, Typing or Mode line of the title page: 'size', 'lang', 'auto', 'typing' or 'mode', else null
     function settingOf(ln){
       var te = preEnd();
       if (ln <= 0 || ln >= te) return null;
       var c = cmdOf(line(ln));
-      return c && (c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'mode') ? c.key : null;
+      return c && (c.key === 'size' || c.key === 'lang' || c.key === 'auto' || c.key === 'typing' || c.key === 'mode') ? c.key : null;
     }
     // Up/Down on an active setting step through its values, in a circle
     function settingArrow(ln, dir){
-      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : c.key === 'mode' ? scriptLang().modes : c.key === 'auto' ? scriptLang().autos : LANGS.map(function(L){ return L.name; });
-      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : c.key === 'mode' ? vals[modeOf(c.value)] : c.key === 'auto' ? vals[autoOf(c.value)] : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
+      var c = cmdOf(line(ln)), vals = c.key === 'size' ? SIZES : c.key === 'mode' ? scriptLang().modes : c.key === 'auto' ? scriptLang().autos : c.key === 'typing' ? scriptLang().typings : LANGS.map(function(L){ return L.name; });
+      var cur = c.key === 'size' ? (c.value.trim() ? sizeOf(c.value) : '') : c.key === 'mode' ? vals[modeOf(c.value)] : c.key === 'auto' ? vals[autoOf(c.value)] : c.key === 'typing' ? vals[typingOf(c.value)] : ((langOf(c.value) || {}).name || ''), i = vals.indexOf(cur);
       i = i < 0 ? 0 : (i + dir + vals.length) % vals.length;
       // the new value and the renamed headings and commands are one change, so one Cmd+Z takes both back
       cm.operation(function(){
@@ -2704,7 +2714,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
     }, {passive:true});
     function toggleScenes(){ scenesOn = !scenesOn; paginatePages(); }
     // ---- Final Draft import: an .fdx file dropped anywhere on the page replaces the script ----
-    // The script's language decides the title page's words; Mode and Autocomplete stay as they were, the page size comes
+    // The script's language decides the title page's words; Mode, Autocomplete and Typing stay as they were, the page size comes
     // from the file (the current one when it does not say). Only the first MAX_PAGES pages are taken: the text is cut
     // where page MAX_PAGES + 1 would begin. One change, so Cmd+Z brings the old script back.
     // Returns {ok, reason, lang, cut}; reason 'notfdx' (not a Final Draft script), 'language' (not English, German
@@ -2714,10 +2724,10 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       var r = readFdx(xml, window.DOMParser, LANGS, extIndex);
       if (!r.ok) return r;
       var L = r.lang, te = preEnd(), size = r.size || sizeOf(preValue(line, te, 'size'));
-      var mode = modeOf(preValue(line, te, 'mode') || ''), auto = autoOf(preValue(line, te, 'auto') || '');
+      var mode = modeOf(preValue(line, te, 'mode') || ''), auto = autoOf(preValue(line, te, 'auto') || ''), typing = typingOf(preValue(line, te, 'typing') || '');
       var one = function(v){ return (v || '').replace(/\s+/g, ' ').trim(); };
       var pre = '---\n\n//' + L.head.title + '\n' + L.cmd.title + ': ' + one(r.title) + '\n' + L.cmd.author + ': ' + one(r.author) + '\n\n//' + L.head.settings +
-        '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[auto] + '\n' + L.cmd.mode + ': ' + L.modes[mode] + '\n\n---';
+        '\n' + L.cmd.size + ': ' + size + '\n' + L.cmd.lang + ': ' + L.name + '\n' + L.cmd.auto + ': ' + L.autos[auto] + '\n' + L.cmd.typing + ': ' + L.typings[typing] + '\n' + L.cmd.mode + ': ' + L.modes[mode] + '\n\n---';
       var text = pre + (r.body ? '\n\n' + r.body : '') + '\n', cut = false;
       for (var guard = 0; guard < 5; guard++){
         var st = layout(text, false).starts;
@@ -2855,8 +2865,8 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       for (var k = 1; k < te; k++){
         var s = line(k), h = headOf(s), c = cmdOf(s);
         // values only come from Up/Down; anything else (an older typed value) becomes the proper one
-        if (c && (c.key === 'lang' || c.key === 'size' || c.key === 'auto' || c.key === 'mode')){
-          var want = ' ' + (c.key === 'lang' ? L.name : c.key === 'mode' ? L.modes[modeOf(c.value)] : c.key === 'auto' ? L.autos[autoOf(c.value)] : sizeOf(c.value));
+        if (c && (c.key === 'lang' || c.key === 'size' || c.key === 'auto' || c.key === 'typing' || c.key === 'mode')){
+          var want = ' ' + (c.key === 'lang' ? L.name : c.key === 'mode' ? L.modes[modeOf(c.value)] : c.key === 'auto' ? L.autos[autoOf(c.value)] : c.key === 'typing' ? L.typings[typingOf(c.value)] : sizeOf(c.value));
           if (c.value !== want){ cm.replaceRange(want, {line:k, ch:c.label.length + 1}, {line:k, ch:s.length}, '+pre'); s = line(k); c = cmdOf(s); }
         }
         if (h && s !== '//' + L.head[h]) cm.replaceRange('//' + L.head[h], {line:k, ch:0}, {line:k, ch:s.length}, '+pre');
@@ -2903,10 +2913,19 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
         if (full) DEC.seen = cm.changeSeq();
         DEC.dirty = null; DEC.full = false; DEC.te = te; DEC.lang = lang; DEC.ready = ready;
       });
-      belowPre(); paginatePages(DEC.rng); applyTheme(); undoing = false;
+      belowPre(); paginatePages(DEC.rng); applyTheme(); applyTyping(); undoing = false;
     }
     // Day or Night from the title page: the colours of OptS_theme_ui light or dark for the editor and the page behind it;
     // colorBlue of the other theme is the cursor on shot bars
+    // Typing from the title page: Standard, or Typewriter (the line being typed stays at the middle of the window, see
+    // cm6compat). The class sm-typewriter gives the editor room below its last line, so that line can reach the middle too
+    function applyTyping(){
+      var t = typingOf(preValue(line, preEnd(), 'typing'));
+      if (t === typingOn) return;
+      typingOn = t;
+      host.classList.toggle('sm-typewriter', t === 1);
+      cm.typewriterReset();
+    }
     var themeOn = -1;
     function applyTheme(){
       var m = modeOf(preValue(line, preEnd(), 'mode'));
@@ -3040,6 +3059,14 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
           cm.replaceRange(AL.cmd.auto + ': ' + AL.autos[0] + '\n', {line:ak, ch:0}, null, '+pre');
           r = preRange();
         }
+        // Settings from before the Typing line get it, Standard, right above Mode
+        if (preValue(line, r.e, 'typing') === null && preValue(line, r.e, 'mode') !== null){
+          refresh();
+          var TL = langOf(preValue(line, r.e, 'lang') || '') || LANGS[0];
+          for (var tk = 1; tk < r.e; tk++){ var tc = cmdOf(line(tk)); if (tc && tc.key === 'mode') break; }
+          cm.replaceRange(TL.cmd.typing + ': ' + TL.typings[0] + '\n', {line:tk, ch:0}, null, '+pre');
+          r = preRange();
+        }
         // A title page without its heading gets it, in its own language
         var hasHead = false;
         for (var hk = 1; hk < r.e; hk++){ if (headOf(line(hk)) === 'title') hasHead = true; }
@@ -3107,7 +3134,7 @@ var CodeMirror = {Pass: Pass, cmpPos: cmpPos, changeEnd: changeEnd};
       // an export command can be started there, anything printed is refused by the page count
       return Math.max(2, (MAX_PAGES - (before + run.starts.length + 1)) * lines + (lines - run.y));
     }
-    // Page size, Language, Autocomplete and Mode lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
+    // Page size, Language, Autocomplete, Typing and Mode lines cannot be typed in or deleted on their own; Up/Down change the value. A change that
     // takes the whole line with it (a selection from above to below it) still works
     // Invisible control characters (Ctrl+Option+Z on a Mac types one, CodeMirror shows them as red dots) never get in
     var CTRL = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u2028\u2029\uFEFF]/g;
